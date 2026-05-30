@@ -19,7 +19,18 @@ export class RenderView {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly canvas: HTMLCanvasElement;
   private readonly objects = new Map<EntityId, THREE.Object3D>();
+
+  // Picking + build affordances. The raycaster/scratch vectors are reused to avoid per-call
+  // allocation. The highlight marks the cell a carried part would snap to; the shadow grounds
+  // the carried part to the surface below it (both are pure view polish, owned here, not state).
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly ndc = new THREE.Vector2();
+  private readonly dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private readonly hitPoint = new THREE.Vector3();
+  private readonly cellHighlight: THREE.LineSegments;
+  private readonly carryShadow: THREE.Mesh;
 
   // Orbit camera. The starting offset (9, 11, 13) seeds the default distance and bearing; the
   // pitch is fixed near-overhead (no tilt control). Zoom moves the radius in/out, rotate spins
@@ -36,6 +47,7 @@ export class RenderView {
   private readonly models = new ModelLoader();
 
   constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     this.scene.background = new THREE.Color(0x1a1a1a);
 
     // Derive the spherical camera params from the authored offset: radius = its length,
@@ -67,6 +79,25 @@ export class RenderView {
     this.scene.add(ground);
     this.scene.add(new THREE.GridHelper(80, 80, 0x444444, 0x333333));
 
+    // Target-cell highlight: a glow_green square outline laid flat, shown on the cell a carried
+    // part would snap into. Hidden until the build controller positions it.
+    this.cellHighlight = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.92, 0.92)),
+      new THREE.LineBasicMaterial({ color: 0x59ff9f }),
+    );
+    this.cellHighlight.rotation.x = -Math.PI / 2;
+    this.cellHighlight.visible = false;
+    this.scene.add(this.cellHighlight);
+
+    // Carry shadow: a soft dark disc on the surface beneath a carried part, so the lift reads.
+    this.carryShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.45, 24),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 }),
+    );
+    this.carryShadow.rotation.x = -Math.PI / 2;
+    this.carryShadow.visible = false;
+    this.scene.add(this.carryShadow);
+
     window.addEventListener('resize', () => this.resize());
   }
 
@@ -80,7 +111,10 @@ export class RenderView {
         this.objects.set(e, obj);
       }
       const t = world.get(e, Transform)!;
-      obj.position.set(t.x, (obj.userData['restY'] as number) ?? 0, t.z);
+      // y is the entity's own height when it has one (a part on a deck, or lifted while carried);
+      // otherwise fall back to the asset's resting height (a model sits on the ground at y=0).
+      const restY = (obj.userData['restY'] as number) ?? 0;
+      obj.position.set(t.x, t.y ?? restY, t.z);
       obj.rotation.y = t.rotationY;
     }
 
@@ -120,6 +154,70 @@ export class RenderView {
 
   render(): void {
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Raycast the cursor against the given entities' objects and return the entity hit (nearest
+   * first), or null. Walks up from the hit mesh to the registered group so a click on any child
+   * mesh resolves to its owning entity. The candidate list keeps build picking from ever
+   * selecting scenery — the caller passes exactly the parts that are grabbable.
+   */
+  pickEntity(clientX: number, clientY: number, candidates: EntityId[]): EntityId | null {
+    const owner = new Map<THREE.Object3D, EntityId>();
+    const objs: THREE.Object3D[] = [];
+    for (const id of candidates) {
+      const o = this.objects.get(id);
+      if (o) {
+        owner.set(o, id);
+        objs.push(o);
+      }
+    }
+    this.setRay(clientX, clientY);
+    const hits = this.raycaster.intersectObjects(objs, true);
+    if (hits.length === 0) return null;
+    let o: THREE.Object3D | null = hits[0]!.object;
+    while (o && !owner.has(o)) o = o.parent;
+    return o ? owner.get(o)! : null;
+  }
+
+  /** Project the cursor onto a horizontal plane at height `planeY`; returns world x/z or null. */
+  raycastPlane(clientX: number, clientY: number, planeY: number): { x: number; z: number } | null {
+    this.setRay(clientX, clientY);
+    this.dragPlane.constant = -planeY; // plane y = planeY, normal +Y
+    if (!this.raycaster.ray.intersectPlane(this.dragPlane, this.hitPoint)) return null;
+    return { x: this.hitPoint.x, z: this.hitPoint.z };
+  }
+
+  /** Show the snap-target highlight on a cell at the given world pose (or hide it when null). */
+  showCellHighlight(pose: { x: number; z: number; y: number; rotationY: number } | null): void {
+    if (!pose) {
+      this.cellHighlight.visible = false;
+      return;
+    }
+    this.cellHighlight.visible = true;
+    this.cellHighlight.position.set(pose.x, pose.y + 0.02, pose.z);
+    this.cellHighlight.rotation.set(-Math.PI / 2, 0, pose.rotationY);
+  }
+
+  /**
+   * Show the carry shadow on the surface beneath a carried part (or hide it when null). `y` is
+   * that surface's height — the rig's deck when the part hovers over it, the floor otherwise — so
+   * the shadow climbs onto the blue platform instead of staying on the ground.
+   */
+  showCarryShadow(at: { x: number; z: number; y: number } | null): void {
+    if (!at) {
+      this.carryShadow.visible = false;
+      return;
+    }
+    this.carryShadow.visible = true;
+    this.carryShadow.position.set(at.x, at.y + 0.02, at.z);
+  }
+
+  private setRay(clientX: number, clientY: number): void {
+    const rect = this.canvas.getBoundingClientRect();
+    this.ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.ndc, this.camera);
   }
 
   private createObject(r: Renderable): THREE.Object3D {

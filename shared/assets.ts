@@ -12,6 +12,8 @@
 export const MODEL_ASSETS: Record<string, string> = {
   'rig': '/assets/rig.glb',
   'scrap-pile': '/assets/scrap-pile.glb',
+  'engine-mk1': '/assets/engine-mk1.glb',
+  'engine-mk2': '/assets/engine-mk2.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */
