@@ -5,6 +5,7 @@ import { Transform } from '../components/transform';
 import { Renderable } from '../components/renderable';
 import { Velocity } from '../components/velocity';
 import { ModelLoader } from '../../../shared/model-loader';
+import type { CameraIntent } from '../input/camera-input';
 
 /** Hub radius the rig's wheels were authored at (rig.py WHEEL_R) — converts m/s → rad/s. */
 const WHEEL_RADIUS = 0.33;
@@ -19,12 +20,34 @@ export class RenderView {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly objects = new Map<EntityId, THREE.Object3D>();
-  private readonly camOffset = new THREE.Vector3(9, 11, 13);
+
+  // Orbit camera. The starting offset (9, 11, 13) seeds the default distance and bearing; the
+  // pitch is fixed near-overhead (no tilt control). Zoom moves the radius in/out, rotate spins
+  // the yaw freely around the rig. Radius and yaw ease toward a *target* so motion stays smooth.
+  private readonly camRadius0: number;
+  private readonly camPitch: number;
+  private readonly camRadiusMin: number;
+  private readonly camRadiusMax: number;
+  private camRadius: number;
+  private camRadiusTarget: number;
+  private camYaw: number;
+  private camYawTarget: number;
 
   private readonly models = new ModelLoader();
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene.background = new THREE.Color(0x1a1a1a);
+
+    // Derive the spherical camera params from the authored offset: radius = its length,
+    // yaw = its bearing. Pitch is fixed at the near-overhead end of the old tilt range
+    // (base elevation + 0.42) for a more top-down default view.
+    const off = new THREE.Vector3(9, 11, 13);
+    this.camRadius0 = off.length();
+    this.camPitch = Math.asin(off.y / this.camRadius0) + 0.42;
+    this.camRadiusMin = this.camRadius0 * 0.6; // zoom in: get a bit closer than default
+    this.camRadiusMax = this.camRadius0 * 1.8; // zoom out cap
+    this.camRadius = this.camRadiusTarget = this.camRadius0;
+    this.camYaw = this.camYawTarget = Math.atan2(off.z, off.x);
 
     this.camera = new THREE.PerspectiveCamera(50, this.aspect(), 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -69,8 +92,29 @@ export class RenderView {
     }
   }
 
-  follow(t: Transform): void {
-    this.camera.position.set(t.x + this.camOffset.x, this.camOffset.y, t.z + this.camOffset.z);
+  /**
+   * Keep the camera trained on the followed transform, folding in this frame's camera intent.
+   * Zoom is clamped between a closer-than-default floor and an out cap; rotate orbits freely
+   * (no clamp — full 360° around the rig). Both ease toward their targets so input feels
+   * smooth rather than instant. Pitch is fixed (no tilt control).
+   */
+  follow(t: Transform, intent: CameraIntent, dt: number): void {
+    this.camRadiusTarget = clamp(
+      this.camRadiusTarget + intent.zoom * 0.02, this.camRadiusMin, this.camRadiusMax,
+    );
+    this.camYawTarget += intent.rotate * 0.005; // drag right → orbit; unbounded
+
+    const k = Math.min(1, dt * 8); // eased smoothing toward targets
+    this.camRadius += (this.camRadiusTarget - this.camRadius) * k;
+    this.camYaw += (this.camYawTarget - this.camYaw) * k;
+
+    const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch);
+    const cy = Math.cos(this.camYaw), sy = Math.sin(this.camYaw);
+    this.camera.position.set(
+      t.x + cy * cp * this.camRadius,
+      sp * this.camRadius,
+      t.z + sy * cp * this.camRadius,
+    );
     this.camera.lookAt(t.x, 0, t.z);
   }
 
@@ -162,4 +206,8 @@ export class RenderView {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }

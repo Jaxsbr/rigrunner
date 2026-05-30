@@ -4,6 +4,7 @@ import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { movementSystem } from './systems/movement';
 import { createDriveInput } from './input/drive-input';
+import { createCameraInput } from './input/camera-input';
 import { RenderView } from './render/view';
 
 /**
@@ -16,6 +17,7 @@ const world = new World();
 const player = spawnRig(world);
 
 const input = createDriveInput();
+const cameraInput = createCameraInput(canvas);
 const view = new RenderView(canvas);
 
 let last = performance.now();
@@ -33,7 +35,7 @@ function frame(now: number): void {
   movementSystem(world, dt);
 
   // render (reads state; owns no truth)
-  view.follow(world.get(player, Transform)!);
+  view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
   view.animateWheels(world, dt);
   view.render();
