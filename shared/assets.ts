@@ -10,6 +10,7 @@
  * `blender-asset` skill does both steps for you.
  */
 export const MODEL_ASSETS: Record<string, string> = {
+  'rig': '/assets/rig.glb',
   'scrap-pile': '/assets/scrap-pile.glb',
 };
 

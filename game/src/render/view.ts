@@ -3,7 +3,11 @@ import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
 import { Transform } from '../components/transform';
 import { Renderable } from '../components/renderable';
+import { Velocity } from '../components/velocity';
 import { ModelLoader } from '../../../shared/model-loader';
+
+/** Hub radius the rig's wheels were authored at (rig.py WHEEL_R) — converts m/s → rad/s. */
+const WHEEL_RADIUS = 0.33;
 
 /**
  * The view layer. It is a *projection* of the simulation: it reads Transform/Renderable
@@ -95,6 +99,7 @@ export class RenderView {
   private createModel(assetId: string): THREE.Object3D {
     const group = new THREE.Group();
     group.userData['restY'] = 0;
+    group.userData['wheels'] = []; // populated on load; animateWheels reads it (safe when empty)
 
     const placeholder = this.placeholderMesh();
     group.add(placeholder);
@@ -103,13 +108,39 @@ export class RenderView {
       .load(assetId)
       .then((template) => {
         group.remove(placeholder);
-        group.add(template.clone(true));
+        const instance = template.clone(true);
+        group.add(instance);
+        // Collect spin-able parts: any node named `wheel*` (rig.py keeps them unjoined so they
+        // survive as addressable nodes). Empty for assets without wheels — animateWheels no-ops.
+        const wheels: THREE.Object3D[] = [];
+        instance.traverse((o) => {
+          if (o.name.startsWith('wheel')) wheels.push(o);
+        });
+        group.userData['wheels'] = wheels;
       })
       .catch((err: unknown) => {
         console.warn(`[assets] could not load model '${assetId}', showing placeholder:`, err);
       });
 
     return group;
+  }
+
+  /**
+   * Code-driven wheel spin: roll each model's wheels about their axle (local X) at the owning
+   * entity's speed. Deliberately not a baked glTF animation — tying it to Velocity keeps the
+   * spin locked to the felt tradeoff, so a heavier, slower rig visibly turns its wheels slower.
+   */
+  animateWheels(world: World, dt: number): void {
+    for (const [id, obj] of this.objects) {
+      const wheels = obj.userData['wheels'] as THREE.Object3D[] | undefined;
+      if (!wheels || wheels.length === 0) continue;
+      const vel = world.isAlive(id) ? world.get(id, Velocity) : undefined;
+      if (!vel) continue;
+      // Roll without slipping: v = ω·r about the axle (local X). Forward is −Z (movement.ts),
+      // so a positive speed needs a negative dθ for the wheel tops to track the direction of travel.
+      const dTheta = -(vel.speed * dt) / WHEEL_RADIUS;
+      for (const w of wheels) w.rotation.x += dTheta;
+    }
   }
 
   /** Magenta wireframe cube = "asset loading or missing" — an obvious dev signal. */

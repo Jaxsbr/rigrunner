@@ -46,7 +46,7 @@ ad-hoc material.
 | Property | Rule | Why |
 |----------|------|-----|
 | **Scale** | 1 Blender unit = 1 metre = **1 grid cell**. Author at real size. | Parts slot onto the grid without rescaling. |
-| **Forward** | Model the asset's **front facing Blender −Y**. After export it faces **+Z** in three.js (local +Z = forward in-game). | Directional parts (guns, drills) aim correctly. |
+| **Forward** | Model the asset's **front facing Blender +Y**. After export it faces **−Z** in three.js, which is the direction the rig drives (`systems/movement.ts`: forward = −z). | Directional parts (guns, drills) and the rig's bumper point the way it travels. |
 | **Up** | Blender is Z-up; export converts to glTF/three **Y-up** automatically (`export_yup=True`). | Matches three.js. |
 | **Origin** | **Base-centre** (centre of footprint, on the ground plane). | Sits on `y=0` in-game with no offset; the render layer sets `restY=0` for models. |
 | **Finish** | Smooth-shade + weighted normals + a small (~3 cm) **bevel**; low-poly. | Uniform "chunky industrial" read; bevels catch light. |

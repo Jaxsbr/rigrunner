@@ -13,8 +13,8 @@ Runs in two places with no changes:
 Conventions (mirrored in docs/asset-style.md — keep them in sync):
   * SCALE        1 Blender unit = 1 metre = 1 grid cell. Author at real size.
   * UP           Blender is Z-up; the GLB export converts to glTF/three Y-up automatically.
-  * FORWARD      Model the asset's FRONT facing Blender -Y. After +Y-up export that lands as
-                 +Z in three.js — i.e. local +Z is "forward" in-game.
+  * FORWARD      Model the asset's FRONT facing Blender +Y. After +Y-up export that lands as
+                 -Z in three.js — the direction the rig drives (systems/movement.ts: forward = -z).
   * ORIGIN       Base-centre (centre of the footprint, on the ground plane) so the asset
                  rests on y=0 in-game with no per-asset offset.
   * FINISH       Chunky industrial bevel + smooth-shade w/ weighted normals; low-poly.
@@ -134,7 +134,9 @@ def beveled_box(
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=location)
     obj = bpy.context.active_object
     obj.name = name
-    obj.scale = (size[0] / 2.0, size[1] / 2.0, size[2] / 2.0)
+    # primitive_cube_add(size=1.0) is a 1 m cube, so scale by `size` to land on `size` metres.
+    # (Was size/2, which silently halved every box — assets rendered at half their stated metres.)
+    obj.scale = (size[0], size[1], size[2])
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     obj.data.materials.append(material(mat))
     apply_style(obj)

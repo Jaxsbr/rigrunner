@@ -35,6 +35,7 @@ function frame(now: number): void {
   // render (reads state; owns no truth)
   view.follow(world.get(player, Transform)!);
   view.sync(world);
+  view.animateWheels(world, dt);
   view.render();
 
   requestAnimationFrame(frame);
