@@ -1,0 +1,20 @@
+{
+  "name": "rigrunner",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "A vehicle-building scavenger game. Build a modular rig, run it across a hostile landscape, re-fit, repeat.",
+  "scripts": {
+    "dev:prototype": "vite prototype",
+    "build:prototype": "vite build prototype",
+    "preview:prototype": "vite preview prototype",
+    "dev:game": "vite game",
+    "build:game": "vite build game"
+  },
+  "dependencies": {
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
