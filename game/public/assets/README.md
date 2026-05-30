@@ -1,7 +1,7 @@
 # game/public/assets
 
 Runtime 3D assets (`.glb`) for the official game. Vite serves this folder at the site
-root, so a file here named `scrap-container.glb` is fetched at `/assets/scrap-container.glb`.
+root, so a file here named `scrap-pile.glb` is fetched at `/assets/scrap-pile.glb`.
 The **asset viewer** (`npm run dev:viewer`) points its `publicDir` here too, so these same
 files serve both apps.
 

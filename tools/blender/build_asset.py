@@ -4,7 +4,7 @@ Headless asset builder for RIGRUNNER.
 Usage (from repo root):
     blender --background --python tools/blender/build_asset.py -- <asset_name> [out.glb]
 
-`<asset_name>` is a module in tools/blender/assets/ (e.g. `scrap_container`). It must
+`<asset_name>` is a module in tools/blender/assets/ (e.g. `scrap_pile`). It must
 define `build()` returning the finished object. This runner resets the scene, runs the
 build, applies the origin/orientation conventions, and exports a GLB.
 
@@ -31,7 +31,7 @@ def _args_after_ddash() -> list[str]:
 def main() -> None:
     args = _args_after_ddash()
     if not args:
-        raise SystemExit("Provide an asset name, e.g. `-- scrap_container`")
+        raise SystemExit("Provide an asset name, e.g. `-- scrap_pile`")
 
     asset_name = args[0]
     asset_id = asset_name.replace("_", "-")

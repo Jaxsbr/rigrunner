@@ -1,6 +1,5 @@
 import { World } from './core/world';
 import { spawnRig } from './content/rig';
-import { spawnContainer } from './content/container';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { movementSystem } from './systems/movement';
@@ -15,7 +14,6 @@ const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
 const world = new World();
 const player = spawnRig(world);
-spawnContainer(world, 4, -6); // first real GLB in the world — a target to drive up to
 
 const input = createDriveInput();
 const view = new RenderView(canvas);

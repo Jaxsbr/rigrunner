@@ -10,7 +10,7 @@ tools/blender/
   build_asset.py         # headless runner: blender --background --python build_asset.py -- <name>
   assets/
     __init__.py
-    scrap_container.py    # reference asset generator (defines build())
+    scrap_pile.py         # reference asset generator (defines build())
 ```
 
 ## Two ways to run the exact same kit
@@ -19,8 +19,8 @@ tools/blender/
 
 ```bash
 # from repo root; `blender` must be on PATH (or use the full .app path)
-blender --background --python tools/blender/build_asset.py -- scrap_container
-# → writes game/public/assets/scrap-container.glb
+blender --background --python tools/blender/build_asset.py -- scrap_pile
+# → writes game/public/assets/scrap-pile.glb
 ```
 
 **Interactive via blender-mcp** (agent-driven modelling): import the kit inside the MCP
@@ -30,13 +30,13 @@ blender --background --python tools/blender/build_asset.py -- scrap_container
 import sys; sys.path.insert(0, "tools/blender")   # repo-root-relative
 import rr_style as rr
 rr.reset_scene()
-from assets.scrap_container import build
-rr.finalize_and_export(build(), "game/public/assets/scrap-container.glb")
+from assets.scrap_pile import build
+rr.finalize_and_export(build(), "game/public/assets/scrap-pile.glb")
 ```
 
 ## Adding an asset
 
-1. Copy `assets/scrap_container.py` → `assets/<your_asset>.py`; implement `build()` using
+1. Copy `assets/scrap_pile.py` → `assets/<your_asset>.py`; implement `build()` using
    only `rr_style` helpers + `PALETTE` colours.
 2. Generate it (headless command above, or via MCP).
 3. Register the assetId in [`../../shared/assets.ts`](../../shared/assets.ts).

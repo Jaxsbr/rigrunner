@@ -10,7 +10,7 @@
  * `blender-asset` skill does both steps for you.
  */
 export const MODEL_ASSETS: Record<string, string> = {
-  'scrap-container': '/assets/scrap-container.glb',
+  'scrap-pile': '/assets/scrap-pile.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

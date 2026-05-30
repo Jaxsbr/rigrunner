@@ -51,8 +51,27 @@ ad-hoc material.
 | **Origin** | **Base-centre** (centre of footprint, on the ground plane). | Sits on `y=0` in-game with no offset; the render layer sets `restY=0` for models. |
 | **Finish** | Smooth-shade + weighted normals + a small (~3 cm) **bevel**; low-poly. | Uniform "chunky industrial" read; bevels catch light. |
 | **Format** | **GLB**, single file, materials embedded, modifiers baked, no cameras/lights. | One-file runtime load via `GLTFLoader`. |
-| **Naming** | `kebab-case` filename = the **assetId** (`scrap-container.glb` → `'scrap-container'`). | One name from Blender → file → registry → component. |
+| **Naming** | `kebab-case` filename = the **assetId** (`scrap-pile.glb` → `'scrap-pile'`). | One name from Blender → file → registry → component. |
 | **Budget** | Grey-box era: keep it low (≈ hundreds–low-thousands of tris per prop). Revisit when we do a real art pass. | Performance + honest placeholder quality. |
+
+## Size language — what "small / medium / large" mean
+
+Scale only means something **relative to an anchor**. Ours are the **1 m grid cell** and the
+**rig** (the player vehicle: a compact buggy, **2 m × 3 m × 0.8 m** — a 2×3-cell footprint).
+Build every asset against this ladder so sizes stay consistent instead of vibes-based. When you
+make something, decide which row it's in *first*, then pick metres.
+
+| Class | Footprint | Height | Reads as | Examples |
+|-------|-----------|--------|----------|----------|
+| **Pickup** | « 1 cell (~0.3 m) | ankle-low | a brick | loose scrap you drive over (M1) |
+| **Small prop / part** | ~1 cell | knee–waist (0.5–1.2 m) | a bin | a gun, a barrel, a small crate |
+| **Medium object** | 1.5–2 cells | up to ~rig height | a crate stack | scrap pile, a small enemy bot |
+| **The rig** *(anchor)* | 2×3 cells | ~0.8 m body | a small buggy | the player |
+| **Large structure** | 3+ cells | taller than the rig | a shack / tree | looter camp, the ancient tree |
+
+Anchor = a compact, nimble scrap **buggy**: parts are small (~1 m), the world feels tight and
+fast. Verify scale in the viewer (`npm run dev:viewer`) — the grid is 1 m cells and the HUD prints
+the asset's metric dimensions, so you can read its class straight off.
 
 ## How an asset reaches the screen (the seam)
 

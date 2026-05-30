@@ -20,7 +20,7 @@ style kit, never by re-describing the look.
   origin, finish, export, naming. **The asset must obey this.**
 - [`tools/blender/rr_style.py`](../../../tools/blender/rr_style.py) — the helpers you build
   with (`PALETTE`, `beveled_box`, `join`, `apply_style`, `finalize_and_export`, …).
-- [`tools/blender/assets/scrap_container.py`](../../../tools/blender/assets/scrap_container.py)
+- [`tools/blender/assets/scrap_pile.py`](../../../tools/blender/assets/scrap_pile.py)
   — the reference generator. Copy its shape.
 
 Hard rules: **only palette colours** (defined in [`shared/palette.json`](../../../shared/palette.json),
