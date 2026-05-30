@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RIGRUNNER — Asset Viewer</title>
+    <style>
+      :root {
+        --bg: #1a1a1a;
+        --panel: #222426;
+        --line: #34383b;
+        --text: #d6d2c8;
+        --muted: #8a8f93;
+        --accent: #2f6f9f; /* rig_blue */
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+        font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif; overflow: hidden; }
+      #app { display: grid; grid-template-columns: 260px 1fr; height: 100%; }
+
+      #sidebar { background: var(--panel); border-right: 1px solid var(--line);
+        display: flex; flex-direction: column; min-height: 0; }
+      #sidebar h1 { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--muted); margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+
+      .tabs { display: flex; border-bottom: 1px solid var(--line); }
+      .tab { flex: 1; padding: 9px 0; text-align: center; cursor: pointer; color: var(--muted);
+        background: none; border: 0; font: inherit; border-bottom: 2px solid transparent; }
+      .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+      .pane { overflow-y: auto; padding: 8px; flex: 1; min-height: 0; }
+      .pane[hidden] { display: none; }
+
+      .item { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+        padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--text); }
+      .item:hover { background: #2b2e30; }
+      .item.active { background: var(--accent); color: #fff; }
+      .item .id { font-family: ui-monospace, monospace; }
+      .empty { color: var(--muted); padding: 12px 10px; }
+
+      .swatch { display: flex; align-items: center; gap: 10px; padding: 7px 10px; }
+      .chip { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #0006; flex: 0 0 auto; }
+      .swatch .meta { min-width: 0; }
+      .swatch .name { font-family: ui-monospace, monospace; }
+      .swatch .name .em { color: var(--muted); font-style: normal; }
+      .swatch .use { color: var(--muted); font-size: 12px; white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis; }
+      .swatch .hex { margin-left: auto; color: var(--muted); font-family: ui-monospace, monospace; }
+
+      #stage { position: relative; min-width: 0; }
+      #view { display: block; width: 100%; height: 100%; }
+      #hud { position: absolute; left: 14px; bottom: 12px; color: var(--muted);
+        font-family: ui-monospace, monospace; font-size: 12px; pointer-events: none; }
+      #hud b { color: var(--text); }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <h1>RIGRUNNER Assets</h1>
+        <div class="tabs">
+          <button class="tab active" data-pane="assets">Assets</button>
+          <button class="tab" data-pane="palette">Palette</button>
+        </div>
+        <div id="pane-assets" class="pane"></div>
+        <div id="pane-palette" class="pane" hidden></div>
+      </aside>
+      <main id="stage">
+        <canvas id="view"></canvas>
+        <div id="hud"></div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -44,6 +44,24 @@ ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 scene.add(new THREE.GridHelper(40, 40, 0x444444, 0x333333));
 
+// The workshop pad at the origin. Driving back onto it closes the loop by re-entering
+// BUILD (Section F). The rig also homes here whenever it enters BUILD.
+const PAD_RADIUS = 5;
+const padDisc = new THREE.Mesh(
+  new THREE.CircleGeometry(PAD_RADIUS, 48),
+  new THREE.MeshStandardMaterial({ color: 0x243447, roughness: 0.9 }),
+);
+padDisc.rotation.x = -Math.PI / 2;
+padDisc.position.y = 0.02;
+scene.add(padDisc);
+const padRing = new THREE.Mesh(
+  new THREE.RingGeometry(PAD_RADIUS - 0.25, PAD_RADIUS, 48),
+  new THREE.MeshBasicMaterial({ color: 0x3fa7c0, side: THREE.DoubleSide }),
+);
+padRing.rotation.x = -Math.PI / 2;
+padRing.position.y = 0.03;
+scene.add(padRing);
+
 // ---------------------------------------------------------------------------
 // A.1 — the chassis + a visible grid of empty slots.
 // ---------------------------------------------------------------------------
@@ -136,7 +154,22 @@ function makeContainer() {
     wall.position.set(ox, h / 2, oz);
     g.add(wall);
   }
+  // Inner fill indicator — a scrap-coloured block that grows upward as the
+  // container fills (Section C). Anchored at the container floor.
+  const fillMaxH = h - t;
+  const fillMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.78, fillMaxH, w * 0.78),
+    new THREE.MeshStandardMaterial({ color: 0xc8a24a, roughness: 1 }),
+  );
+  fillMesh.scale.y = 0.0001;
+  fillMesh.position.y = t;
+  fillMesh.visible = false;
+  g.add(fillMesh);
   g.userData.type = 'container';
+  // Fill is a *view* of the shared cargo pool (see Section C), not its own state.
+  g.userData.fillMesh = fillMesh;
+  g.userData.fillBaseY = t;       // bottom of the cavity
+  g.userData.fillMaxH = fillMaxH; // full-height of the fill block
   return g;
 }
 
@@ -181,7 +214,7 @@ function makeGun() {
 
 // Spawn the four parts on the floor in front of the chassis.
 const FLOOR_Y = 0;
-const partFactories = [makeEngine, makeContainer, makeHarvester, makeGun];
+const partFactories = [makeEngine, makeContainer, makeContainer, makeHarvester, makeGun];
 const parts = [];
 partFactories.forEach((make, i) => {
   const part = make();
@@ -200,6 +233,7 @@ const CARRY_Y = 1.0;       // base height a part rides at while carried (lower =
 const SNAP_DIST = 1.4;     // how close (in deck space) a drop must be to snap
 const LIFT_DUR = 0.14;     // seconds — animated rise when grabbed
 const DROP_DUR = 0.18;     // seconds — animated glide when released
+const CARRY_TURN = 12;     // how fast a held part eases to its previewed orientation
 
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -243,37 +277,55 @@ function freeSlot(part) {
     part.userData.slot.occupant = null;
     part.userData.slot = null;
   }
+  refreshCargo();   // container count may have changed → re-render the fill view
 }
 
-// Find the nearest *empty* slot to a world x/z, within SNAP_DIST. Because the rig
-// sits at the origin in the build bay, world x/z == deck-local x/z here.
-function nearestEmptySlot(wx, wz) {
+// Convert a world x/z into the rig's local DECK coordinates. The rig only yaws and
+// translates (never pitches/rolls), so local x/z is all the slot math needs — and it
+// stays correct no matter where the rig is or how it's rotated. This is the change
+// that lets placement work in place and made the mode toggle unnecessary.
+const _deck = new THREE.Vector3();
+function worldToDeck(wx, wz) {
+  rig.updateMatrixWorld();
+  _deck.set(wx, 0, wz);
+  rig.worldToLocal(_deck);
+  return _deck;          // .x and .z are deck-local
+}
+
+// Nearest *empty* slot to a DECK-LOCAL x/z, within SNAP_DIST.
+function nearestEmptySlot(lx, lz) {
   let best = null, bestD = SNAP_DIST;
   for (const slot of slots) {
     if (slot.occupant) continue;
-    const d = Math.hypot(slot.x - wx, slot.z - wz);
+    const d = Math.hypot(slot.x - lx, slot.z - lz);
     if (d < bestD) { bestD = d; best = slot; }
   }
   return best;
 }
 
 const halfChassis = chassisSize / 2;
-function surfaceYAt(x, z) {
-  // The shadow sits on the deck when over the chassis, otherwise on the floor.
-  const overDeck = Math.abs(x) <= halfChassis && Math.abs(z) <= halfChassis;
+function surfaceYAt(wx, wz) {
+  // Shadow sits on the deck when the cursor is over the (possibly rotated) chassis,
+  // otherwise on the floor — tested in deck-local space.
+  const l = worldToDeck(wx, wz);
+  const overDeck = Math.abs(l.x) <= halfChassis && Math.abs(l.z) <= halfChassis;
   return (overDeck ? CHASSIS_TOP : FLOOR_Y) + 0.02;
 }
 
-// Animate a part gliding from its current position to a target (used on drop).
-function glideTo(part, tx, ty, tz, onDone) {
+// Animate a part gliding from its current position+yaw to a target (used on drop).
+// Yaw eases along the shortest angular path so orientation never snaps.
+function glideTo(part, tx, ty, tz, toYaw, onDone) {
+  const fromYaw = part.rotation.y;
+  const delta = Math.atan2(Math.sin(toYaw - fromYaw), Math.cos(toYaw - fromYaw));
   part.userData.tween = {
     fromX: part.position.x, fromY: part.position.y, fromZ: part.position.z,
-    toX: tx, toY: ty, toZ: tz, t: 0, onDone,
+    toX: tx, toY: ty, toZ: tz,
+    fromYaw, toYaw: fromYaw + delta, t: 0, onDone,
   };
 }
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0 || mode !== 'build' || rigHome) return;   // grabbing is a left-click BUILD action
+  if (e.button !== 0) return;         // left-click grabs a part; other buttons drive camera
   updatePointer(e);
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(parts, true);
@@ -288,6 +340,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   dragging.userData.tween = null;     // cancel any in-flight drop glide
   freeSlot(dragging);                 // A.4 — lifting a slotted part frees its slot
   scene.attach(dragging);             // live in world space while carried
+  dragging.rotation.set(0, 0, 0);     // carry upright/aligned regardless of rig yaw
   dragXZ.set(dragging.position.x, dragging.position.z);
   grabFromY = dragging.position.y;    // rise animates from wherever it sat
   liftT = 0;
@@ -312,30 +365,34 @@ renderer.domElement.addEventListener('pointerup', () => {
   renderer.domElement.style.cursor = 'default';
   for (const slot of slots) setSlotHighlight(slot, false);
 
-  const target = nearestEmptySlot(part.position.x, part.position.z);
+  const l = worldToDeck(part.position.x, part.position.z);
+  const target = nearestEmptySlot(l.x, l.z);
   if (target) {
-    // A.3 — reserve the slot now, then glide into it and parent to the rig on arrival.
+    // A.3 — reserve the slot, parent to the rig NOW (preserving world pose), then glide
+    // into place in the rig's local frame so it aligns to the deck even when rotated.
     target.occupant = part;
     part.userData.slot = target;
-    glideTo(part, target.x, CHASSIS_TOP, target.z, () => {
-      rig.add(part);                   // parented to the rig — rides along when driving
+    rig.attach(part);                  // become a rig child — rides along when driving
+    // B.9-11 — a gun faces OUTWARD from the rig centre (front→forward, rear→back,
+    // sides→outward); every other part just aligns to the deck. Computed in local space.
+    let toYaw = 0;
+    if (part.userData.type === 'gun') {
+      const len = Math.hypot(target.x, target.z);
+      const dx = len > 0.001 ? target.x / len : 0;
+      const dz = len > 0.001 ? target.z / len : -1;   // centre slot → forward
+      toYaw = Math.atan2(dx, dz);
+    }
+    glideTo(part, target.x, CHASSIS_TOP, target.z, toYaw, () => {
       part.position.set(target.x, CHASSIS_TOP, target.z);
-      part.rotation.set(0, 0, 0);
-      // B.9-11 — a gun faces OUTWARD from the rig centre, so placement = fire
-      // direction: front→forward, rear→back, left/right→outward to the sides.
-      if (part.userData.type === 'gun') {
-        const len = Math.hypot(target.x, target.z);
-        const dx = len > 0.001 ? target.x / len : 0;
-        const dz = len > 0.001 ? target.z / len : -1;   // centre slot → forward
-        part.rotation.y = Math.atan2(dx, dz);
-      }
+      part.rotation.set(0, toYaw, 0);
     });
   } else {
-    // A.4 — no empty slot in range: glide down to the floor where it is.
-    glideTo(part, part.position.x, FLOOR_Y, part.position.z, () => {
+    // A.4 — no empty slot in range: glide down to the floor (world space) where it is.
+    glideTo(part, part.position.x, FLOOR_Y, part.position.z, 0, () => {
       part.rotation.set(0, 0, 0);
     });
   }
+  refreshCargo();   // container count may have changed → re-render the fill view
 });
 
 window.addEventListener('resize', () => {
@@ -348,12 +405,11 @@ window.addEventListener('resize', () => {
 // SECTION B — driving & directionality (checks 7-11).
 // ---------------------------------------------------------------------------
 //
-// Two modes: BUILD (drag parts; rig parked at the origin) and DRIVE (WASD throttle
-// + steer; Space fires every slotted gun in the direction it faces). Tab toggles.
-// Entering BUILD homes the rig back to the workshop origin so the build-bay drag
-// math (world xz == deck-local xz) stays valid — a stand-in for Section F's pad.
-
-let mode = 'build';
+// No modes: driving (WASD throttle + steer; Space fires every slotted gun in the
+// direction it faces) is ALWAYS live, and parts can be (re)fitted at any time by
+// dragging them. Placement is computed in the rig's LOCAL frame, so it stays correct
+// wherever the rig is and however it's rotated — which is what lets the mode toggle
+// and the rotation-resetting "home" step go away entirely.
 
 const hud = document.createElement('div');
 hud.style.cssText =
@@ -361,19 +417,35 @@ hud.style.cssText =
   'background:rgba(0,0,0,0.45);padding:8px 11px;border-radius:6px;pointer-events:none;';
 document.body.appendChild(hud);
 function updateHud() {
-  hud.textContent = mode === 'build'
-    ? 'MODE: BUILD\ndrag parts to (re)fit\nTab → drive'
-    : 'MODE: DRIVE\nWASD move · Space fire\nTab → build';
+  const cargo = `Cargo: ${Math.round(scrapHeld)} / ${cargoCapacity()}`;
+  const hull = `Hull: ${Math.round(rigHealth)}%`;
+  hud.textContent =
+    `WASD drive · Space fire · hold E harvest · R reset\n` +
+    `drag parts to (re)fit anytime · the floor is safe — the pack waits past its edge\n${cargo}\n${hull}`;
 }
-updateHud();
+// First HUD paint happens in refreshCargo() once the cargo model is defined (Section C).
 
 // Driving feel (Section D will modulate these by weight; constant for now).
 const ACCEL = 16, MAX_FWD = 12, MAX_REV = 6, FRICTION = 12, TURN = 2.3;
 const TURN_FULL = 5;   // speed at which steering reaches full authority
+
+// SECTION D — the weight tradeoff (checks 18-21), felt not displayed. Each non-engine
+// part and each unit of cargo adds "load"; load scales down acceleration, top speed
+// and turn authority. An engine-only rig has zero load (factor 1.0 = nippy).
+const PART_MASS = { engine: 0, container: 1.0, harvester: 0.6, gun: 0.8 };
+const CARGO_MASS_PER_UNIT = 0.015;   // a full 100-unit container ≈ 1.5 part-masses
+const LOAD_K = 0.28;                 // how hard load bites
+function loadFactor() {
+  let extra = 0;
+  for (const s of slots) if (s.occupant) extra += PART_MASS[s.occupant.userData.type] || 0;
+  extra += scrapHeld * CARGO_MASS_PER_UNIT;
+  return 1 / (1 + extra * LOAD_K);   // 1.0 = empty engine-only rig; smaller = heavier
+}
 const keys = Object.create(null);
 let speed = 0;        // signed scalar: + forward, - reverse
 let heading = 0;      // rig yaw in radians
-let rigHome = null;   // homing tween used when returning to BUILD
+let rigHealth = 100;  // hull integrity (Section E)
+let rigFlash = 0;     // red damage flash, decays to 0
 
 // Camera: fixed azimuth, but adjustable zoom (out only) and pitch, both eased toward
 // targets so motion is smooth. The starting offset defines the *closest* view.
@@ -390,22 +462,10 @@ function hasEngine() {
   return slots.some((s) => s.occupant && s.occupant.userData.type === 'engine');
 }
 
-function setMode(next) {
-  mode = next;
-  updateHud();
-  if (mode === 'build') {
-    speed = 0;
-    for (const k in keys) keys[k] = false;
-    const yaw = Math.atan2(Math.sin(heading), Math.cos(heading)); // shortest path to 0
-    rigHome = { fromX: rig.position.x, fromZ: rig.position.z, fromYaw: yaw, t: 0 };
-  }
-}
-
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
-  if (k === 'tab') { e.preventDefault(); setMode(mode === 'build' ? 'drive' : 'build'); return; }
-  if (mode !== 'drive') return;
-  if (k === ' ') { if (!e.repeat) fireAllGuns(); return; }
+  if (k === ' ') { e.preventDefault(); if (!e.repeat) fireAllGuns(); return; }
+  if (k === 'r') { if (!e.repeat) resetRun(); return; }   // respawn nodes, empty cargo
   keys[k] = true;
 });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
@@ -439,37 +499,28 @@ function updateCamera(dt) {
 }
 
 function updateDriving(dt) {
-  // Homing back to the workshop origin when entering BUILD.
-  if (rigHome) {
-    rigHome.t = Math.min(1, rigHome.t + dt / 0.4);
-    const e = easeOut(rigHome.t);
-    rig.position.x = lerp(rigHome.fromX, 0, e);
-    rig.position.z = lerp(rigHome.fromZ, 0, e);
-    heading = lerp(rigHome.fromYaw, 0, e);
-    rig.rotation.y = heading;
-    if (rigHome.t >= 1) { rigHome = null; rig.position.set(0, 0, 0); heading = 0; }
-    return;
-  }
-  if (mode !== 'drive') return;
+  // SECTION D — load scales acceleration, top speed and turn authority down as the
+  // rig gets heavier (parts + cargo). An engine-only rig drives at the full values.
+  const lf = loadFactor();
+  const accel = ACCEL * lf, maxFwd = MAX_FWD * lf, maxRev = MAX_REV * lf, turn = TURN * lf;
 
   // B.7/B.8 — propulsion only happens with an engine slotted; otherwise coast to rest.
   if (hasEngine()) {
-    if (keys['w']) speed += ACCEL * dt;
-    else if (keys['s']) speed -= ACCEL * dt;
+    if (keys['w']) speed += accel * dt;
+    else if (keys['s']) speed -= accel * dt;
     else speed -= Math.sign(speed) * Math.min(Math.abs(speed), FRICTION * dt);
-    speed = Math.max(-MAX_REV, Math.min(MAX_FWD, speed));
+    speed = Math.max(-maxRev, Math.min(maxFwd, speed));
   } else {
     speed -= Math.sign(speed) * Math.min(Math.abs(speed), FRICTION * dt);
   }
 
-  // Steering authority ramps with speed (smoothstep), so it fades in/out smoothly
-  // instead of snapping full-lock at a crawl then cutting dead at a stop. Scales off
-  // |speed| so forward and reverse both steer. Sharp-at-speed is preserved.
+  // Steering authority ramps with speed (smoothstep) and shrinks with load, so a heavy
+  // rig turns wider. Scales off |speed| so forward and reverse both steer.
   const steer = (keys['a'] ? 1 : 0) - (keys['d'] ? 1 : 0);
   if (steer !== 0) {
     const t = Math.min(Math.abs(speed) / TURN_FULL, 1);
     const authority = t * t * (3 - 2 * t);   // smoothstep 0→1
-    heading += steer * TURN * authority * dt;
+    heading += steer * turn * authority * dt;
     rig.rotation.y = heading;
   }
 
@@ -510,7 +561,25 @@ function updateProjectiles(dt) {
     const p = projectiles[i];
     p.mesh.position.addScaledVector(p.dir, PROJ_SPEED * dt);
     p.life -= dt;
-    if (p.life <= 0) {
+
+    // B.24 — a projectile that reaches an enemy damages it.
+    let hit = false;
+    for (const en of enemies) {
+      const ex = en.group.position.x - p.mesh.position.x;
+      const ez = en.group.position.z - p.mesh.position.z;
+      if (Math.hypot(ex, ez) < ENEMY_HIT_RADIUS) {
+        hit = true;
+        en.hp -= 1;
+        en.flash = 1;
+        if (en.hp <= 0) {
+          scene.remove(en.group);
+          enemies.splice(enemies.indexOf(en), 1);
+        }
+        break;
+      }
+    }
+
+    if (hit || p.life <= 0) {
       scene.remove(p.mesh);
       p.mesh.geometry.dispose();
       p.mesh.material.dispose();
@@ -518,6 +587,233 @@ function updateProjectiles(dt) {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// SECTION C — harvesting: the tactile transformation (checks 12-17).
+// ---------------------------------------------------------------------------
+//
+// Drive a rig with a harvester arm up to a scrap node: the node visibly depletes
+// and a slotted container visibly fills. Gates: no arm → nothing happens; no
+// container → nothing is collected (the node won't deplete); full container →
+// collection stops.
+
+const HARVEST_RANGE = 4.5;   // how close the rig must get to a node
+const HARVEST_RATE = 22;     // scrap moved per second
+const CONTAINER_CAP = 100;   // how much a container holds
+
+function firstOfType(type) {
+  for (const s of slots) {
+    if (s.occupant && s.occupant.userData.type === type) return s.occupant;
+  }
+  return null;
+}
+
+// Scrap nodes on the plane (B.12). Two sizes so the whole section is testable in
+// one run: the small one drains fully (14); the big one fills the container to its
+// cap with scrap to spare (17).
+const nodes = [];
+function makeScrapNode(x, z, amount) {
+  const radius = 1.3;
+  const mesh = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(radius, 0),
+    new THREE.MeshStandardMaterial({ color: 0x8a7f6a, flatShading: true, roughness: 1 }),
+  );
+  mesh.position.set(x, radius * 0.85, z);
+  scene.add(mesh);
+  nodes.push({ mesh, amount, max: amount });
+}
+makeScrapNode(-9, -9, 60);    // small — drain to nothing (check 14)
+makeScrapNode(10, 6, 120);    // large — fills a single container to cap (check 17),
+                              // and 60+120 fits two containers so both fully drain
+
+function updateNodeVisual(node) {
+  const f = node.amount / node.max;               // shrink as it depletes
+  node.mesh.scale.setScalar(Math.max(0.06, f));
+  node.mesh.visible = node.amount > 0.001;
+}
+
+// Render a single container to a fill fraction (0..1). Purely a view.
+function setContainerFillFrac(c, frac) {
+  const fm = c.userData.fillMesh;
+  fm.visible = frac > 0.001;
+  fm.scale.y = Math.max(0.0001, frac);
+  fm.position.y = c.userData.fillBaseY + (c.userData.fillMaxH * frac) / 2;
+}
+
+// A beam from the harvester to the node it's working — "the arm engages".
+const harvestBeam = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+  new THREE.LineBasicMaterial({ color: 0xffdd55 }),
+);
+harvestBeam.visible = false;
+scene.add(harvestBeam);
+
+// Harvesting is an explicit *held* command (hold E while in range). Release stops.
+// (Left-click is now reserved for grabbing parts; see observation #5 for the rationale
+// behind it being a held command rather than proximity auto-harvest.)
+function slottedContainers() {
+  return slots
+    .filter((s) => s.occupant && s.occupant.userData.type === 'container')
+    .map((s) => s.occupant);
+}
+
+// --- the cargo pool: ONE source of truth -----------------------------------
+// All scrap the rig is carrying is a single number. Capacity is just how many
+// containers are slotted. Containers are a *view* that fill in order from the pool.
+// This is deliberately the dumbest possible model — the prototype's job is to prove
+// the loop, not to build a real inventory system (that's Phase 2).
+let scrapHeld = 0;
+const cargoCapacity = () => slottedContainers().length * CONTAINER_CAP;
+
+function renderCargo() {
+  let rem = scrapHeld;
+  for (const c of slottedContainers()) {      // slotted ones fill in order
+    const f = Math.max(0, Math.min(CONTAINER_CAP, rem));
+    setContainerFillFrac(c, f / CONTAINER_CAP);
+    rem -= f;
+  }
+  for (const p of parts) {                     // loose containers read as empty
+    if (p.userData.type === 'container' && !p.userData.slot) setContainerFillFrac(p, 0);
+  }
+}
+
+function refreshCargo() { renderCargo(); updateHud(); }
+
+function resetRun() {                          // sandbox affordance: make it re-testable
+  scrapHeld = 0;
+  rigHealth = 100;
+  rigFlash = 0;
+  for (const n of nodes) { n.amount = n.max; updateNodeVisual(n); }
+  spawnEnemies();
+  refreshCargo();
+}
+
+function updateHarvest(dt) {
+  harvestBeam.visible = false;
+  if (!keys['e']) return;                     // hold E to engage the harvester
+
+  const harv = firstOfType('harvester');
+  if (!harv) return;                          // 13 — no arm, no harvest
+  const cap = cargoCapacity();
+  if (cap === 0) return;                      // 16 — no container, nowhere to store it
+  if (scrapHeld >= cap - 0.0001) return;      // 17 — cargo full
+
+  // The first node in range that still has scrap.
+  let node = null;
+  for (const n of nodes) {
+    if (n.amount <= 0) continue;
+    const dx = n.mesh.position.x - rig.position.x;
+    const dz = n.mesh.position.z - rig.position.z;
+    if (Math.hypot(dx, dz) <= HARVEST_RANGE) { node = n; break; }
+  }
+  if (!node) return;
+
+  // Move scrap node → pool. The pool's render fills containers in order (15),
+  // so multiple containers fill one-by-one for free.
+  const take = Math.min(HARVEST_RATE * dt, node.amount, cap - scrapHeld);
+  node.amount -= take;                        // 14 — node shrinks
+  scrapHeld += take;
+  updateNodeVisual(node);
+  refreshCargo();
+
+  const from = harv.getWorldPosition(new THREE.Vector3());
+  from.y += 1.4;
+  harvestBeam.geometry.setFromPoints([from, node.mesh.position.clone()]);
+  harvestBeam.visible = true;
+}
+
+refreshCargo();   // first paint, now that the cargo model + parts exist
+
+// ---------------------------------------------------------------------------
+// SECTION E — flee-or-fight (checks 22-25).
+// ---------------------------------------------------------------------------
+//
+// A pack of enemies lurks beyond the edge of the large dark floor (the "platform").
+// They only wake and chase once the rig DRIVES OFF the floor into the wilderness.
+// Their speed sits BETWEEN a light rig's top speed and a heavy rig's, so the build
+// decides the outcome: a light rig outruns them (23); a gunned rig fights them off
+// (24); a heavy rig with no gun gets swarmed & damaged (25).
+
+const ENEMY_SPEED = 9;        // between light (~10.3) and heavy (~8) rig top speeds
+const ENEMY_HP = 3;           // projectile hits to kill one
+const ENEMY_CATCH = 3.2;      // contact distance at which it damages the hull
+const ENEMY_DPS = 22;         // hull damage/sec per touching enemy (swarm capped below)
+const ENEMY_HIT_RADIUS = 1.4; // projectile hit test radius
+const ENEMY_COUNT = 10;       // how many lurk in the pack
+const ENEMY_RING = 30;        // how far out they spawn — beyond the dark floor's edge
+const ENEMY_MAX_GANG = 3;     // cap on simultaneous attackers' damage, so a pile-up isn't instant death
+const FLOOR_HALF = 20;        // the dark floor (the "platform") spans ±20 — PlaneGeometry(40,40)
+
+const enemies = [];
+
+function makeEnemyGroup() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xcc2222, flatShading: true, roughness: 0.8 });
+  const body = new THREE.Mesh(new THREE.ConeGeometry(0.95, 1.9, 5), mat);
+  body.position.y = 0.95;
+  g.add(body);
+  const spike = new THREE.Mesh(
+    new THREE.ConeGeometry(0.4, 0.9, 4),
+    new THREE.MeshStandardMaterial({ color: 0x661111, flatShading: true }),
+  );
+  spike.position.y = 1.9;
+  g.add(spike);
+  g.userData.mat = mat;
+  return g;
+}
+
+function spawnEnemies() {
+  for (const en of enemies) scene.remove(en.group);
+  enemies.length = 0;
+  for (let i = 0; i < ENEMY_COUNT; i++) {
+    const ang = (i / ENEMY_COUNT) * Math.PI * 2 + 0.3;   // ring them around the arena
+    const g = makeEnemyGroup();
+    g.position.set(Math.cos(ang) * ENEMY_RING, 0, Math.sin(ang) * ENEMY_RING);
+    scene.add(g);
+    enemies.push({ group: g, mat: g.userData.mat, hp: ENEMY_HP, flash: 0 });
+  }
+}
+
+function damageRig(amount) {
+  rigHealth = Math.max(0, rigHealth - amount);
+  rigFlash = 1;
+  updateHud();
+}
+
+// "On the platform" = anywhere on the large dark floor. The whole floor is the safe
+// zone; the pack only wakes once the rig drives off the floor's edge.
+function rigOnPlatform() {
+  return Math.abs(rig.position.x) <= FLOOR_HALF && Math.abs(rig.position.z) <= FLOOR_HALF;
+}
+
+function updateEnemies(dt) {
+  const safe = rigOnPlatform();     // on the floor → enemies idle (22: only attack off-floor)
+  let touching = 0;
+  for (const en of enemies) {
+    if (!safe) {
+      // B.22 — chase the rig.
+      const dx = rig.position.x - en.group.position.x;
+      const dz = rig.position.z - en.group.position.z;
+      const d = Math.hypot(dx, dz) || 1;
+      en.group.position.x += (dx / d) * ENEMY_SPEED * dt;
+      en.group.position.z += (dz / d) * ENEMY_SPEED * dt;
+      en.group.rotation.y = Math.atan2(dx, dz);   // face the rig
+      if (d < ENEMY_CATCH) touching++;            // B.25 — caught
+    }
+    if (en.flash > 0) {                           // white-hot flash when shot
+      en.flash = Math.max(0, en.flash - dt * 4);
+      en.mat.emissive.setRGB(en.flash, en.flash * 0.3, 0);
+    }
+  }
+  if (touching > 0) damageRig(ENEMY_DPS * Math.min(touching, ENEMY_MAX_GANG) * dt);
+}
+
+function updateRigFlash(dt) {
+  if (rigFlash > 0) rigFlash = Math.max(0, rigFlash - dt * 3);
+  chassis.material.emissive.setRGB(rigFlash * 0.6, 0, 0);
+}
+
+spawnEnemies();
 
 function updateCarry(dt) {
   if (dragging) {
@@ -529,8 +825,28 @@ function updateCarry(dt) {
 
     // Shadow: a real shadow cast straight down from the part onto the surface
     // below it. The green *tile* highlight (separate) shows which cell will snap.
-    const target = nearestEmptySlot(dragXZ.x, dragXZ.y);
+    const l = worldToDeck(dragXZ.x, dragXZ.y);
+    const target = nearestEmptySlot(l.x, l.z);
     for (const slot of slots) setSlotHighlight(slot, slot === target);
+
+    // Preview the resting orientation while still in the air: over a valid slot the
+    // part eases to align with the (possibly rotated) deck — and a gun pre-aims to its
+    // outward facing. Off the deck it eases back to its upright, world-aligned pose.
+    let desiredYaw = 0;
+    if (target) {
+      let localYaw = 0;
+      if (dragging.userData.type === 'gun') {
+        const len = Math.hypot(target.x, target.z);
+        const dx = len > 0.001 ? target.x / len : 0;
+        const dz = len > 0.001 ? target.z / len : -1;   // centre slot → forward
+        localYaw = Math.atan2(dx, dz);
+      }
+      desiredYaw = rig.rotation.y + localYaw;            // world yaw aligning with the deck
+    }
+    const curYaw = dragging.rotation.y;
+    const dYaw = Math.atan2(Math.sin(desiredYaw - curYaw), Math.cos(desiredYaw - curYaw));
+    dragging.rotation.y = curYaw + dYaw * Math.min(1, dt * CARRY_TURN);
+
     shadow.position.set(dragXZ.x, surfaceYAt(dragXZ.x, dragXZ.y), dragXZ.y);
     // Tighter/darker as the part nears the surface would be nicer still, but the
     // part rides at a constant carry height, so a steady soft disc reads fine.
@@ -547,6 +863,7 @@ function updateCarry(dt) {
       lerp(tw.fromY, tw.toY, e),
       lerp(tw.fromZ, tw.toZ, e),
     );
+    part.rotation.y = lerp(tw.fromYaw, tw.toYaw, e);
     if (tw.t >= 1) {
       part.userData.tween = null;
       if (tw.onDone) tw.onDone();
@@ -560,6 +877,9 @@ function animate() {
   updateCarry(dt);
   updateDriving(dt);
   updateProjectiles(dt);
+  updateHarvest(dt);
+  updateEnemies(dt);
+  updateRigFlash(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
 }

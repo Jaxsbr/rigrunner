@@ -1,0 +1,10 @@
+{
+  "scrap_grey":    { "hex": "#6B6B6B", "use": "default wasteland metal" },
+  "dark_metal":    { "hex": "#2F3133", "use": "frames, recesses, undersides" },
+  "rust":          { "hex": "#8A4B2F", "use": "weathering, decay, hazard edges" },
+  "hazard_yellow": { "hex": "#D9A521", "use": "warnings, accents, markings" },
+  "rig_blue":      { "hex": "#2F6F9F", "use": "signature — containers + player-built parts" },
+  "glow_green":    { "hex": "#59FF9F", "use": "energy, tier fill, powered lights", "emissive": true },
+  "nature_green":  { "hex": "#4C8F3A", "use": "restoration — foliage, regrowth" },
+  "bone_white":    { "hex": "#CDC6B8", "use": "bleached structures, old plastic" }
+}

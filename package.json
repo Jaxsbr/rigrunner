@@ -9,12 +9,21 @@
     "build:prototype": "vite build prototype",
     "preview:prototype": "vite preview prototype",
     "dev:game": "vite game",
-    "build:game": "vite build game"
+    "build:game": "vite build game",
+    "typecheck:game": "tsc --noEmit -p game/tsconfig.json",
+    "test:game": "vitest run game",
+    "test:game:watch": "vitest game",
+    "dev:viewer": "vite viewer",
+    "build:viewer": "vite build viewer",
+    "typecheck:viewer": "tsc --noEmit -p viewer/tsconfig.json"
   },
   "dependencies": {
     "three": "^0.171.0"
   },
   "devDependencies": {
-    "vite": "^6.0.0"
+    "@types/three": "^0.171.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
   }
 }

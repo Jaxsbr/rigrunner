@@ -98,3 +98,105 @@ loop, and camera smoothness sets the perceived production quality of everything 
 **Action taken:** Wheel zooms out only (current distance is the floor); middle-mouse
 vertical drag tilts pitch within a clamped range (current angle → a bit more overhead);
 both ease toward their targets each frame rather than snapping.
+
+---
+
+## 5. Harvesting should be a player *command*, not proximity auto-harvest
+
+**Context:** Harvesting (Section C) — first pass auto-harvested whenever the rig was
+near a node.
+
+**Observation:** Auto-harvest-on-proximity feels passive and wrong for this kind of
+game. Players expect to *issue a command* to engage harvesting — it should be a
+deliberate act, not something that just happens because you parked nearby.
+
+**Why it matters — and the big one:** Making harvesting a *held* command (vs a toggle
+or a one-press auto-drain) creates the central tension for **flee-or-fight** (Section E):
+to harvest you must commit — parked, exposed, hands occupied — while threats close in.
+"Top off the container or bail now?" is precisely the felt decision the game is built
+around. A toggle or auto-drain throws that tension away.
+
+**Action taken:** Harvesting now requires **holding** a command (`E` or left-click) while
+in range. Release stops it. The harvest beam only shows while actually engaged.
+
+---
+
+## 6. "Any number of containers" is a real subsystem — so the prototype fakes it with one number
+
+**Context:** Harvesting with a variable number of containers. Symptom: "harvesting
+doesn't work with one container." Root cause was NOT container-count logic (that was
+fine) — it was the absence of any **run-lifecycle / state model**: nodes never
+regenerated (a session "used them up"), and per-container fill persisted, so a
+re-slotted container could be silently full next to already-drained nodes.
+
+**Observation (the meta-point):** Supporting "any number of containers, connected,
+filling correctly" *properly* is genuine systems work — an inventory/capacity
+subsystem with its own state, persistence, and lifecycle. Trying to grow that
+incrementally inside throwaway prototype code is painful and bug-prone, and the pain
+is a signal: the prototype is being asked to carry weight it isn't architected for.
+
+**Why it matters:** This is the central tension of prototyping. The fix is almost never
+"add the missing architecture" — it's to find the *dumbest model that still proves the
+loop* and use that, explicitly deferring the real subsystem to Phase 2.
+
+**Action taken — simplify, don't architect:**
+- **Cargo is a single shared scalar pool** (`scrapHeld`) vs a capacity that's just
+  `(# slotted containers) × CONTAINER_CAP`. Containers became a pure *view* that fills
+  in order from the pool. One source of truth ⇒ "any number of containers" is correct
+  by construction and "fill one-by-one" is free, with *less* code, not more.
+- **A reset key (`R`)** respawns nodes and empties cargo, so the sandbox is re-testable
+  (the missing "run lifecycle", faked).
+- **A cargo readout in the HUD**, so world state is never an invisible mystery again.
+
+**Takeaway for Phase 2:** the real game DOES need a cargo/inventory subsystem and an
+explicit run lifecycle (start / spend / return / reset). The prototype proves we want
+them; it does not pretend to be them.
+
+---
+
+## 7. The shared-pool model's seam: containers don't carry their own contents
+
+**Context:** Immediately after #6's single-pool simplification — moving partly/fully
+filled containers around the rig.
+
+**Observation:** Because cargo is one shared scalar and containers are only a *view*
+that fills in slot order, containers have no individual contents. Consequences a player
+sees: take a full container off a rig that also has a partial one, and the partial one
+appears to "absorb" the scrap (the pool just re-renders across fewer containers); move
+a container off the rig entirely and it reads as empty (its share returns to the pool /
+is dropped when capacity shrinks). Nothing is *preserved per container*.
+
+**Why it matters:** This is the precise cost of the prototype shortcut. The *real* game
+clearly wants each container to be a vessel that holds and preserves its own scrap
+whether it's on the rig, on the floor, or being carried — which means per-container
+state, transfer rules, and capacity bookkeeping that survive slot/unslot. That is
+exactly the inventory subsystem #6 deferred.
+
+**Decision:** Not worth fixing in the prototype — it doesn't change whether the *loop*
+is fun, which is all Phase 1 is testing. Banked as a Phase-2 requirement: **containers
+are stateful vessels that preserve contents on and off the machine.**
+
+---
+
+## 8. The build/drive *mode* was accidental complexity — a symptom of a math shortcut
+
+**Context:** Re-fitting felt clunky: a BUILD/DRIVE toggle, the rig snapping straight on
+return, and parts placing awkwardly when the rig was rotated.
+
+**Observation:** All three were one root cause. The build-bay placement math assumed the
+rig sat at the origin facing forward (so "world x/z == deck x/z"). To keep that
+assumption true I needed a *mode* and a "home the rig straight" step on entry — and
+parts could only be reasoned about in world axes, so a rotated platform placed them
+wrong. The mode wasn't a design choice; it was scaffolding holding up a shortcut.
+
+**Why it matters:** Players felt the scaffolding directly (the toggle, the reset, the
+awkward placement). Worth remembering: clunky UX is often a *leak* of an internal
+shortcut, not an independent UX problem — fix the internal model and the UX symptoms
+vanish together.
+
+**Action taken:** Placement now computes in the rig's **local frame** (`worldToLocal`),
+so it's correct anywhere at any rotation. With that true, the mode dissolved entirely:
+driving is always live, parts can be re-fitted any time, dropped parts orient to the
+deck (animated, not snapped), and nothing ever resets the rig's rotation. The workshop
+pad became a **safe zone** (the enemy can't touch you while you're on it) instead of a
+mode trigger — keeping the "return home to re-fit in peace" beat without a toggle.
