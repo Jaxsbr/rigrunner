@@ -6,6 +6,7 @@ import { Velocity } from '../components/velocity';
 import { DriveControl } from '../components/drive-control';
 import { MountGrid } from '../components/mount-grid';
 import { Weight } from '../components/weight';
+import { Collider } from '../components/collider';
 import { Renderable } from '../components/renderable';
 
 /**
@@ -35,6 +36,10 @@ export function spawnRig(world: World, x = 0, z = 0): EntityId {
   // composed of parts (chassis/platform/wheels as separate components, each with a Weight), this
   // total will be summed from them instead of hard-coded here.
   world.add(e, Weight, { value: 10 });
+  // The chassis's own collision footprint (a circle over the 2×3 body). Each mounted part adds its
+  // own Collider, so the rig's true collision area is the union of these circles — it grows with the
+  // build. Sized to cover the central body; parts jutting to the edges extend reach where they sit.
+  world.add(e, Collider, { radius: 1.2 });
   world.add(e, Renderable, { shape: 'model', assetId: 'rig' });
   return e;
 }

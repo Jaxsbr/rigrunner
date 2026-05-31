@@ -6,6 +6,7 @@ import { EngineSpec } from '../components/engine-spec';
 import type { EngineSpec as EngineSpecData } from '../components/engine-spec';
 import { Weight } from '../components/weight';
 import { MountFacing } from '../components/mount-facing';
+import { Collider } from '../components/collider';
 import { Renderable } from '../components/renderable';
 
 /**
@@ -51,6 +52,9 @@ export function spawnEngine(world: World, def: EngineDef, x = 0, z = 0): EntityI
   world.add(e, EngineSpec, { ...def.spec });
   world.add(e, Weight, { value: def.weight });
   world.add(e, MountFacing, { kind: 'specific', rule: 'outward' });
+  // A mounted engine that touches scrap collects it too — and, later, it's a target projectiles can
+  // hit. So an engine carries its own collision footprint like every part on the rig.
+  world.add(e, Collider, { radius: 0.5 });
   world.add(e, Renderable, { shape: 'model', assetId: def.assetId });
   return e;
 }
