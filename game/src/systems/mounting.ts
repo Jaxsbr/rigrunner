@@ -20,7 +20,12 @@ import type { MountFacing } from '../components/mount-facing';
  * Everything here is pure over the World, so it runs and tests headless.
  */
 
-/** A pose in the world: planar position + height + facing. */
+/**
+ * A pose in the world: planar position + height + facing. The render layer declares an identical
+ * shape (render/build-affordances.ts) and the two are bridged by structural typing — deliberately,
+ * so the renderer can draw a cell pose without importing anything from systems/. Same name on both
+ * sides on purpose: they are the SAME concept, not two; keep them in step if a field changes.
+ */
 export interface CellPose {
   x: number;
   z: number;
@@ -103,8 +108,12 @@ export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind):
  * distance — or null if nothing is in reach. `platform` is any entity carrying a MountGrid (a rig
  * OR a workshop): mounting is grid-agnostic, so the same snap serves every deck. Mirrors the
  * prototype's forgiving snap: pick the closest empty cell the cursor hovers near, not pixel-precise.
+ *
+ * Private: the only caller is `nearestMountTarget`, which folds it across several decks. Callers
+ * always go through that, even for a single deck (pass a one-element target list), so there is one
+ * snap entry point rather than two near-identical ones.
  */
-export function nearestFreeCellOn(
+function nearestFreeCellOn(
   world: World,
   platform: EntityId,
   wx: number,
@@ -137,18 +146,8 @@ export function nearestFreeCellOn(
  * won alongside the cell — or null if none is in reach. This is the seam that lets a carried part
  * snap onto either the rig or an active workshop: the build controller passes every valid target
  * and the globally closest empty cell wins, so the player just drops near whichever deck they mean.
+ * For a single deck, pass a one-element target list — there is no separate single-deck snap.
  */
-export function nearestFreeCell(
-  world: World,
-  rig: EntityId,
-  wx: number,
-  wz: number,
-  maxDist: number,
-): { col: number; row: number } | null {
-  const hit = nearestFreeCellOn(world, rig, wx, wz, maxDist);
-  return hit ? { col: hit.col, row: hit.row } : null;
-}
-
 export function nearestMountTarget(
   world: World,
   targets: EntityId[],

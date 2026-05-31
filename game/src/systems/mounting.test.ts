@@ -10,7 +10,6 @@ import {
   cellWorldPose,
   partAtCell,
   hasMountedPartKind,
-  nearestFreeCell,
   nearestMountTarget,
   outwardLocalYaw,
   leanLocalYaw,
@@ -92,21 +91,22 @@ describe('mounting occupancy + gating', () => {
   it('finds the nearest free cell to a world point and skips occupied ones', () => {
     const w = new World();
     const r = rig(w);
-    // A point right over the right-front cell (local 0.5, -1 → world 0.5, -1).
-    expect(nearestFreeCell(w, r, 0.5, -1, 0.7)).toEqual({ col: 1, row: 0 });
+    // A point right over the right-front cell (local 0.5, -1 → world 0.5, -1). A single-deck snap is
+    // just nearestMountTarget over a one-element target list.
+    expect(nearestMountTarget(w, [r], 0.5, -1, 0.7)).toEqual({ target: r, col: 1, row: 0 });
 
     // Occupy it; the same point should now snap to the next-nearest free cell instead.
     const p = enginePart(w);
     mountPart(w, p, r, 1, 0);
-    const next = nearestFreeCell(w, r, 0.5, -1, 5);
+    const next = nearestMountTarget(w, [r], 0.5, -1, 5);
     expect(next).not.toBeNull();
-    expect(next).not.toEqual({ col: 1, row: 0 });
+    expect(next).not.toEqual({ target: r, col: 1, row: 0 });
   });
 
   it('returns null when no free cell is within snap distance', () => {
     const w = new World();
     const r = rig(w);
-    expect(nearestFreeCell(w, r, 20, 20, 0.7)).toBeNull();
+    expect(nearestMountTarget(w, [r], 20, 20, 0.7)).toBeNull();
   });
 });
 

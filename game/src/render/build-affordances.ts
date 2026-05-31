@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 
-/** Where (and facing) a snap cell sits in the world. */
+/**
+ * Where (and facing) a snap cell sits in the world. Intentionally mirrors `CellPose` in
+ * systems/mounting.ts (same concept, same name) rather than importing it — render imports nothing
+ * from systems/, and structural typing lets `cellWorldPose`'s result flow straight in. If you add a
+ * field here, add it there too.
+ */
 export interface CellPose {
   x: number;
   z: number;

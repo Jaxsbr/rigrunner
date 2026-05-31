@@ -1,4 +1,5 @@
 import { defineComponent } from '../core/component';
+import type { World } from '../core/world';
 
 /**
  * The player's scrap wallet: the running total of resource they OWN, banked out of containers.
@@ -14,3 +15,17 @@ export interface Wallet {
 }
 
 export const Wallet = defineComponent<Wallet>('Wallet');
+
+/**
+ * The player's wallet, or null before it exists. The ONE way to reach the singleton — everyone who
+ * banks into it or reads it goes through here, so "which entity is the wallet?" is answered in a
+ * single place rather than each caller re-deriving `query(Wallet)[0]`. Returns the live component
+ * (a mutable reference), so the drain mutates `.scrap` and the HUD reads it off the same object.
+ *
+ * `import type` keeps this a compile-time-only dependency on World — no runtime coupling of the
+ * data definition to the store.
+ */
+export function getWallet(world: World): Wallet | null {
+  const e = world.query(Wallet)[0];
+  return e !== undefined ? world.get(e, Wallet)! : null;
+}

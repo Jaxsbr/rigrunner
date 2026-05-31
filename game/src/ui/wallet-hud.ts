@@ -1,5 +1,5 @@
 import type { World } from '../core/world';
-import { Wallet } from '../components/wallet';
+import { getWallet } from '../components/wallet';
 
 /**
  * The scrap wallet readout (top-right). A pure projection of the player's Wallet, like the stats
@@ -16,8 +16,7 @@ export class WalletHud {
   constructor(private readonly el: HTMLElement) {}
 
   update(world: World): void {
-    const wallet = world.query(Wallet)[0];
-    const scrap = wallet !== undefined ? world.get(wallet, Wallet)!.scrap : 0;
+    const scrap = getWallet(world)?.scrap ?? 0;
     if (scrap !== this.last) {
       this.el.textContent = `SCRAP  ${scrap}`;
       this.last = scrap;

@@ -1,7 +1,7 @@
 import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
 import { Storage } from '../components/storage';
-import { Wallet } from '../components/wallet';
+import { getWallet } from '../components/wallet';
 import { WorkshopDrain } from '../components/workshop-drain';
 import { mountedStorages } from './scrap-collection';
 
@@ -29,10 +29,8 @@ import { mountedStorages } from './scrap-collection';
 const DRAIN_INTERVAL = 0.4; // seconds per piece banked (RATE upgrade axis — see above)
 
 export function workshopDrainSystem(world: World, dt: number): void {
-  const wallet = firstWallet(world);
-  if (wallet === null) return; // no bank to drain into
-
-  const w = world.get(wallet, Wallet)!;
+  const w = getWallet(world);
+  if (w === null) return; // no bank to drain into
 
   for (const shop of world.query(WorkshopDrain)) {
     const drain = world.get(shop, WorkshopDrain)!;
@@ -64,10 +62,4 @@ function firstNonEmpty(world: World, shop: EntityId): EntityId | null {
     if (world.get(c, Storage)!.amount > 0) return c;
   }
   return null;
-}
-
-/** The singleton Wallet entity (the player's bank), or null if none exists yet. */
-function firstWallet(world: World): EntityId | null {
-  const all = world.query(Wallet);
-  return all.length > 0 ? all[0]! : null;
 }
