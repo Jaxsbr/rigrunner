@@ -7,12 +7,14 @@ import { Part } from '../components/part';
 import { Mount } from '../components/mount';
 import { MountFacing } from '../components/mount-facing';
 import { Carried } from '../components/carried';
+import { WorkshopZone } from '../components/workshop-zone';
 import {
-  nearestFreeCell,
+  nearestMountTarget,
   cellWorldPose,
   resolveLocalYaw,
   worldToRigLocal,
   isOverDeck,
+  partAtCell,
   mountPart,
   unmountPart,
 } from '../systems/mounting';
@@ -29,17 +31,36 @@ import {
  * attach/detach + ride-along lives in systems/mounting; this controller only choreographs it.
  */
 
-const CARRY_Y = 1.5;     // height a held part floats at (clears the deck lips at 0.74)
+// A held part floats a fixed clearance ABOVE whichever deck it's currently over — not at a fixed
+// world height — so the hover gap reads the same on the tall rig deck (0.66) and the low workshop
+// deck (0.20), and the part visibly drops as it crosses from rig to workshop. 0.84 over the 0.66
+// rig deck reproduces the original 1.5 world height (which cleared the 0.74 deck lips).
+const CARRY_CLEARANCE = 0.84;
+// The cursor is projected onto this fixed world plane to read drag x/z — a stable parallax
+// reference that does NOT move with the deck below, so dragging across decks doesn't shift the
+// snap point. (Matches the rig's hover height: rig deckY 0.66 + CARRY_CLEARANCE.)
+const CARRY_PLANE_Y = 1.5;
 const LIFT_DUR = 0.14;   // seconds for the grab rise
-const DROP_DUR = 0.14;   // seconds for a loose drop to settle on the ground
+const DROP_DUR = 0.14;   // seconds for a drop to settle (loose on the ground, or back to its cell)
 const SNAP_DIST = 0.7;   // rig-local metres: how close to a cell counts as "over" it
 const CARRY_TURN = 12;   // how fast a held part eases toward its resting yaw
+
+/** Where a part came from, captured at grab so an invalid drop can send it back rather than loose. */
+interface PrevMount {
+  target: EntityId;
+  col: number;
+  row: number;
+  yaw: number;
+}
 
 interface Glide {
   part: EntityId;
   fromX: number; fromY: number; fromZ: number;
   toX: number; toY: number; toZ: number;
   t: number;
+  // When set, the part is gliding BACK to a deck cell (an invalid drop returning to origin); it is
+  // mounted there on arrival. Absent for a loose drop, which just settles on the ground.
+  remount?: PrevMount;
 }
 
 export interface BuildController {
@@ -48,8 +69,9 @@ export interface BuildController {
 }
 
 /**
- * @param rig the rig whose deck parts snap onto. A single rig today; generalising to "the rig
- *            nearest the drop point" later is a change here only, since attachment is just data.
+ * @param rig the player's rig — always a mount target. Other targets (workshops) are discovered
+ *            from the World each frame, so generalising mounting to more decks needed no new wiring
+ *            here: attachment is just data, and the controller already snaps to the nearest cell.
  */
 export function createBuildController(
   world: World,
@@ -61,7 +83,22 @@ export function createBuildController(
   let grabFromY = 0;
   let dragX = 0;
   let dragZ = 0;
+  let prevMount: PrevMount | null = null; // the cell the carried part was on before lifting, if any
   const glides: Glide[] = [];
+
+  /**
+   * The decks a carried part may snap onto this frame: the rig always, plus any workshop whose
+   * proximity zone is currently active (rig parked in range). A dormant workshop is excluded, so
+   * its cells never highlight and a part dropped over it glides to the ground instead — the gate
+   * that makes "park to transfer" mean something. workshopZoneSystem owns the `active` flag.
+   */
+  function mountTargets(): EntityId[] {
+    const targets: EntityId[] = [rig];
+    for (const w of world.query(WorkshopZone)) {
+      if (world.get(w, WorkshopZone)!.active) targets.push(w);
+    }
+    return targets;
+  }
 
   function cancelGlide(part: EntityId): void {
     const i = glides.findIndex((g) => g.part === part);
@@ -70,7 +107,10 @@ export function createBuildController(
 
   function beginCarry(part: EntityId): void {
     cancelGlide(part);
-    if (world.has(part, Mount)) unmountPart(world, part); // lifting a mounted part frees its cell
+    // Remember where it was mounted (before we free the cell) so an invalid drop returns it here.
+    const m = world.get(part, Mount);
+    prevMount = m ? { target: m.rig, col: m.col, row: m.row, yaw: m.yaw } : null;
+    if (m) unmountPart(world, part); // lifting a mounted part frees its cell
     const t = world.get(part, Transform)!;
     grabFromY = t.y ?? 0;
     dragX = t.x;
@@ -83,30 +123,62 @@ export function createBuildController(
   function dropCarry(): void {
     if (carried === null) return;
     const part = carried;
+    const from = prevMount; // capture before we clear carry state
     carried = null;
+    prevMount = null;
     canvas.style.cursor = '';
     view.showCellHighlight(null);
     view.showCarryShadow(null);
     world.remove(part, Carried);
 
-    const cell = nearestFreeCell(world, rig, dragX, dragZ, SNAP_DIST);
+    const t = world.get(part, Transform)!;
+    const cell = nearestMountTarget(world, mountTargets(), dragX, dragZ, SNAP_DIST);
     if (cell) {
-      // Connect: mount on the cell at the facing the preview was showing — recompute from the
-      // same inputs so the dropped facing matches exactly what the player saw.
-      const grid = world.get(rig, MountGrid)!;
-      const local = worldToRigLocal(world.get(rig, Transform)!, dragX, dragZ);
+      // Connect: mount on the winning deck's cell at the facing the preview was showing — recompute
+      // from the same inputs (and the SAME target) so the dropped facing matches what the player saw.
+      const grid = world.get(cell.target, MountGrid)!;
+      const local = worldToRigLocal(world.get(cell.target, Transform)!, dragX, dragZ);
       const yaw = resolveLocalYaw(world.get(part, MountFacing), grid, cell.col, cell.row, local.lx, local.lz);
-      mountPart(world, part, rig, cell.col, cell.row, yaw);
-    } else {
-      // No free cell under the cursor: settle loose on the ground where it was released.
-      const t = world.get(part, Transform)!;
+      mountPart(world, part, cell.target, cell.col, cell.row, yaw);
+      return;
+    }
+
+    // Not over a free cell. If the part came off a deck, send it BACK to that cell (a rejected
+    // move returns to origin, like an inventory slot) rather than dumping it loose in the world.
+    const back = from && returnPose(from);
+    if (from && back) {
       glides.push({
         part,
-        fromX: t.x, fromY: t.y ?? CARRY_Y, fromZ: t.z,
-        toX: dragX, toY: 0, toZ: dragZ,
+        fromX: t.x, fromY: t.y ?? CARRY_PLANE_Y, fromZ: t.z,
+        toX: back.x, toY: back.y, toZ: back.z,
         t: 0,
+        remount: from,
       });
+      return;
     }
+
+    // It was loose to begin with (no origin cell): settle on the ground where it was released.
+    glides.push({
+      part,
+      fromX: t.x, fromY: t.y ?? CARRY_PLANE_Y, fromZ: t.z,
+      toX: dragX, toY: 0, toZ: dragZ,
+      t: 0,
+    });
+  }
+
+  /**
+   * The world pose of the cell a part should glide back to, or null if it can't return there
+   * (its deck is gone, or the cell is somehow occupied again). Computed from the deck's CURRENT
+   * transform so it returns to the right spot even if the rig nudged while carrying.
+   */
+  function returnPose(from: PrevMount): { x: number; y: number; z: number } | null {
+    if (!world.isAlive(from.target)) return null;
+    const grid = world.get(from.target, MountGrid);
+    const platformT = world.get(from.target, Transform);
+    if (!grid || !platformT) return null;
+    if (partAtCell(world, from.target, from.col, from.row)) return null; // cell taken — can't return
+    const pose = cellWorldPose(platformT, grid, from.col, from.row);
+    return { x: pose.x, y: pose.y, z: pose.z };
   }
 
   const onPointerDown = (e: PointerEvent): void => {
@@ -119,7 +191,7 @@ export function createBuildController(
 
   const onPointerMove = (e: PointerEvent): void => {
     if (carried === null) return;
-    const p = view.raycastPlane(e.clientX, e.clientY, CARRY_Y);
+    const p = view.raycastPlane(e.clientX, e.clientY, CARRY_PLANE_Y);
     if (p) {
       dragX = p.x;
       dragZ = p.z;
@@ -137,7 +209,9 @@ export function createBuildController(
 
   return {
     update(dt: number): void {
-      // Advance loose-drop glides (a held part never glides; it tracks the cursor directly).
+      // Advance drop glides (a held part never glides; it tracks the cursor directly). A glide is
+      // either a loose settle to the ground or a return to a deck cell — the latter mounts the part
+      // on arrival, handing it back to the mounting system to ride from there.
       for (let i = glides.length - 1; i >= 0; i--) {
         const g = glides[i]!;
         g.t = Math.min(1, g.t + dt / DROP_DUR);
@@ -147,7 +221,12 @@ export function createBuildController(
         t.x = lerp(g.fromX, g.toX, e);
         t.y = lerp(g.fromY, g.toY, e);
         t.z = lerp(g.fromZ, g.toZ, e);
-        if (g.t >= 1) glides.splice(i, 1);
+        if (g.t >= 1) {
+          if (g.remount) {
+            mountPart(world, g.part, g.remount.target, g.remount.col, g.remount.row, g.remount.yaw);
+          }
+          glides.splice(i, 1);
+        }
       }
 
       if (carried === null) return;
@@ -157,25 +236,32 @@ export function createBuildController(
       const t = world.get(carried, Transform)!;
       t.x = dragX;
       t.z = dragZ;
-      t.y = lerp(grabFromY, CARRY_Y, easeOut(c.liftT));
 
-      // Preview the snap: highlight the nearest free cell and ease the part toward the exact yaw
-      // its MountFacing rule will give it on that cell — so the held part visibly turns to show how
-      // it will sit before you let go. No cell in reach → just align to the rig and hide the marker.
-      const rigT = world.get(rig, Transform)!;
-      const grid = world.get(rig, MountGrid)!;
-      const local = worldToRigLocal(rigT, dragX, dragZ);
-      const cell = nearestFreeCell(world, rig, dragX, dragZ, SNAP_DIST);
-      const pose = cell ? cellWorldPose(rigT, grid, cell.col, cell.row) : null;
+      // Preview the snap: find the nearest free cell across every live deck (rig + active
+      // workshops), highlight it, and ease the part toward the exact yaw its MountFacing rule will
+      // give it there — so the held part visibly turns to show how it will sit before you let go.
+      // No cell in reach → align to the rig and hide the marker (and the shadow falls to the floor).
+      const cell = nearestMountTarget(world, mountTargets(), dragX, dragZ, SNAP_DIST);
+      const targetT = world.get(cell?.target ?? rig, Transform)!;
+      const grid = world.get(cell?.target ?? rig, MountGrid)!;
+      const local = worldToRigLocal(targetT, dragX, dragZ);
+      const pose = cell ? cellWorldPose(targetT, grid, cell.col, cell.row) : null;
       view.showCellHighlight(pose);
 
-      // Shadow rides onto the deck when the part hovers over the platform, else sits on the floor.
+      // Float a fixed clearance above the deck below (the chosen target's, or the rig's when none),
+      // so the hover gap is constant across decks and the part drops as it crosses to the lower
+      // workshop deck — rather than hanging at one world height regardless of what's beneath it.
+      t.y = lerp(grabFromY, grid.deckY + CARRY_CLEARANCE, easeOut(c.liftT));
+
+      // Shadow rides onto a deck when the part hovers over it, else sits on the floor. `grid`/`local`
+      // are the chosen target's when a cell is in reach, the rig's otherwise — so it reads correctly
+      // over the rig even when its deck is full and no cell highlights.
       const shadowY = isOverDeck(grid, local.lx, local.lz) ? grid.deckY : 0;
       view.showCarryShadow({ x: dragX, z: dragZ, y: shadowY });
 
       const facing = world.get(carried, MountFacing);
       const localYaw = cell ? resolveLocalYaw(facing, grid, cell.col, cell.row, local.lx, local.lz) : 0;
-      const desiredYaw = rigT.rotationY + localYaw;
+      const desiredYaw = targetT.rotationY + localYaw;
       const d = Math.atan2(Math.sin(desiredYaw - t.rotationY), Math.cos(desiredYaw - t.rotationY));
       t.rotationY += d * Math.min(1, dt * CARRY_TURN);
     },
