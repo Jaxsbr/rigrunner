@@ -7,7 +7,7 @@ import { OrbitCamera } from './orbit-camera';
 import { EntityViews } from './entity-views';
 import { Picker } from './picker';
 import { BuildAffordances } from './build-affordances';
-import type { CellPose } from './build-affordances';
+import type { CellPose } from '../core/geometry';
 import { ZoneOverlays } from './zone-overlays';
 import { animateWheels, animateStorageFill } from './animators';
 

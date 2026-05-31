@@ -1,5 +1,6 @@
 import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
+import type { CellPose } from '../core/geometry';
 import { Transform } from '../components/transform';
 import { Part } from '../components/part';
 import type { PartKind } from '../components/part';
@@ -19,19 +20,6 @@ import type { MountFacing } from '../components/mount-facing';
  *
  * Everything here is pure over the World, so it runs and tests headless.
  */
-
-/**
- * A pose in the world: planar position + height + facing. The render layer declares an identical
- * shape (render/build-affordances.ts) and the two are bridged by structural typing — deliberately,
- * so the renderer can draw a cell pose without importing anything from systems/. Same name on both
- * sides on purpose: they are the SAME concept, not two; keep them in step if a field changes.
- */
-export interface CellPose {
-  x: number;
-  z: number;
-  y: number;
-  rotationY: number;
-}
 
 /** Local (rig-space) offset of a cell centre from the rig origin: lx across, lz along. */
 export function cellLocalOffset(

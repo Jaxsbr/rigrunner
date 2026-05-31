@@ -1,17 +1,5 @@
 import * as THREE from 'three';
-
-/**
- * Where (and facing) a snap cell sits in the world. Intentionally mirrors `CellPose` in
- * systems/mounting.ts (same concept, same name) rather than importing it — render imports nothing
- * from systems/, and structural typing lets `cellWorldPose`'s result flow straight in. If you add a
- * field here, add it there too.
- */
-export interface CellPose {
-  x: number;
-  z: number;
-  y: number;
-  rotationY: number;
-}
+import type { CellPose } from '../core/geometry';
 
 /**
  * The build-mode affordances: the snap-target cell highlight and the carry shadow. Both are pure
