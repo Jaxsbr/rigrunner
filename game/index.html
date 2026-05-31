@@ -7,10 +7,25 @@
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1a1a; }
       canvas { display: block; }
+      /* Rig stat readout, top-left. White on the dark scene; ignores the mouse so it never
+         intercepts the build drag / camera controls underneath it. */
+      #stats {
+        position: fixed;
+        top: 12px;
+        left: 14px;
+        margin: 0;
+        color: #f2f2f2;
+        font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+        white-space: pre;
+        pointer-events: none;
+        user-select: none;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
+    <pre id="stats"></pre>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

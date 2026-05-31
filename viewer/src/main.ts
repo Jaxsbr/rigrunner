@@ -51,9 +51,10 @@ ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 scene.add(new THREE.GridHelper(40, 40, 0x444444, 0x333333));
 
-// A forward marker (+Z = "forward in-game", per docs/asset-style.md) so facing is legible.
+// A forward marker (-Z = "forward in-game": Blender +Y → -Z after export; movement.ts drives
+// along -z) so facing is legible.
 const forward = new THREE.ArrowHelper(
-  new THREE.Vector3(0, 0, 1),
+  new THREE.Vector3(0, 0, -1),
   new THREE.Vector3(0, 0.02, 0),
   2.2,
   0x59ff9f, // glow_green

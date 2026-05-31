@@ -1,6 +1,6 @@
 import { defineComponent } from '../core/component';
 
-/** Current signed forward speed (+ forward, - reverse). The Engine's dynamic state. */
+/** Current signed forward speed (+ forward, - reverse). The Drivetrain's dynamic state. */
 export interface Velocity {
   speed: number;
 }
