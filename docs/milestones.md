@@ -20,7 +20,7 @@ world / bring nature back" vision (in `ideas.md`) is the through-line they all s
 
 ---
 
-## M1 — Loose scrap collection (the resource spine) · `pending`
+## M1 — Loose scrap collection (the resource spine) · `active`
 
 **What:** Scrap pieces scattered across the world, blending into the terrain; **driving over them
 collects them**. A low-importance, high-volume currency — you need a lot, you can't get it all at
@@ -28,6 +28,13 @@ once, it's a continuous little target while exploring. Spends on upgrades/parts.
 
 **Why first:** It's the economy everything else spends against, and it's the simplest standalone
 loop ("drive, collect, see the number grow").
+
+**Status (PR #2, `cc356d6`):** The *collection* half is in — scrap scatters in a ring, driving the
+rig (chassis or any mounted part) over a piece sweeps it into mounted `Storage`, atomic per-piece and
+gated on having a tank bolted on, with a HUD readout and a visible fill fraction. **Still open before
+M1 is `done`:** a *spend sink* (scrap currently has no destination — no upgrade/part purchase yet),
+plus the deferred polish from the commit — **laden weight** (cargo makes the rig heavier, the felt
+tradeoff), collect FX, and a run lifecycle/reset frame.
 
 ---
 
