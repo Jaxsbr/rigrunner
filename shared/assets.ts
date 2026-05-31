@@ -15,6 +15,7 @@ export const MODEL_ASSETS: Record<string, string> = {
   'storage': '/assets/storage.glb',
   'engine-mk1': '/assets/engine-mk1.glb',
   'engine-mk2': '/assets/engine-mk2.glb',
+  'workshop': '/assets/workshop.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

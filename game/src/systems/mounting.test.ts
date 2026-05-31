@@ -11,6 +11,7 @@ import {
   partAtCell,
   hasMountedPartKind,
   nearestFreeCell,
+  nearestMountTarget,
   outwardLocalYaw,
   leanLocalYaw,
   resolveLocalYaw,
@@ -106,6 +107,66 @@ describe('mounting occupancy + gating', () => {
     const w = new World();
     const r = rig(w);
     expect(nearestFreeCell(w, r, 20, 20, 0.7)).toBeNull();
+  });
+});
+
+describe('multi-grid mounting (rig + workshop)', () => {
+  // A bare 3×3 mount target standing in for a workshop — mounting is grid-agnostic, so any entity
+  // with a MountGrid + Transform is a valid target.
+  function workshopGrid(w: World, x: number, z: number): EntityId {
+    const e = w.createEntity();
+    w.add(e, Transform, { x, z, rotationY: 0 });
+    w.add(e, MountGrid, { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 });
+    return e;
+  }
+
+  it('picks the globally nearest cell across targets and reports which target won', () => {
+    const w = new World();
+    const r = rig(w, 0, 0);
+    const shop = workshopGrid(w, 8, 0);
+
+    // A point hard over the workshop's centre cell → the workshop wins, not the far-off rig.
+    const hit = nearestMountTarget(w, [r, shop], 8, 0, 0.7);
+    expect(hit).toEqual({ target: shop, col: 1, row: 1 });
+
+    // A point over the rig → the rig wins.
+    const onRig = nearestMountTarget(w, [r, shop], 0.5, -1, 0.7);
+    expect(onRig?.target).toBe(r);
+  });
+
+  it('skips a target whose cell is occupied and falls to another target', () => {
+    const w = new World();
+    const r = rig(w, 0, 0);
+    const shop = workshopGrid(w, 0, 8);
+
+    // Occupy the rig's right-front cell, then aim at it: with the rig cell taken and the workshop
+    // far, the closest FREE cell within a generous snap is still on the rig (a different cell).
+    mountPart(w, enginePart(w), r, 1, 0);
+    const hit = nearestMountTarget(w, [r, shop], 0.5, -1, 5);
+    expect(hit?.target).toBe(r);
+    expect(hit).not.toEqual({ target: r, col: 1, row: 0 });
+  });
+
+  it('returns null when no target has a free cell in reach', () => {
+    const w = new World();
+    const r = rig(w, 0, 0);
+    const shop = workshopGrid(w, 8, 0);
+    expect(nearestMountTarget(w, [r, shop], 50, 50, 0.7)).toBeNull();
+  });
+
+  it('rides a part mounted on the workshop to the workshop deck, not the rig', () => {
+    const w = new World();
+    rig(w, 0, 0);
+    const shop = workshopGrid(w, 8, 0);
+    const part = enginePart(w);
+
+    mountPart(w, part, shop, 1, 1); // centre cell of the workshop
+    mountingSystem(w);
+
+    const t = w.get(part, Transform)!;
+    expect(t.x).toBeCloseTo(8); // sits at the workshop, not at the rig origin
+    expect(t.z).toBeCloseTo(0);
+    expect(t.y).toBeCloseTo(0.2); // the workshop's deck height
   });
 });
 

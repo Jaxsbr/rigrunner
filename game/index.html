@@ -21,11 +21,26 @@
         pointer-events: none;
         user-select: none;
       }
+      /* Scrap wallet readout, top-right. Temporary UI: the banked-scrap total the workshop drain
+         feeds. glow_green to read as "owned resource"; ignores the mouse like #stats. */
+      #wallet {
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        margin: 0;
+        color: #59ff9f;
+        font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+        white-space: pre;
+        pointer-events: none;
+        user-select: none;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <pre id="stats"></pre>
+    <pre id="wallet"></pre>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

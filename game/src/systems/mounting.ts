@@ -99,9 +99,44 @@ export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind):
 }
 
 /**
- * The nearest FREE cell on `rig` to a world point, within `maxDist` (rig-local metres), or null.
- * Mirrors the prototype's snap behaviour: pick the closest empty cell the cursor is hovering
- * near, so dropping feels forgiving rather than pixel-precise.
+ * The nearest FREE cell on `platform` to a world point, within `maxDist` (local metres), with its
+ * distance — or null if nothing is in reach. `platform` is any entity carrying a MountGrid (a rig
+ * OR a workshop): mounting is grid-agnostic, so the same snap serves every deck. Mirrors the
+ * prototype's forgiving snap: pick the closest empty cell the cursor hovers near, not pixel-precise.
+ */
+export function nearestFreeCellOn(
+  world: World,
+  platform: EntityId,
+  wx: number,
+  wz: number,
+  maxDist: number,
+): { col: number; row: number; dist: number } | null {
+  const grid = world.get(platform, MountGrid);
+  const platformT = world.get(platform, Transform);
+  if (!grid || !platformT) return null;
+
+  const { lx, lz } = worldToRigLocal(platformT, wx, wz);
+  let best: { col: number; row: number; dist: number } | null = null;
+  let bestD = maxDist;
+  for (let col = 0; col < grid.cols; col++) {
+    for (let row = 0; row < grid.rows; row++) {
+      if (partAtCell(world, platform, col, row)) continue;
+      const off = cellLocalOffset(grid, col, row);
+      const d = Math.hypot(off.lx - lx, off.lz - lz);
+      if (d < bestD) {
+        bestD = d;
+        best = { col, row, dist: d };
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * The nearest FREE cell to a world point ACROSS several mount targets, returning which platform
+ * won alongside the cell — or null if none is in reach. This is the seam that lets a carried part
+ * snap onto either the rig or an active workshop: the build controller passes every valid target
+ * and the globally closest empty cell wins, so the player just drops near whichever deck they mean.
  */
 export function nearestFreeCell(
   world: World,
@@ -110,25 +145,25 @@ export function nearestFreeCell(
   wz: number,
   maxDist: number,
 ): { col: number; row: number } | null {
-  const grid = world.get(rig, MountGrid);
-  const rigT = world.get(rig, Transform);
-  if (!grid || !rigT) return null;
+  const hit = nearestFreeCellOn(world, rig, wx, wz, maxDist);
+  return hit ? { col: hit.col, row: hit.row } : null;
+}
 
-  const { lx, lz } = worldToRigLocal(rigT, wx, wz);
-  let best: { col: number; row: number } | null = null;
-  let bestD = maxDist;
-  for (let col = 0; col < grid.cols; col++) {
-    for (let row = 0; row < grid.rows; row++) {
-      if (partAtCell(world, rig, col, row)) continue;
-      const off = cellLocalOffset(grid, col, row);
-      const d = Math.hypot(off.lx - lx, off.lz - lz);
-      if (d < bestD) {
-        bestD = d;
-        best = { col, row };
-      }
+export function nearestMountTarget(
+  world: World,
+  targets: EntityId[],
+  wx: number,
+  wz: number,
+  maxDist: number,
+): { target: EntityId; col: number; row: number } | null {
+  let best: { target: EntityId; col: number; row: number; dist: number } | null = null;
+  for (const target of targets) {
+    const hit = nearestFreeCellOn(world, target, wx, wz, maxDist);
+    if (hit && (!best || hit.dist < best.dist)) {
+      best = { target, col: hit.col, row: hit.row, dist: hit.dist };
     }
   }
-  return best;
+  return best ? { target: best.target, col: best.col, row: best.row } : null;
 }
 
 // ── Facing: the local yaw a part rests at on a cell, per its MountFacing composition ──────────

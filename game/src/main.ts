@@ -2,18 +2,23 @@ import { World } from './core/world';
 import { spawnRig } from './content/rig';
 import { spawnEngine, ENGINE_MK1, ENGINE_MK2 } from './content/engines';
 import { spawnContainer } from './content/containers';
+import { spawnWorkshop } from './content/workshop';
 import { scatterScrap } from './content/scrap';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
+import { Wallet } from './components/wallet';
 import { movementSystem } from './systems/movement';
 import { mountingSystem } from './systems/mounting';
 import { collisionSystem } from './systems/collision';
 import { scrapCollectionSystem } from './systems/scrap-collection';
+import { workshopZoneSystem } from './systems/workshop-zone';
+import { workshopDrainSystem } from './systems/workshop-drain';
 import { createDriveInput } from './input/drive-input';
 import { createCameraInput } from './input/camera-input';
 import { createBuildController } from './build/build-controller';
 import { RenderView } from './render/view';
 import { StatsHud } from './ui/stats-hud';
+import { WalletHud } from './ui/wallet-hud';
 
 /**
  * Composition root. The ONLY place that knows about all three layers at once: it wires
@@ -37,11 +42,20 @@ spawnContainer(world, -3, 2.5);
 // Loose scrap scattered in a ring around the rig — drive over a piece to sweep it into storage.
 scatterScrap(world, 10);
 
+// The workshop — home base, a short drive up +Z from spawn, clear of the side-staged parts. Park
+// the rig in its proximity zone to move containers onto its 3×3 deck and drain them into the wallet.
+spawnWorkshop(world, 0, 8);
+// The player's scrap wallet: a singleton entity holding the banked total. The workshop drain feeds
+// it; the wallet HUD reads it. Lives outside any rig/container so it survives rebuilds.
+const wallet = world.createEntity();
+world.add(wallet, Wallet, { scrap: 0 });
+
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
 const view = new RenderView(canvas);
 const build = createBuildController(world, view, canvas, player);
 const stats = new StatsHud(document.querySelector<HTMLElement>('#stats')!);
+const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!);
 
 let last = performance.now();
 function frame(now: number): void {
@@ -58,21 +72,29 @@ function frame(now: number): void {
   // then let the build interaction move a carried part / settle drops.
   movementSystem(world, dt);
   mountingSystem(world);
+  // recompute each workshop's proximity gate (rig in range?) before the build interaction reads it,
+  // so a part dropped this frame snaps onto the workshop only when it's lit.
+  workshopZoneSystem(world, player);
   build.update(dt);
 
   // collision → collection: with parts now placed at their cells, find overlaps and let any scrap
   // the rig (or a part on it) touched be swept into storage. Pure pair list in, mutations out.
   scrapCollectionSystem(world, collisionSystem(world));
 
+  // workshop drain: bank scrap out of containers parked on a workshop into the player's wallet.
+  workshopDrainSystem(world, dt);
+
   // render (reads state; owns no truth)
   view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
+  view.syncWorkshopZones(world);
   view.animateWheels(world, dt);
   view.animateStorageFill(world, dt);
   view.render();
 
-  // UI (reads state; owns no truth) — refreshes the rig stat readout when its capabilities change.
+  // UI (reads state; owns no truth) — rig stat readout + the scrap wallet total.
   stats.update(world, player);
+  walletHud.update(world);
 
   requestAnimationFrame(frame);
 }

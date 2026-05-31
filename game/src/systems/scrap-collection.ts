@@ -30,8 +30,12 @@ function rigOf(world: World, e: EntityId): EntityId | null {
   return null;
 }
 
-/** A rig's mounted storage containers, ordered front-to-back (row) then left-to-right (col). */
-function mountedStorages(world: World, rig: EntityId): EntityId[] {
+/**
+ * A platform's mounted storage containers, ordered front-to-back (row) then left-to-right (col).
+ * Exported so the workshop drain empties them in the SAME order scrap fills them — one definition
+ * of "which container is first" shared by collection and draining.
+ */
+export function mountedStorages(world: World, rig: EntityId): EntityId[] {
   const out: EntityId[] = [];
   for (const e of world.query(Storage, Mount)) {
     if (world.get(e, Mount)!.rig === rig) out.push(e);

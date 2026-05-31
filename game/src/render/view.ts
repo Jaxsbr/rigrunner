@@ -5,6 +5,7 @@ import { Transform } from '../components/transform';
 import { Renderable } from '../components/renderable';
 import { Velocity } from '../components/velocity';
 import { Storage } from '../components/storage';
+import { WorkshopZone } from '../components/workshop-zone';
 import { ModelLoader } from '../../../shared/model-loader';
 import type { CameraIntent } from '../input/camera-input';
 
@@ -38,8 +39,21 @@ export class RenderView {
   private readonly ndc = new THREE.Vector2();
   private readonly dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly hitPoint = new THREE.Vector3();
-  private readonly cellHighlight: THREE.LineSegments;
+  // Target-cell highlight: a filled, glowing square that sits on the cell a carried part will snap
+  // into, breathing (opacity + scale pulse) so the cell reads as eager to accept the part rather
+  // than a faint outline. The group holds a fill + a bright border; the fill material and the
+  // visible-since timestamp drive the pulse and a quick pop when it first appears over a cell.
+  private readonly cellHighlight: THREE.Group;
+  private readonly cellHighlightFill: THREE.MeshBasicMaterial;
+  private readonly cellHighlightBorder: THREE.LineBasicMaterial;
+  private cellHighlightShownAt = 0; // performance.now() the pad last landed on a (new) cell — drives the pop
+  private cellHighlightX = 0;       // last cell centre, so a hop to a different cell replays the pop
+  private cellHighlightZ = 0;
   private readonly carryShadow: THREE.Mesh;
+  // Workshop proximity-zone discs, one per WorkshopZone entity (lazily created on first sight).
+  // Pure view polish: a flat circle under each workshop, lit green when the rig is in range and
+  // dim grey otherwise, so the "you can transfer now" state is unmistakable.
+  private readonly zoneOverlays = new Map<EntityId, THREE.Mesh>();
 
   // Orbit camera. The starting offset (9, 11, 13) seeds the default distance and bearing; the
   // pitch is fixed near-overhead (no tilt control). Zoom moves the radius in/out, rotate spins
@@ -91,12 +105,24 @@ export class RenderView {
     // Grid lines tuned a touch darker than the new ground so they stay legible on the lighter floor.
     this.scene.add(new THREE.GridHelper(80, 80, 0x6f685c, 0x7d7669));
 
-    // Target-cell highlight: a glow_green square outline laid flat, shown on the cell a carried
-    // part would snap into. Hidden until the build controller positions it.
-    this.cellHighlight = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.92, 0.92)),
-      new THREE.LineBasicMaterial({ color: 0x59ff9f }),
+    // Target-cell highlight: a glow_green FILLED square + bright border, laid flat on the cell a
+    // carried part would snap into — a glowing pad rather than a faint outline, so it reads as
+    // eager to accept the part. depthWrite off + a renderOrder keep it from z-fighting the deck and
+    // let it glow over the surface. The pulse (opacity + scale) is applied in showCellHighlight.
+    this.cellHighlight = new THREE.Group();
+    this.cellHighlightFill = new THREE.MeshBasicMaterial({
+      color: 0x59ff9f, transparent: true, opacity: 0.4, depthWrite: false,
+    });
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), this.cellHighlightFill);
+    fill.renderOrder = 2;
+    this.cellHighlightBorder = new THREE.LineBasicMaterial({
+      color: 0x9dffc8, transparent: true, opacity: 0.95, depthWrite: false,
+    });
+    const border = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.9, 0.9)), this.cellHighlightBorder,
     );
+    border.renderOrder = 3;
+    this.cellHighlight.add(fill, border);
     this.cellHighlight.rotation.x = -Math.PI / 2;
     this.cellHighlight.visible = false;
     this.scene.add(this.cellHighlight);
@@ -200,21 +226,53 @@ export class RenderView {
     return { x: this.hitPoint.x, z: this.hitPoint.z };
   }
 
-  /** Show the snap-target highlight on a cell at the given world pose (or hide it when null). */
+  /**
+   * Show the snap-target highlight on a cell at the given world pose (or hide it when null). The
+   * pad breathes (opacity + scale) so the cell looks alive and eager to take the part, and pops up
+   * with a quick overshoot the moment it first appears over a cell — a clear "this cell will accept
+   * it" reaction, not a static marker. Both effects are pure view polish driven off the clock.
+   */
   showCellHighlight(pose: { x: number; z: number; y: number; rotationY: number } | null): void {
     if (!pose) {
+      if (this.cellHighlight.visible) this.cellHighlightShownAt = 0; // reset so the pop replays next time
       this.cellHighlight.visible = false;
       return;
     }
+    const now = performance.now();
+    // Replay the pop whenever it first appears OR hops to a different cell (cells are 1 m apart),
+    // so every time the part moves over a new cell that cell visibly reacts.
+    const hopped = Math.hypot(pose.x - this.cellHighlightX, pose.z - this.cellHighlightZ) > 0.5;
+    if (!this.cellHighlight.visible || hopped) this.cellHighlightShownAt = now;
     this.cellHighlight.visible = true;
+    this.cellHighlightX = pose.x;
+    this.cellHighlightZ = pose.z;
     this.cellHighlight.position.set(pose.x, pose.y + 0.02, pose.z);
+
+    // Steady breathing pulse (~1.1 Hz): a gentle in/out so the pad always looks active. Settled
+    // scale stays at 0.94–1.0 so the 0.9 m pad never reaches the 1 m cell edge.
+    const t = now / 1000;
+    const breathe = 0.5 + 0.5 * Math.sin(t * 7); // 0..1
+    // Appear-pop: a quick grow-IN from small over ~180 ms when it lands on a (new) cell. It scales
+    // UP toward the settled size (never past it), so the cell springs to grab the part without the
+    // pad ever rendering larger than the cell on arrival.
+    const age = (now - this.cellHighlightShownAt) / 180;
+    const growIn = age >= 1 ? 1 : 1 - Math.pow(1 - age, 3); // easeOutCubic 0..1
+
+    const settled = 0.94 + breathe * 0.06; // 0.94–1.0
+    const scale = settled * (0.7 + 0.3 * growIn); // 70%→100% of settled on arrival, max = settled
+    this.cellHighlight.scale.set(scale, scale, 1);
     this.cellHighlight.rotation.set(-Math.PI / 2, 0, pose.rotationY);
+    this.cellHighlightFill.opacity = (0.3 + breathe * 0.3) * (0.55 + 0.45 * growIn); // brighten as it grows in
   }
 
   /**
    * Show the carry shadow on the surface beneath a carried part (or hide it when null). `y` is
    * that surface's height — the rig's deck when the part hovers over it, the floor otherwise — so
    * the shadow climbs onto the blue platform instead of staying on the ground.
+   *
+   * Sits a touch ABOVE the cell highlight (which is at +0.02): when a part hovers over its snap
+   * cell both land on the same deck, and lifting the shadow lets it composite cleanly on top of the
+   * glowing pad instead of z-fighting it.
    */
   showCarryShadow(at: { x: number; z: number; y: number } | null): void {
     if (!at) {
@@ -222,7 +280,42 @@ export class RenderView {
       return;
     }
     this.carryShadow.visible = true;
-    this.carryShadow.position.set(at.x, at.y + 0.02, at.z);
+    this.carryShadow.position.set(at.x, at.y + 0.06, at.z);
+  }
+
+  /**
+   * Draw each workshop's proximity zone as a flat disc on the ground, coloured by its gate state:
+   * lit green while the rig is in range (the grid is a live drop target), dim grey otherwise (park
+   * here to activate). Reads the WorkshopZone flag the sim owns — the disc is a pure projection.
+   * The disc is sized to the zone radius once (radius is fixed) and reused thereafter.
+   */
+  syncWorkshopZones(world: World): void {
+    for (const e of world.query(WorkshopZone, Transform)) {
+      const zone = world.get(e, WorkshopZone)!;
+      let disc = this.zoneOverlays.get(e);
+      if (!disc) {
+        disc = new THREE.Mesh(
+          new THREE.CircleGeometry(zone.radius, 48),
+          new THREE.MeshBasicMaterial({ color: 0x59ff9f, transparent: true, opacity: 0.18 }),
+        );
+        disc.rotation.x = -Math.PI / 2;
+        this.scene.add(disc);
+        this.zoneOverlays.set(e, disc);
+      }
+      const t = world.get(e, Transform)!;
+      disc.position.set(t.x, 0.03, t.z); // just above the ground plane to avoid z-fighting
+      const mat = disc.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(zone.active ? 0x59ff9f : 0x6f685c); // glow_green active, dim grey dormant
+      mat.opacity = zone.active ? 0.28 : 0.14;
+    }
+
+    // Drop discs for any workshop that no longer exists.
+    for (const [id, disc] of this.zoneOverlays) {
+      if (!world.isAlive(id)) {
+        this.scene.remove(disc);
+        this.zoneOverlays.delete(id);
+      }
+    }
   }
 
   private setRay(clientX: number, clientY: number): void {

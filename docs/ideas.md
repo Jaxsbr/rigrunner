@@ -113,3 +113,20 @@ nature → the world visibly heals.
 ### Map progression via clearing
 Once an entire map's obstacles/challenges/corruption are cleared, that **unlocks progression** to a
 new level / new map. Restoration is the through-line of progression, not just side content.
+
+## 2026-05-31 — Workshop drain upgrade axes (captured while building the workshop)
+
+Built the first workshop: a static 3×3 build fixture (home base) with the same mounting mechanism
+as the rig, gated by a proximity zone the rig must park in. Storage containers dropped on it drain
+their scrap into a player wallet (`SCRAP <n>` HUD). Two knobs were deliberately fixed for now but
+left as obvious upgrade seams in `systems/workshop-drain.ts` — **captured, not committed:**
+
+- **Drain RATE** — currently a flat `DRAIN_INTERVAL` (0.4 s per piece). A player-unlockable upgrade
+  would shrink it so the workshop banks scrap faster. The constant is the seam.
+- **Drain CONCURRENCY** — drain is **sequential** today (one container empties before the next
+  starts). A player-unlockable upgrade would let N containers drain at once. The "drain the first
+  non-empty container" loop is the seam (widen to first-N).
+
+These are the natural first sinks for the scrap the wallet now banks — a "spend scrap to make the
+workshop process faster / in parallel" loop — but neither is a committed mechanic. Add them only if
+play shows the drain wait is a felt friction worth upgrading away.
