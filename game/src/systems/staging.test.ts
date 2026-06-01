@@ -18,7 +18,6 @@ import {
   stagedProducts,
   stageProduct,
   unstageProduct,
-  nearestFreeWorkshopCell,
 } from './staging';
 
 /** A world wired like main.ts: an inventory singleton + a workshop (a 3×3 deck with a zone). */
@@ -106,30 +105,5 @@ describe('staging — unstage', () => {
     stageProduct(world, product, workshop, 2, 2);
     unstageProduct(world, product);
     expect(inventoryItems(world)).toEqual(before);
-  });
-});
-
-describe('staging — nearest free cell', () => {
-  it('picks the cell under a deck-local point', () => {
-    const { world, workshop } = setup();
-    // 3×3, cellSize 1, centred: local (0,0) is the centre cell (col 1, row 1).
-    expect(nearestFreeWorkshopCell(world, workshop, 0, 0)).toEqual({ col: 1, row: 1 });
-    expect(nearestFreeWorkshopCell(world, workshop, -1, -1)).toEqual({ col: 0, row: 0 });
-  });
-
-  it('skips an occupied cell, returning the nearest free one', () => {
-    const { world, workshop } = setup();
-    stageProduct(world, ownedEngine(world), workshop, 1, 1); // occupy the centre
-    const cell = nearestFreeWorkshopCell(world, workshop, 0, 0);
-    expect(cell).not.toBeNull();
-    expect(cell).not.toEqual({ col: 1, row: 1 }); // not the taken centre
-  });
-
-  it('returns null when every cell is taken', () => {
-    const { world, workshop } = setup();
-    for (let col = 0; col < 3; col++) {
-      for (let row = 0; row < 3; row++) stageProduct(world, ownedEngine(world), workshop, col, row);
-    }
-    expect(nearestFreeWorkshopCell(world, workshop, 0, 0)).toBeNull();
   });
 });

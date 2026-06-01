@@ -133,27 +133,27 @@ export function canMountPartOn(world: World, target: EntityId, part: EntityId): 
 }
 
 /**
- * The nearest FREE cell on `platform` to a world point, within `maxDist` (local metres), with its
- * distance — or null if nothing is in reach. `platform` is any entity carrying a MountGrid (a rig
- * OR a workshop): mounting is grid-agnostic, so the same snap serves every deck. Mirrors the
- * prototype's forgiving snap: pick the closest empty cell the cursor hovers near, not pixel-precise.
+ * The single grid-snap scan: the nearest FREE cell on `platform` to a point in the platform's LOCAL
+ * frame (lx across, lz along — the frame `cellLocalOffset` returns), with its distance, within
+ * `maxDist` local metres, or null if none is free in reach. `platform` is any entity carrying a
+ * MountGrid (a rig OR a workshop): mounting is grid-agnostic, so one snap serves every deck. Mirrors
+ * the prototype's forgiving snap: pick the closest empty cell the cursor hovers near, not pixel-precise.
  *
- * Private: the only caller is `nearestMountTarget`, which folds it across several decks. Callers
- * always go through that, even for a single deck (pass a one-element target list), so there is one
- * snap entry point rather than two near-identical ones.
+ * This is the canonical owner of "closest empty cell" — do not re-implement the scan elsewhere.
+ * World-space callers convert their point with `worldToRigLocal` first (see `nearestFreeCellOn`); a
+ * caller already holding a local point — the workshop deck view, which raycasts in deck-local space —
+ * passes it straight in. `maxDist` defaults to no bound for those local callers; the carried-part
+ * snap passes a real reach so a drop far from any deck misses.
  */
-function nearestFreeCellOn(
+export function closestFreeCellLocal(
   world: World,
   platform: EntityId,
-  wx: number,
-  wz: number,
-  maxDist: number,
+  lx: number,
+  lz: number,
+  maxDist = Infinity,
 ): { col: number; row: number; dist: number } | null {
   const grid = world.get(platform, MountGrid);
-  const platformT = world.get(platform, Transform);
-  if (!grid || !platformT) return null;
-
-  const { lx, lz } = worldToRigLocal(platformT, wx, wz);
+  if (!grid) return null;
   let best: { col: number; row: number; dist: number } | null = null;
   let bestD = maxDist;
   for (let col = 0; col < grid.cols; col++) {
@@ -168,6 +168,24 @@ function nearestFreeCellOn(
     }
   }
   return best;
+}
+
+/**
+ * The nearest free cell on `platform` to a WORLD point, within `maxDist` — `closestFreeCellLocal`
+ * after a world→local conversion. Needs the platform's Transform to do that conversion; null if it
+ * has none. Private: the only caller is `nearestMountTarget`, which folds it across several decks.
+ */
+function nearestFreeCellOn(
+  world: World,
+  platform: EntityId,
+  wx: number,
+  wz: number,
+  maxDist: number,
+): { col: number; row: number; dist: number } | null {
+  const platformT = world.get(platform, Transform);
+  if (!platformT) return null;
+  const { lx, lz } = worldToRigLocal(platformT, wx, wz);
+  return closestFreeCellLocal(world, platform, lx, lz, maxDist);
 }
 
 /**

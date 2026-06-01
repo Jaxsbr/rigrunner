@@ -6,7 +6,7 @@ import { Mount } from '../components/mount';
 import { MountGrid } from '../components/mount-grid';
 import { Assembly } from '../components/assembly';
 import { WorkshopZone } from '../components/workshop-zone';
-import { cellLocalOffset, partAtCell, mountPart, unmountPart } from './mounting';
+import { partAtCell, mountPart, unmountPart } from './mounting';
 import { placeProductInWorld, removeFromWorld } from './assembly';
 import { addToInventory } from '../components/inventory';
 
@@ -38,36 +38,6 @@ export function workshopEntity(world: World): EntityId | null {
 /** Every product currently staged on the workshop deck (parts whose Mount points at the workshop). */
 export function stagedProducts(world: World, workshop: EntityId): EntityId[] {
   return world.query(Part, Mount).filter((p) => world.get(p, Mount)!.rig === workshop);
-}
-
-/**
- * The nearest FREE workshop cell to a point expressed in the deck's LOCAL frame (lx across, lz along
- * — the same frame `cellLocalOffset` returns, centred on the deck origin), or null if every cell is
- * taken. Mirrors the build interaction's forgiving "closest empty cell" snap, but in deck-local
- * space: the 3D deck view raycasts the cursor onto the deck plane and hands the local point here.
- */
-export function nearestFreeWorkshopCell(
-  world: World,
-  workshop: EntityId,
-  lx: number,
-  lz: number,
-): { col: number; row: number } | null {
-  const grid = world.get(workshop, MountGrid);
-  if (!grid) return null;
-  let best: { col: number; row: number } | null = null;
-  let bestD = Infinity;
-  for (let col = 0; col < grid.cols; col++) {
-    for (let row = 0; row < grid.rows; row++) {
-      if (partAtCell(world, workshop, col, row)) continue;
-      const off = cellLocalOffset(grid, col, row);
-      const d = Math.hypot(off.lx - lx, off.lz - lz);
-      if (d < bestD) {
-        bestD = d;
-        best = { col, row };
-      }
-    }
-  }
-  return best;
 }
 
 /**

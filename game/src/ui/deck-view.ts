@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ModelLoader } from '../../../shared/model-loader';
 import { MODEL_ASSETS } from '../../../shared/assets';
+import { createThreeCanvas, disposeObject } from '../../../shared/three-canvas';
 import type { EntityId } from '../core/types';
 import { cellLocalOffset } from '../systems/mounting';
 
@@ -15,9 +15,9 @@ import { cellLocalOffset } from '../systems/mounting';
  * deck-local scene and supports the staging interactions: `localPointAt` raycasts the cursor onto
  * the deck plane (so the overlay can resolve the nearest free cell while dragging a product in),
  * `highlight` shows where a drop will land, and a clean click on a staged product reports it through
- * `onSelect` (so the player can inspect / unstage / dismantle it). It owns its own canvas, camera,
- * lights, `OrbitControls` (drag-to-orbit, auto-rotate off — it's a workspace, not a showcase) and
- * render loop, coexisting with the frozen main scene and the inspect portrait.
+ * `onSelect` (so the player can inspect / unstage / dismantle it). Both widgets build on the shared
+ * `three-canvas` host (canvas, lit scene, orbit camera, render loop); this one adds the multi-model
+ * deck content + raycasting. Its orbit auto-rotate is off — it's a workspace, not a showcase.
  *
  * Deck-local frame: the workshop sits at the origin with no rotation, so a cell's position is just
  * its `cellLocalOffset` (lx → x, lz → z) at the deck height — the same frame the raycast returns, so
@@ -67,31 +67,18 @@ export interface DeckViewOptions {
 const CLICK_THRESHOLD = 4; // px of pointer travel below which a press counts as a click (vs an orbit)
 
 export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckView {
-  const canvas = document.createElement('canvas');
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.display = 'block';
-  canvas.style.touchAction = 'none';
-  host.appendChild(canvas);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 500);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.enablePan = false;
-  controls.autoRotate = false;
-
-  // Lighting mirrors the portrait/viewer so a staged part reads the same here as in-game.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-  sun.position.set(5, 10, 7);
-  scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.25);
-  fill.position.set(-6, 4, -5);
-  scene.add(fill);
+  const cv = createThreeCanvas(host, {
+    fov: 42,
+    autoRotate: false,
+    onDispose: () => {
+      clearHolder();
+      highlightMesh.geometry.dispose();
+      highlightMat.dispose();
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointerup', onUp);
+    },
+  });
+  const { scene, camera, canvas, controls } = cv;
 
   const holder = new THREE.Group(); // workshop + staged-part models live here, rebuilt per render
   scene.add(holder);
@@ -107,24 +94,10 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
   let token = 0; // bumped each render() so a late async load from a stale snapshot is dropped
   let grid: DeckGrid = { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 };
   let framed = false;
-  let running = false;
-  let rafId = 0;
 
   function cellCenter(col: number, row: number): { x: number; z: number } {
     const off = cellLocalOffset(grid, col, row);
     return { x: off.lx, z: off.lz };
-  }
-
-  function disposeObject(obj: THREE.Object3D): void {
-    obj.traverse?.((node) => {
-      const mesh = node as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.geometry?.dispose();
-        const mat = mesh.material;
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-        else mat?.dispose();
-      }
-    });
   }
 
   function clearHolder(): void {
@@ -283,46 +256,13 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointerup', onUp);
 
-  function resize(): void {
-    const w = host.clientWidth;
-    const h = host.clientHeight;
-    if (w === 0 || h === 0) return;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-
-  function tick(): void {
-    if (!running) return;
-    controls.update();
-    renderer.render(scene, camera);
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function start(): void {
-    if (running) return;
-    running = true;
-    resize();
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function stop(): void {
-    running = false;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = 0;
-  }
-
-  function dispose(): void {
-    stop();
-    clearHolder();
-    highlightMesh.geometry.dispose();
-    highlightMat.dispose();
-    controls.dispose();
-    renderer.dispose();
-    canvas.removeEventListener('pointerdown', onDown);
-    canvas.removeEventListener('pointerup', onUp);
-    canvas.remove();
-  }
-
-  return { render, localPointAt, highlight, resize, start, stop, dispose };
+  return {
+    render,
+    localPointAt,
+    highlight,
+    resize: cv.resize,
+    start: cv.start,
+    stop: cv.stop,
+    dispose: cv.dispose,
+  };
 }

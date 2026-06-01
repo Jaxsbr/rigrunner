@@ -32,8 +32,8 @@ import {
   stagedProducts,
   stageProduct,
   unstageProduct,
-  nearestFreeWorkshopCell,
 } from '../systems/staging';
+import { closestFreeCellLocal } from '../systems/mounting';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
 import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from './deck-view';
 
@@ -687,7 +687,9 @@ export class WorkshopOverlay {
     if (workshop === null) return null;
     const lp = this.deck.localPointAt(x, y);
     if (!lp) return null;
-    return nearestFreeWorkshopCell(this.world, workshop, lp.lx, lp.lz);
+    // The deck view raycasts in workshop-local space, so the snap takes the local point directly —
+    // no reach bound (the deck plane is unbounded; an off-deck miss is caught by `localPointAt`).
+    return closestFreeCellLocal(this.world, workshop, lp.lx, lp.lz);
   }
 
   /** Create the floating clone that follows the cursor. Sized to match the source chip. */
