@@ -35,12 +35,110 @@
         pointer-events: none;
         user-select: none;
       }
+      /* Workshop tab, bottom-centre. Shown only while the rig is in a workshop zone (and the
+         overlay is closed). Slides/fades in via a transition; the .hidden class drives it off
+         rather than display:none so it never pops. */
+      #workshop-tab {
+        position: fixed;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%) translateY(0);
+        padding: 9px 18px;
+        border: 1px solid rgba(89, 255, 159, 0.5);
+        border-radius: 8px 8px 0 0;
+        background: rgba(20, 28, 24, 0.92);
+        color: #59ff9f;
+        font: 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.5);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      #workshop-tab:hover { background: rgba(28, 40, 34, 0.96); }
+      #workshop-tab.hidden {
+        opacity: 0;
+        transform: translateX(-50%) translateY(14px);
+        pointer-events: none;
+      }
+      /* Full-screen workshop overlay. Backdrop dims + intercepts the mouse (pointer-events:auto),
+         so the frozen scene underneath can't be dragged/orbited while it's open. An empty shell
+         in P1 — the inventory browser, portrait and bench land in later PRs. */
+      #workshop-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 12, 0.72);
+        font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        color: #f2f2f2;
+        transition: opacity 0.2s ease;
+      }
+      #workshop-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .workshop-panel {
+        width: min(880px, 92vw);
+        height: min(620px, 88vh);
+        display: flex;
+        flex-direction: column;
+        background: #15191c;
+        border: 1px solid #2c343a;
+        border-radius: 10px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+      }
+      .workshop-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #2c343a;
+        background: #1b2125;
+      }
+      .workshop-header h2 {
+        margin: 0;
+        font: 600 14px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.08em;
+        color: #59ff9f;
+      }
+      #workshop-close {
+        width: 26px;
+        height: 26px;
+        border: 1px solid #2c343a;
+        border-radius: 6px;
+        background: transparent;
+        color: #c7ced3;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #workshop-close:hover { background: #232b30; color: #fff; }
+      .workshop-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6b757c;
+        padding: 16px;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <pre id="stats"></pre>
     <pre id="wallet"></pre>
+    <button id="workshop-tab" class="hidden" type="button">🔧 Open Workshop</button>
+    <div id="workshop-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workshop">
+      <div class="workshop-panel">
+        <header class="workshop-header">
+          <h2>🔧 WORKSHOP</h2>
+          <button id="workshop-close" type="button" aria-label="Close workshop">✕</button>
+        </header>
+        <div class="workshop-body">Inventory &amp; assembly bench coming soon.</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

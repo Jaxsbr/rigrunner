@@ -38,7 +38,7 @@ tradeoff), collect FX, and a run lifecycle/reset frame.
 
 ---
 
-## MW — Workshop interface, parts inventory & engine composition · `pending`
+## MW — Workshop interface, parts inventory & engine composition · `active`
 
 **What:** Two phases. **Phase 1** — an **openable workshop interface** (a tab appears in the workshop
 zone; clicking it opens a game-freezing overlay) + a **generic parts inventory** on the player and an
@@ -69,6 +69,12 @@ electric and a complete mechanical engine on the bench, store them, **mount one 
 type-correct feel, and confirm the **cross-type mount is blocked** until the first engine is removed.
 
 **Spans many PRs** (deliberately — see the spec). Ship Phase 1 first, feel it, then build Phase 2.
+
+**Status (PR #5):** Phase 1 / **PR P1 delivered** — the openable workshop tab + game-freezing
+overlay shell. The tab tracks zone proximity, the overlay freezes the sim cleanly (and resumes with
+no stuck input), and the empty panel is ready for content. **Still open in Phase 1:** P2 (generic
+parts inventory + 8-part catalog + dev grant) and P3 (inventory browser + portrait + bench drag).
+Phase 2 (P4–P6: assembly + type-locked mounting) follows.
 
 **Depends on:** the existing workshop zone + mounting (done). Acquiring parts could become M1's
 still-open **spend sink** (a future production chain spends scrap to make parts).

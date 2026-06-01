@@ -11,6 +11,44 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-01 — Scene / game-mode architecture: deferred, with a revisit trigger
+
+**Mode:** architecture decision captured while building MW Phase 1 / PR P1 (the workshop overlay).
+Recording a deliberate *defer* so the question isn't lost — **not** a commitment to build it.
+
+**The smell that prompted it.** `main.ts` is starting to accumulate mode-conditional branching in the
+frame loop: `if (paused)` for input, `if (!paused)` for the sim block, `if (!paused)` for the
+animators. Jaco asked whether — since we now have an "open-world" context and a "workshop" context —
+this is the point to introduce **scenes** to manage them.
+
+**Why "scenes" is the wrong abstraction here (the reasoning we agreed on).** A scene system
+(Phaser/Unity-style) earns its place when you **swap between separate worlds** — load a level, tear
+it down, load the next. That's not our shape:
+- The workshop is spawned **into the same world** as everything else (`spawnWorkshop(world, …)`); the
+  rig, scrap, platform and containers share one continuous space.
+- You **drive into** the workshop zone — spatial proximity, not a transition; the camera follows the
+  rig throughout.
+- The overlay is a **DOM modal frozen over that one world** — the scene literally stays rendered
+  underneath (the P1 design: skip sim, keep rendering).
+- Inventory is deliberately on the **player singleton so it survives** rebuilds/chassis swaps (spec
+  cross-cutting notes). The design *wants* one persistent world, not state torn down across scene
+  boundaries.
+
+So "open-world" and "workshop" aren't two scenes — they're **one world + a modal interface mode**.
+Scene-swap machinery would fight the design (teardown/rebuild of state meant to persist; a second
+render tree for a scene meant to stay visible).
+
+**Decision: defer.** `main.ts` is the composition root **by design** — orchestration living there is
+its job, not a leak. We have exactly **one** pause source today; one `if` is a case, not a pattern,
+and the project rule is to let complexity earn its place (a second example reveals the real seam).
+
+**Revisit trigger.** When a **second loop-mode** appears — a pause menu, a map/inspect screen, a
+death/respawn state, or P6's mount-from-interface wanting its own mode — extract a small
+**`GameMode` / sim-gate** concept (likely `stepSimulation()` + `renderFrame()` split, gated by a mode
+enum), **not** Phaser-style scenes. Until then, ship as-is and let P2–P6 show where the loop hurts.
+
+---
+
 ## 2026-05-30 — Tiered components, footprint reclaim, chassis builds
 
 **Mode:** brainstorm / brain dump while staring at the prototype. Several loose threads, none committed.
