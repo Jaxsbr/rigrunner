@@ -8,6 +8,7 @@ import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
 import { Inventory, addToInventory, inventoryItems } from './components/inventory';
+import { Bench, emptyBenchSlots } from './components/bench';
 import { WorkshopZone } from './components/workshop-zone';
 import { PARTS_CATALOG, spawnEnginePart } from './content/parts-catalog';
 import { movementSystem } from './systems/movement';
@@ -57,6 +58,12 @@ const playerStore = world.createEntity();
 world.add(playerStore, Wallet, { scrap: 0 });
 world.add(playerStore, Inventory, { items: [] });
 
+// The assembly bench — a singleton (one workshop, one bench) on its own entity: four role slots the
+// workshop interface drops parts into while composing an engine. Empty at start; the bench holds
+// working state, the inventory holds owned-unplaced parts, and a part is always in exactly one.
+const bench = world.createEntity();
+world.add(bench, Bench, { slots: emptyBenchSlots() });
+
 // DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
 // will MAKE parts). Seed the player's inventory with the full 8-part catalog so the workshop can be
 // exercised end to end before any production exists. Remove once parts are produced in-game.
@@ -87,6 +94,7 @@ let paused = false;
 const overlay = new WorkshopOverlay(
   document.querySelector<HTMLButtonElement>('#workshop-tab')!,
   document.querySelector<HTMLElement>('#workshop-overlay')!,
+  world,
   { onPauseChange: (p) => { paused = p; } },
 );
 
