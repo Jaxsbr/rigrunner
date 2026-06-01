@@ -9,6 +9,7 @@ import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
 import { Inventory, addToInventory, inventoryItems } from './components/inventory';
 import { Bench, emptyBenchSlots } from './components/bench';
+import { ENGINE_RECIPE } from './content/recipes';
 import { WorkshopZone } from './components/workshop-zone';
 import { PARTS_CATALOG, spawnEnginePart } from './content/parts-catalog';
 import { movementSystem } from './systems/movement';
@@ -58,11 +59,15 @@ const playerStore = world.createEntity();
 world.add(playerStore, Wallet, { scrap: 0 });
 world.add(playerStore, Inventory, { items: [] });
 
-// The assembly bench — a singleton (one workshop, one bench) on its own entity: four role slots the
-// workshop interface drops parts into while composing an engine. Empty at start; the bench holds
-// working state, the inventory holds owned-unplaced parts, and a part is always in exactly one.
+// The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
+// workshop interface drops parts into while composing the active recipe's output. Starts on the
+// engine recipe, empty; the bench holds working state, the inventory holds owned-unplaced parts, and
+// a part is always in exactly one place.
 const bench = world.createEntity();
-world.add(bench, Bench, { slots: emptyBenchSlots() });
+world.add(bench, Bench, {
+  recipeId: ENGINE_RECIPE.id,
+  slots: emptyBenchSlots(ENGINE_RECIPE.slots.map((s) => s.slot)),
+});
 
 // DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
 // will MAKE parts). Seed the player's inventory with the full 8-part catalog so the workshop can be
@@ -72,11 +77,11 @@ for (const def of PARTS_CATALOG) {
 }
 {
   const granted = inventoryItems(world);
-  const electric = PARTS_CATALOG.filter((p) => p.type === 'electric').length;
-  const mechanical = PARTS_CATALOG.filter((p) => p.type === 'mechanical').length;
+  const engine = PARTS_CATALOG.filter((p) => p.category === 'engine').length;
+  const storage = PARTS_CATALOG.filter((p) => p.category === 'storage').length;
   console.info(
-    `[dev grant] inventory seeded with ${granted.length} engine parts ` +
-      `(${electric} electric, ${mechanical} mechanical) — stand-in for the real production chain (deferred).`,
+    `[dev grant] inventory seeded with ${granted.length} parts ` +
+      `(${engine} engine, ${storage} storage) — stand-in for the real production chain (deferred).`,
   );
 }
 

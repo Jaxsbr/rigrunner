@@ -8,27 +8,31 @@ import {
   placeOnBench,
   clearBenchSlot,
   benchSlotOf,
+  loadRecipe,
 } from './bench';
 
-/** A bench singleton on its own entity, as main.ts wires it. */
+const ENGINE_SLOTS = ['casing', 'core', 'coupling', 'regulator'];
+const STORAGE_SLOTS = ['shell', 'rim'];
+
+/** A bench singleton on its own entity, loaded with the engine recipe, as main.ts wires it. */
 function makeBench(world: World) {
   const e = world.createEntity();
-  world.add(e, Bench, { slots: emptyBenchSlots() });
+  world.add(e, Bench, { recipeId: 'engine', slots: emptyBenchSlots(ENGINE_SLOTS) });
   return e;
 }
 
 describe('bench', () => {
-  it('reaches the singleton via getBench, starting all-empty', () => {
+  it('reaches the singleton via getBench, starting all-empty for its recipe', () => {
     const w = new World();
     makeBench(w);
-    expect(getBench(w)).not.toBeNull();
+    expect(getBench(w)?.recipeId).toBe('engine');
     expect(benchSlots(w)).toEqual({ casing: null, core: null, coupling: null, regulator: null });
   });
 
   it('returns null / empty slots before any bench exists', () => {
     const w = new World();
     expect(getBench(w)).toBeNull();
-    expect(benchSlots(w)).toEqual({ casing: null, core: null, coupling: null, regulator: null });
+    expect(benchSlots(w)).toEqual({});
   });
 
   it('places a part in an empty slot', () => {
@@ -38,6 +42,14 @@ describe('bench', () => {
     expect(placeOnBench(w, 'core', part)).toBe(true);
     expect(benchSlots(w).core).toBe(part);
     expect(benchSlotOf(w, part)).toBe('core');
+  });
+
+  it('refuses a slot that is not part of the active recipe', () => {
+    const w = new World();
+    makeBench(w); // engine recipe — no 'shell' slot
+    const part = w.createEntity();
+    expect(placeOnBench(w, 'shell', part)).toBe(false);
+    expect(benchSlotOf(w, part)).toBeNull();
   });
 
   it('refuses to overwrite an occupied slot (no silent drop)', () => {
@@ -82,5 +94,18 @@ describe('bench', () => {
     makeBench(w);
     const stray = w.createEntity();
     expect(benchSlotOf(w, stray)).toBeNull();
+  });
+
+  it('loadRecipe reshapes the bench to a new recipe with fresh empty slots', () => {
+    const w = new World();
+    makeBench(w);
+    placeOnBench(w, 'core', w.createEntity());
+    loadRecipe(w, 'storage', STORAGE_SLOTS);
+    expect(getBench(w)?.recipeId).toBe('storage');
+    expect(benchSlots(w)).toEqual({ shell: null, rim: null }); // old engine slots are gone
+    // The storage slots accept storage parts now.
+    const shell = w.createEntity();
+    expect(placeOnBench(w, 'shell', shell)).toBe(true);
+    expect(benchSlotOf(w, shell)).toBe('shell');
   });
 });

@@ -175,6 +175,7 @@
       }
       .wk-chip.electric .wk-dot { background: #59ff9f; }
       .wk-chip.mechanical .wk-dot { background: #8a4b2f; }
+      .wk-chip.storage .wk-dot { background: #2f6f9f; }
       .wk-chip .wk-name {
         flex: 1;
         min-width: 0;
@@ -192,6 +193,29 @@
         margin: 0;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
         transition: left 0.14s ease-out, top 0.14s ease-out;
+      }
+      /* Recipe picker — one tab per buildable; the active one is highlighted. */
+      .wk-recipe-tabs {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+      }
+      .wk-recipe-tab {
+        padding: 6px 11px;
+        border: 1px solid #2c343a;
+        border-radius: 7px;
+        background: transparent;
+        color: #8b97a0;
+        font: 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+      }
+      .wk-recipe-tab:hover { background: #1b2125; color: #c7ced3; }
+      .wk-recipe-tab.active {
+        border-color: #59ff9f;
+        color: #59ff9f;
+        background: rgba(89, 255, 159, 0.08);
       }
       /* Recipe header — what's being built + progress (e.g. "Engine · 2 / 4 parts"). */
       .wk-recipe {
@@ -289,6 +313,7 @@
           </section>
           <section class="wk-col wk-bench">
             <h3 class="wk-col-title">Assembly Bench</h3>
+            <div id="wk-recipe-tabs" class="wk-recipe-tabs"></div>
             <div id="wk-recipe" class="wk-recipe"></div>
             <div id="wk-bench-slots" class="wk-bench-slots"></div>
           </section>

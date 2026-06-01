@@ -1,10 +1,17 @@
 import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
 import { EnginePart } from '../components/engine-part';
-import { partDef, type PartDef, type EnginePartSlot } from '../content/parts-catalog';
-import { ENGINE_RECIPE } from '../content/recipes';
+import { partDef, type PartDef } from '../content/parts-catalog';
+import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '../content/recipes';
 import { inventoryItems, addToInventory, removeFromInventory } from '../components/inventory';
-import { benchSlots, placeOnBench, clearBenchSlot, benchSlotOf } from '../components/bench';
+import {
+  getBench,
+  benchSlots,
+  placeOnBench,
+  clearBenchSlot,
+  benchSlotOf,
+  loadRecipe,
+} from '../components/bench';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
 
 /**
@@ -13,10 +20,11 @@ import { createModelPortrait, type ModelPortrait } from '../../../shared/model-p
  * overlay freezes the simulation; closing it resumes.
  *
  * Inside the overlay (P3) the player can BROWSE owned parts, INSPECT one (detail panel + a rotatable
- * 3D portrait), and MOVE parts between the inventory and the four assembly-bench role slots. There is
- * no assembly yet — this is the tactile substrate for it: drag a part onto its matching slot and it
- * sits there; drag it back and it returns, with the part conserved at every step (it's always in
- * exactly one place — inventory OR a bench slot).
+ * 3D portrait), pick a RECIPE to build, and MOVE parts between the inventory and the active recipe's
+ * bench role slots. There is no assembly yet — this is the tactile substrate for it: drag a part onto
+ * its matching slot and it sits there; drag it back and it returns, with the part conserved at every
+ * step (it's always in exactly one place — inventory OR a bench slot). Switching recipes returns any
+ * bench parts to inventory and reshapes the slots to the new recipe.
  *
  * The class reads and mutates the World only through the component model (`Inventory` + `Bench`
  * helpers), never a parallel store, so the bench state survives close/reopen. It surfaces two seams
@@ -29,20 +37,23 @@ export interface WorkshopOverlayOptions {
   onPauseChange(paused: boolean): void;
 }
 
-/** Placeholder portrait tint per energy type (glow_green for electric, rust for mechanical). */
-const TYPE_COLOR: Record<PartDef['type'], number> = {
-  electric: 0x59ff9f,
-  mechanical: 0x8a4b2f,
+/**
+ * The chip dot + portrait-placeholder tint for a part. Keyed by its energy type when it has one
+ * (engine parts), else by its category — so storage parts (no electric/mechanical) get the
+ * rig_blue "player-built" signature instead of a missing colour.
+ */
+const COLOR_BY_KEY: Record<string, number> = {
+  electric: 0x59ff9f, // glow_green
+  mechanical: 0x8a4b2f, // rust
+  storage: 0x2f6f9f, // rig_blue
 };
-
-// The bench renders the active recipe's slots — data-driven, not a hardcoded list, so a future
-// buildable with a different recipe just works (see `content/recipes.ts`). MW has one: the engine.
-const RECIPE = ENGINE_RECIPE;
+const colorKey = (def: PartDef): string => def.type ?? def.category;
+const tintOf = (def: PartDef): number => COLOR_BY_KEY[colorKey(def)] ?? 0x6b6b6b;
 
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
 /** Where a part being dragged came from — used to validate the drop and to return it on cancel. */
-type DragSource = { kind: 'inventory' } | { kind: 'bench'; slot: EnginePartSlot };
+type DragSource = { kind: 'inventory' } | { kind: 'bench'; slot: string };
 
 interface DragState {
   entity: EntityId;
@@ -64,11 +75,13 @@ export class WorkshopOverlay {
 
   private readonly closeBtn: HTMLButtonElement;
   private readonly invList: HTMLElement;
+  private readonly recipeTabsEl: HTMLElement;
   private readonly recipeEl: HTMLElement;
   private readonly benchEl: HTMLElement;
   private readonly detailEl: HTMLElement;
   private readonly portrait: ModelPortrait;
-  private readonly slotEls = new Map<EnginePartSlot, HTMLElement>();
+  private readonly slotEls = new Map<string, HTMLElement>();
+  private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
 
   private readonly onTabClick = (): void => this.openOverlay();
   private readonly onCloseClick = (): void => this.closeOverlay();
@@ -87,12 +100,11 @@ export class WorkshopOverlay {
   ) {
     this.closeBtn = panel.querySelector<HTMLButtonElement>('#workshop-close')!;
     this.invList = panel.querySelector<HTMLElement>('#wk-inv-list')!;
+    this.recipeTabsEl = panel.querySelector<HTMLElement>('#wk-recipe-tabs')!;
     this.recipeEl = panel.querySelector<HTMLElement>('#wk-recipe')!;
     this.benchEl = panel.querySelector<HTMLElement>('#wk-bench-slots')!;
     this.detailEl = panel.querySelector<HTMLElement>('#wk-detail')!;
     this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!);
-
-    this.buildBenchSlots();
 
     this.tab.addEventListener('click', this.onTabClick);
     this.closeBtn.addEventListener('click', this.onCloseClick);
@@ -134,9 +146,17 @@ export class WorkshopOverlay {
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
 
-  /** Build the recipe's (initially empty) bench role slots once; `refresh` fills/clears them. */
-  private buildBenchSlots(): void {
-    for (const { slot, label } of RECIPE.slots) {
+  /** The recipe currently loaded on the bench (falls back to the engine recipe). */
+  private activeRecipe(): Recipe {
+    const bench = getBench(this.world);
+    return (bench && recipeById(bench.recipeId)) ?? ENGINE_RECIPE;
+  }
+
+  /** (Re)build the bench's role slots for a recipe — replaces any slots from a previous recipe. */
+  private rebuildBenchSlots(recipe: Recipe): void {
+    this.benchEl.innerHTML = '';
+    this.slotEls.clear();
+    for (const { slot, label } of recipe.slots) {
       const el = document.createElement('div');
       el.className = 'wk-slot';
       el.dataset['drop'] = `slot:${slot}`;
@@ -147,12 +167,45 @@ export class WorkshopOverlay {
       this.benchEl.appendChild(el);
       this.slotEls.set(slot, el);
     }
+    this.renderedRecipeId = recipe.id;
+  }
+
+  /** The recipe picker — one tab per buildable; the active one is highlighted. */
+  private renderRecipeTabs(): void {
+    const activeId = this.activeRecipe().id;
+    this.recipeTabsEl.innerHTML = '';
+    for (const r of RECIPES) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-recipe-tab' + (r.id === activeId ? ' active' : '');
+      btn.textContent = r.output;
+      btn.addEventListener('click', () => this.switchRecipe(r.id));
+      this.recipeTabsEl.appendChild(btn);
+    }
+  }
+
+  /**
+   * Load a different recipe onto the bench. Any parts currently on the bench return to inventory
+   * first (conserved — switching never destroys a part), then the bench reshapes to the new recipe's
+   * slots.
+   */
+  private switchRecipe(id: string): void {
+    const bench = getBench(this.world);
+    if (!bench || bench.recipeId === id) return;
+    const recipe = recipeById(id);
+    if (!recipe) return;
+    for (const slot of Object.keys(bench.slots)) {
+      const part = clearBenchSlot(this.world, slot);
+      if (part !== null) addToInventory(this.world, part);
+    }
+    loadRecipe(this.world, recipe.id, recipe.slots.map((s) => s.slot));
+    this.refresh();
   }
 
   /** A draggable, selectable chip for a part entity. */
   private makeChip(entity: EntityId, def: PartDef): HTMLElement {
     const chip = document.createElement('div');
-    chip.className = `wk-chip ${def.type}`;
+    chip.className = `wk-chip ${colorKey(def)}`;
     chip.dataset['entity'] = String(entity);
     if (entity === this.selected) chip.classList.add('selected');
     chip.innerHTML =
@@ -180,14 +233,20 @@ export class WorkshopOverlay {
       }
     }
 
+    // The recipe picker, and the bench slot DOM for whichever recipe is active (rebuild only when
+    // the recipe changed — e.g. after a switch — so an ordinary refresh keeps the existing slots).
+    const recipe = this.activeRecipe();
+    this.renderRecipeTabs();
+    if (this.renderedRecipeId !== recipe.id) this.rebuildBenchSlots(recipe);
+
     // Bench slots (driven by the recipe), counting how many are filled for the header.
     const slots = benchSlots(this.world);
     let filled = 0;
-    for (const { slot } of RECIPE.slots) {
+    for (const { slot } of recipe.slots) {
       const el = this.slotEls.get(slot)!;
       // Drop everything after the label (index 0) so the label persists.
       while (el.children.length > 1) el.removeChild(el.lastChild!);
-      const entity = slots[slot];
+      const entity = slots[slot] ?? null;
       const def = entity !== null ? this.defOf(entity) : null;
       if (entity !== null && def) {
         filled++;
@@ -201,7 +260,7 @@ export class WorkshopOverlay {
     }
 
     // Recipe header: what's being built and how far along (e.g. "Engine · 2 / 4 parts").
-    this.recipeEl.textContent = `${RECIPE.output} · ${filled} / ${RECIPE.slots.length} parts`;
+    this.recipeEl.textContent = `${recipe.output} · ${filled} / ${recipe.slots.length} parts`;
 
     this.renderDetail();
   }
@@ -217,7 +276,7 @@ export class WorkshopOverlay {
     const a = def.attributes;
     this.detailEl.innerHTML =
       `<h4>${def.displayName}</h4>` +
-      `<div class="wk-detail-sub">${def.type} · ${def.slot}</div>` +
+      `<div class="wk-detail-sub">${def.type ?? def.category} · ${def.slot}</div>` +
       `<div class="wk-attrs">` +
       `<span class="k">power</span><span class="v">${a.power}</span>` +
       `<span class="k">torque</span><span class="v">${a.torque}</span>` +
@@ -225,7 +284,7 @@ export class WorkshopOverlay {
       `<span class="k reserved">durability</span><span class="v reserved">${a.durability} (reserved)</span>` +
       `<span class="k reserved">burst</span><span class="v reserved">${a.burst} (reserved)</span>` +
       `</div>`;
-    this.portrait.show(def.assetId, { fallbackColor: TYPE_COLOR[def.type] });
+    this.portrait.show(def.assetId, { fallbackColor: tintOf(def) });
   }
 
   private select(entity: EntityId): void {
@@ -319,7 +378,7 @@ export class WorkshopOverlay {
     }
 
     // drop === `slot:<name>`
-    const slot = drop.slice('slot:'.length) as EnginePartSlot;
+    const slot = drop.slice('slot:'.length);
     if (slot !== d.def.slot) return false; // wrong role — won't snap
     if (d.source.kind === 'bench' && d.source.slot === slot) return false; // already here
     if (!placeOnBench(this.world, slot, d.entity)) return false; // slot occupied — refused
@@ -381,7 +440,7 @@ export class WorkshopOverlay {
   /** Pure predicate version of `commitDrop` for the hover highlight (no mutation). */
   private wouldAccept(d: DragState, drop: string): boolean {
     if (drop === 'inventory') return d.source.kind === 'bench';
-    const slot = drop.slice('slot:'.length) as EnginePartSlot;
+    const slot = drop.slice('slot:'.length);
     if (slot !== d.def.slot) return false;
     if (d.source.kind === 'bench' && d.source.slot === slot) return false;
     return benchSlots(this.world)[slot] === null;

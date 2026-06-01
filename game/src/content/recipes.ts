@@ -1,4 +1,4 @@
-import type { EnginePartSlot } from './parts-catalog';
+import type { PartSlot } from './parts-catalog';
 
 /**
  * An assembly RECIPE — the data the workshop bench renders from. A recipe lists the slots its
@@ -11,7 +11,7 @@ import type { EnginePartSlot } from './parts-catalog';
  */
 export interface RecipeSlot {
   /** The part role this slot accepts — matched against a part's catalog `slot`. */
-  slot: EnginePartSlot;
+  slot: PartSlot;
   /** Label shown above the slot on the bench. */
   label: string;
 }
@@ -36,3 +36,21 @@ export const ENGINE_RECIPE: Recipe = {
     { slot: 'regulator', label: 'Regulator' },
   ],
 };
+
+/** The storage-container recipe — two parts (a second buildable that proves the bench is generic). */
+export const STORAGE_RECIPE: Recipe = {
+  id: 'storage',
+  output: 'Storage Container',
+  slots: [
+    { slot: 'shell', label: 'Container Shell' },
+    { slot: 'rim', label: 'Container Rim' },
+  ],
+};
+
+/** Every buildable recipe, in the order the bench's recipe picker shows them. */
+export const RECIPES: readonly Recipe[] = [ENGINE_RECIPE, STORAGE_RECIPE];
+
+/** Resolve a recipe id to its definition, or `undefined` if it isn't a known recipe. */
+export function recipeById(id: string): Recipe | undefined {
+  return RECIPES.find((r) => r.id === id);
+}
