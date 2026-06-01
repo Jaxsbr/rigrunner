@@ -1,0 +1,25 @@
+#!/bin/sh
+# RIGRUNNER pre-push guard: refuse pushing directly to main.
+# All changes land on main via a PR from a feature branch — never a direct push.
+# Enable once per clone:  git config core.hooksPath .githooks
+#
+# Emergency override (rare, deliberate):  git push --no-verify ...
+
+protected="main"
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+	case "$remote_ref" in
+	refs/heads/"$protected")
+		echo "" >&2
+		echo "✋ Direct pushes to '$protected' are blocked by .githooks/pre-push." >&2
+		echo "   Work on a feature branch and open a PR instead:" >&2
+		echo "     git switch -c feat/<slug> origin/main" >&2
+		echo "     git push -u origin HEAD && gh pr create" >&2
+		echo "   (Server-side protection also enforces this; --no-verify bypasses only the local check.)" >&2
+		echo "" >&2
+		exit 1
+		;;
+	esac
+done
+
+exit 0

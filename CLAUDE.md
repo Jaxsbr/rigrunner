@@ -150,6 +150,46 @@ It's cheap to leave a half-formed idea raw in `ideas.md` and promote it later; i
 misleading to enshrine a ramble as committed direction. If a single message mixes both modes, **split
 it**: route the firm parts to `CLAUDE.md`, the loose parts to `ideas.md`/`observations.md`.
 
+## Git workflow (mandatory — never commit to `main`)
+
+**All work lands on `main` via a PR from a dedicated branch. Never commit or push to `main`
+directly** — not even docs. This is enforced two ways and is not optional:
+
+- **Server-side:** a GitHub ruleset on `main` ("Protect main — require PR") rejects direct
+  pushes and force-pushes. A PR is required; **no approval is required** (Jaco self-merges).
+- **Local:** `.githooks/pre-push` refuses pushes to `main`. Enable once per clone:
+  `git config core.hooksPath .githooks` (override only in emergencies with `--no-verify`).
+
+**Always start from fresh `origin/main` — never trust the current branch** (it may be stale or
+already squash-merged, which caused real pain before):
+
+```sh
+git fetch origin
+git switch -c <type>/<slug> origin/main   # feat/ fix/ refactor/ chore/ idea/ docs/
+```
+
+**Land it:** push the branch and open a PR (account `Jaxsbr`); share the link; don't merge
+unless asked.
+
+```sh
+git push -u origin HEAD && gh pr create --fill --base main
+```
+
+**After merge, clean up** so branches don't go stale (the other failure mode we hit):
+
+```sh
+git switch main && git pull --ff-only
+git branch -d <type>/<slug>
+git fetch --prune
+```
+
+If a feature-branch push is rejected as "behind", **rebase** onto the moved base — don't
+merge: `git fetch origin && git rebase origin/main` then `git push --force-with-lease`.
+
+**Two skills encode this** so agents stay on the same page — use the matching one:
+- **`brainstorm`** — ideation / design / docs / spec sessions (writes to `docs/`, no code).
+- **`implement-feature`** — any code change in `game/` / `shared/` / `viewer/` / `tools/`.
+
 ## Working agreement
 
 - This project is **agent-driven**: agents write the code. With no fixed spec, we're guided by
@@ -158,3 +198,5 @@ it**: route the firm parts to `CLAUDE.md`, the loose parts to `ideas.md`/`observ
 - Build the official game in `game/` to a high standard — but stay light on speculative complexity;
   let mechanics earn their place (see "Complexity earns its place").
 - GitHub account for this project: **`Jaxsbr`** (personal).
+- **Git workflow is mandatory** — see "Git workflow" above. Branch off `origin/main`, PR to
+  merge, never push to `main`, clean up merged branches.
