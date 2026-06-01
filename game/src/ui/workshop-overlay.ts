@@ -231,34 +231,41 @@ export class WorkshopOverlay {
   }
 
   /**
-   * Load a different recipe onto the bench. Any parts currently on the bench return to inventory
-   * first (conserved — switching never destroys a part), then the bench reshapes to the new recipe's
-   * slots.
+   * Pick a recipe to BUILD. This is a working-bench intent, so it always leaves any product-inspect
+   * view (clears the selection). If it's a different recipe than the one loaded, any parts currently
+   * on the bench return to inventory first (conserved — switching never destroys a part), then the
+   * bench reshapes to the new recipe's slots.
    */
   private switchRecipe(id: string): void {
+    this.selected = null; // selecting a recipe to build exits the read-only inspect view
     const bench = getBench(this.world);
-    if (!bench || bench.recipeId === id) return;
     const recipe = recipeById(id);
-    if (!recipe) return;
-    for (const slot of Object.keys(bench.slots)) {
-      const part = clearBenchSlot(this.world, slot);
-      if (part !== null) addToInventory(this.world, part);
+    if (bench && recipe && bench.recipeId !== id) {
+      for (const slot of Object.keys(bench.slots)) {
+        const part = clearBenchSlot(this.world, slot);
+        if (part !== null) addToInventory(this.world, part);
+      }
+      loadRecipe(this.world, recipe.id, recipe.slots.map((s) => s.slot));
     }
-    loadRecipe(this.world, recipe.id, recipe.slots.map((s) => s.slot));
     this.refresh();
   }
 
-  /** A draggable, selectable chip for an item (a loose part or a composed product). */
-  private makeChip(view: ItemView): HTMLElement {
+  /**
+   * A chip for an item (a loose part or a composed product). Interactive by default — draggable and
+   * selectable. A `disabled` chip is read-only: it shows the same content but takes no pointer events
+   * (used for a product's sub-parts when the bench is inspecting it — see `inspectedAssembly`).
+   */
+  private makeChip(view: ItemView, opts: { disabled?: boolean } = {}): HTMLElement {
     const chip = document.createElement('div');
-    chip.className = `wk-chip ${view.colorKey}` + (view.isProduct ? ' product' : '');
+    chip.className =
+      `wk-chip ${view.colorKey}` + (view.isProduct ? ' product' : '') + (opts.disabled ? ' disabled' : '');
     chip.dataset['entity'] = String(view.entity);
-    if (view.entity === this.selected) chip.classList.add('selected');
+    if (!opts.disabled && view.entity === this.selected) chip.classList.add('selected');
     chip.innerHTML =
       `<span class="wk-dot"></span>` +
       `<span class="wk-name">${view.displayName}</span>` +
       `<span class="wk-slot-tag">${view.tag}</span>`;
-    chip.addEventListener('pointerdown', (e) => this.beginDrag(e, view));
+    if (!opts.disabled) chip.addEventListener('pointerdown', (e) => this.beginDrag(e, view));
     return chip;
   }
 
@@ -279,24 +286,27 @@ export class WorkshopOverlay {
       }
     }
 
-    // The recipe picker, and the bench slot DOM for whichever recipe is active (rebuild only when
-    // the recipe changed — e.g. after a switch — so an ordinary refresh keeps the existing slots).
-    const recipe = this.activeRecipe();
+    // The bench has two modes. Working mode (default): the live bench for the active recipe, with
+    // the recipe picker + Assemble. Inspect mode (a composed product is selected): a READ-ONLY view
+    // of that product's sub-parts in its recipe's slots, so the player can read what it's made of
+    // before dismantling. The slot DOM is rebuilt only when the recipe shape changes.
+    const inspected = this.inspectedAssembly();
+    const recipe = inspected ? inspected.recipe : this.activeRecipe();
     this.renderRecipeTabs();
     if (this.renderedRecipeId !== recipe.id) this.rebuildBenchSlots(recipe);
 
-    // Bench slots (driven by the recipe), counting how many are filled for the header.
+    // Bench slots — filled from the inspected product's parts, or the live working bench.
     const slots = benchSlots(this.world);
     let filled = 0;
     for (const { slot } of recipe.slots) {
       const el = this.slotEls.get(slot)!;
       // Drop everything after the label (index 0) so the label persists.
       while (el.children.length > 1) el.removeChild(el.lastChild!);
-      const entity = slots[slot] ?? null;
+      const entity = inspected ? (inspected.parts[slot] ?? null) : (slots[slot] ?? null);
       const view = entity !== null ? this.viewOf(entity) : null;
       if (entity !== null && view) {
         filled++;
-        el.appendChild(this.makeChip(view));
+        el.appendChild(this.makeChip(view, { disabled: inspected !== null }));
       } else {
         const empty = document.createElement('div');
         empty.className = 'wk-slot-empty';
@@ -305,11 +315,37 @@ export class WorkshopOverlay {
       }
     }
 
-    // Recipe header: what's being built and how far along (e.g. "Engine · 2 / 4 parts").
-    this.recipeEl.textContent = `${recipe.output} · ${filled} / ${recipe.slots.length} parts`;
-
-    this.renderAssemble(recipe);
+    // Header + picker + Assemble switch between the two modes.
+    if (inspected) {
+      const product = this.viewOf(this.selected!);
+      this.recipeEl.textContent = `${product?.displayName ?? recipe.output} · assembled`;
+    } else {
+      this.recipeEl.textContent = `${recipe.output} · ${filled} / ${recipe.slots.length} parts`;
+    }
+    this.recipeTabsEl.style.display = inspected ? 'none' : '';
+    this.renderAssemble(recipe, inspected !== null);
     this.renderDetail();
+  }
+
+  /**
+   * When the selected inventory item is a composed product, the bench enters read-only INSPECT mode:
+   * it shows that product's recipe with its sub-parts dropped into the matching slots (disabled), so
+   * the player can read its composition (e.g. "rare casing, common everything else") before deciding
+   * to dismantle. Returns null in normal working mode (nothing or a loose part selected).
+   */
+  private inspectedAssembly(): { recipe: Recipe; parts: Record<string, EntityId> } | null {
+    if (this.selected === null) return null;
+    const asm = this.world.get(this.selected, Assembly);
+    if (!asm) return null;
+    const recipe = recipeById(asm.recipeId);
+    if (!recipe) return null;
+    const parts: Record<string, EntityId> = {};
+    for (const e of asm.parts) {
+      const ep = this.world.get(e, EnginePart);
+      const def = ep ? partDef(ep.id) : undefined;
+      if (def) parts[def.slot] = e; // pair each sub-part to its role slot
+    }
+    return { recipe, parts };
   }
 
   /**
@@ -317,19 +353,22 @@ export class WorkshopOverlay {
    * filled, one consistent energy type). Otherwise it's disabled and shows WHY — the readable
    * "won't assemble" state that pairs with the per-slot drop refusal.
    */
-  private renderAssemble(recipe: Recipe): void {
+  private renderAssemble(recipe: Recipe, inspecting = false): void {
+    // No Assemble while inspecting an already-assembled product — the relevant action there is
+    // Dismantle (in the detail panel).
+    this.assembleBtn.style.display = inspecting ? 'none' : '';
+    if (inspecting) return;
     const verdict = assembleVerdict(this.world, recipe);
     this.assembleBtn.disabled = !verdict.ok;
     this.assembleBtn.textContent = verdict.ok ? `⚙ Assemble ${recipe.output}` : verdict.reason;
     this.assembleBtn.title = verdict.ok ? '' : verdict.reason;
   }
 
-  /** Assemble the active recipe's parts into a product; select it and pulse the new chip. */
+  /** Assemble the active recipe's parts into a product; select it (→ inspect view) and pulse it. */
   private assembleActive(): void {
     const product = assemble(this.world, this.activeRecipe());
     if (product === null) return; // refused (incomplete / hybrid) — no change
-    this.selected = product;
-    this.refresh();
+    this.setSelected(product);
     this.flashSnap(product);
   }
 
@@ -337,8 +376,7 @@ export class WorkshopOverlay {
   private dismantleSelected(): void {
     if (this.selected === null) return;
     if (dismantle(this.world, this.selected) === null) return; // not a product
-    this.selected = null;
-    this.refresh();
+    this.setSelected(null);
   }
 
   /** Render the detail panel + portrait for the current selection. */
@@ -369,12 +407,16 @@ export class WorkshopOverlay {
     this.portrait.show(view.assetId, { fallbackColor: tintOf(view.colorKey) });
   }
 
-  private select(entity: EntityId): void {
+  /** Set (or clear) the selection and repaint — selection drives the bench mode, so it's a full
+   *  refresh, not just a highlight swap. */
+  private setSelected(entity: EntityId | null): void {
     this.selected = entity;
-    for (const chip of this.panel.querySelectorAll<HTMLElement>('.wk-chip')) {
-      chip.classList.toggle('selected', chip.dataset['entity'] === String(entity));
-    }
-    this.renderDetail();
+    this.refresh();
+  }
+
+  /** Click selection: re-clicking the selected item deselects it (the way out of inspect mode). */
+  private toggleSelect(entity: EntityId): void {
+    this.setSelected(this.selected === entity ? null : entity);
   }
 
   // ── Drag-and-drop: inventory ↔ bench ──────────────────────────────────────────────────────
@@ -418,8 +460,8 @@ export class WorkshopOverlay {
     this.drag = null;
 
     if (!d.ghost) {
-      // Never crossed the threshold → it was a click: select the item.
-      this.select(d.view.entity);
+      // Never crossed the threshold → it was a click: toggle selection of the item.
+      this.toggleSelect(d.view.entity);
       return;
     }
 
@@ -429,8 +471,7 @@ export class WorkshopOverlay {
     if (moved) {
       d.ghost.remove();
       d.chip.classList.remove('dragging');
-      this.select(d.view.entity); // keep the moved item selected
-      this.refresh();
+      this.setSelected(d.view.entity); // keep the moved item selected (refreshes)
       this.flashSnap(d.view.entity);
     } else {
       this.returnGhost(d);
@@ -462,6 +503,7 @@ export class WorkshopOverlay {
     }
 
     // drop === `slot:<name>`
+    if (this.inspectedAssembly()) return false; // the shown slots are a read-only product view
     const slot = drop.slice('slot:'.length);
     if (d.view.slot === null || slot !== d.view.slot) return false; // wrong role (or a product) — won't snap
     if (d.source.kind === 'bench' && d.source.slot === slot) return false; // already here
@@ -525,6 +567,7 @@ export class WorkshopOverlay {
   /** Pure predicate version of `commitDrop` for the hover highlight (no mutation). */
   private wouldAccept(d: DragState, drop: string): boolean {
     if (drop === 'inventory') return d.source.kind === 'bench';
+    if (this.inspectedAssembly()) return false; // read-only product view — bench slots take no drops
     const slot = drop.slice('slot:'.length);
     if (d.view.slot === null || slot !== d.view.slot) return false;
     if (d.source.kind === 'bench' && d.source.slot === slot) return false;

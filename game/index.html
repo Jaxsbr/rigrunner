@@ -184,6 +184,13 @@
       }
       .wk-chip.product.mechanical { border-left-color: #8a4b2f; }
       .wk-chip.product.storage { border-left-color: #2f6f9f; }
+      /* A read-only chip — a product's sub-part shown on the bench while inspecting it. Dimmed and
+         inert (no drag/hover/select), so it reads as "this is what it's made of", not a live slot. */
+      .wk-chip.disabled {
+        opacity: 0.5;
+        cursor: default;
+        pointer-events: none;
+      }
       .wk-chip .wk-name {
         flex: 1;
         min-width: 0;
