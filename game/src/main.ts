@@ -7,7 +7,9 @@ import { scatterScrap } from './content/scrap';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
+import { Inventory, addToInventory, inventoryItems } from './components/inventory';
 import { WorkshopZone } from './components/workshop-zone';
+import { PARTS_CATALOG, spawnEnginePart } from './content/parts-catalog';
 import { movementSystem } from './systems/movement';
 import { mountingSystem } from './systems/mounting';
 import { collisionSystem } from './systems/collision';
@@ -47,10 +49,29 @@ scatterScrap(world, 10);
 // The workshop — home base, a short drive up +Z from spawn, clear of the side-staged parts. Park
 // the rig in its proximity zone to move containers onto its 3×3 deck and drain them into the wallet.
 spawnWorkshop(world, 0, 8);
-// The player's scrap wallet: a singleton entity holding the banked total. The workshop drain feeds
-// it; the wallet HUD reads it. Lives outside any rig/container so it survives rebuilds.
-const wallet = world.createEntity();
-world.add(wallet, Wallet, { scrap: 0 });
+// The player store: one singleton entity holding what the player OWNS across rebuilds — `Wallet`
+// (banked scrap) and `Inventory` (loose parts / assembled engines). Lives outside any rig/container
+// so both survive rig rebuilds and chassis swaps. The workshop drain feeds the wallet; the HUD
+// reads it; the workshop interface (P3+) browses the inventory.
+const playerStore = world.createEntity();
+world.add(playerStore, Wallet, { scrap: 0 });
+world.add(playerStore, Inventory, { items: [] });
+
+// DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
+// will MAKE parts). Seed the player's inventory with the full 8-part catalog so the workshop can be
+// exercised end to end before any production exists. Remove once parts are produced in-game.
+for (const def of PARTS_CATALOG) {
+  addToInventory(world, spawnEnginePart(world, def));
+}
+{
+  const granted = inventoryItems(world);
+  const electric = PARTS_CATALOG.filter((p) => p.type === 'electric').length;
+  const mechanical = PARTS_CATALOG.filter((p) => p.type === 'mechanical').length;
+  console.info(
+    `[dev grant] inventory seeded with ${granted.length} engine parts ` +
+      `(${electric} electric, ${mechanical} mechanical) — stand-in for the real production chain (deferred).`,
+  );
+}
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
