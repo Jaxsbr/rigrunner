@@ -187,11 +187,22 @@ systems block, expose open/close).
 
 ---
 
-### PR P2 — Generic parts inventory + part catalog + dev grant
+### PR P2 — Generic parts inventory + part catalog + dev grant — ✅ DELIVERED (PR #6)
 
 **Goal:** Introduce a **generic inventory** of owned parts on the player ("wallet") entity, define
 the **8-part catalog**, and **grant the 8 parts** for testing. No UI yet beyond a console/HUD count
 — this is the data foundation.
+
+> ✅ **Delivered.** The 8-part catalog (`content/parts-catalog.ts`) defines casing/core/coupling/
+> regulator × electric/mechanical, each with attr contributions distributed so a full electric set
+> sums to `13/8/4` and a full mechanical set to `8/19/8` (the P5 profiles, tunable); `durability`/
+> `burst` are reserved placeholders. Parts are first-class entities via the lean `EnginePart {id}`
+> vessel (`components/engine-part.ts`), description resolved through `partDef()`. `Inventory {items}`
+> (`components/inventory.ts`) lives on the **same singleton as `Wallet`**, with conserved helpers
+> (`addToInventory` idempotent, `removeFromInventory` drops-not-destroys, `inventoryItems` snapshot,
+> `getInventory`). A **dev grant** in `main.ts` seeds the 8 parts and logs a one-line count, flagged
+> as a stand-in for the deferred production chain. Purely additive — no system queries `EnginePart`,
+> so driving/collecting/draining are unchanged; `EngineSpec` untouched. 86 tests pass (13 new).
 
 **In:**
 - New `game/src/content/parts-catalog.ts`: the 8 part definitions (table above) — `id`, `slot`,
