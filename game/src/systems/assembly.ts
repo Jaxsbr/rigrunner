@@ -6,8 +6,19 @@ import { Part } from '../components/part';
 import { Weight } from '../components/weight';
 import { EngineSpec } from '../components/engine-spec';
 import { Storage } from '../components/storage';
-import { partDef, type PartDef, type EnergyType, type PartAttributes } from '../content/parts-catalog';
+import { Transform } from '../components/transform';
+import { Renderable } from '../components/renderable';
+import { Collider } from '../components/collider';
+import { MountFacing } from '../components/mount-facing';
+import {
+  partDef,
+  spawnEnginePart,
+  type PartDef,
+  type EnergyType,
+  type PartAttributes,
+} from '../content/parts-catalog';
 import { CONTAINER_CAPACITY } from '../content/containers';
+import { productAssetId } from '../content/product-visual';
 import type { Recipe } from '../content/recipes';
 import { getBench, benchSlots, clearBenchSlot } from '../components/bench';
 import { addToInventory, removeFromInventory } from '../components/inventory';
@@ -132,12 +143,44 @@ function attachCapability(world: World, product: EntityId, recipe: Recipe, stats
 }
 
 /**
+ * Build a product entity from a set of part entities, summing their stats and resolving their type.
+ * The product is `Part {kind}` + `Weight` + (kind capability) + `Assembly` (its parts + resolved
+ * type). It has NO world presence yet (no Transform/Renderable) and is added to no inventory — the
+ * caller decides where it goes. The parts are taken to be already OWNED by this product (consumed
+ * into `Assembly.parts`); they must not also live on the bench or in inventory.
+ *
+ * The shared core of two paths: `assemble` (parts off the bench) and `composeProduct` (fresh parts
+ * spawned for seeding) — so a directly-seeded engine is built exactly like a bench-assembled one.
+ */
+export function buildProduct(world: World, recipe: Recipe, parts: readonly EntityId[]): EntityId {
+  const stats = sumPartStats(world, parts);
+  const { type } = resolveEnergyType(parts.map((e) => defOf(world, e)).filter((d): d is PartDef => d !== null));
+
+  const product = world.createEntity();
+  world.add(product, Part, { kind: recipe.productKind });
+  world.add(product, Weight, { value: stats.weight });
+  attachCapability(world, product, recipe, stats);
+  world.add(product, Assembly, { recipeId: recipe.id, parts: [...parts], ...(type ? { type } : {}) });
+  return product;
+}
+
+/**
+ * Compose a product directly from a set of catalog part defs, OUTSIDE the bench: spawn a fresh part
+ * entity for each def, then build the product from them. For seeding pre-assembled products (the
+ * rig's starting engine) — the result is identical to what the bench would produce. Not added to
+ * inventory and not placed in the world; the caller mounts or stores it.
+ */
+export function composeProduct(world: World, recipe: Recipe, defs: readonly PartDef[]): EntityId {
+  const parts = defs.map((d) => spawnEnginePart(world, d));
+  return buildProduct(world, recipe, parts);
+}
+
+/**
  * Assemble the active recipe from the parts on the bench into a single product entity, added to the
  * player's inventory. Returns the product id, or null if the bench can't assemble (incomplete or a
  * hybrid) — the caller treats null as a tactile refusal, nothing changes.
  *
- * The product is `Part {kind}` + `Weight` + (kind capability) + `Assembly` (its parts + resolved
- * type). The four/two bench parts are consumed INTO it: cleared off the bench and owned by the
+ * The four/two bench parts are consumed INTO the product: cleared off the bench and owned by the
  * Assembly, never returned to inventory (the product takes their place there).
  */
 export function assemble(world: World, recipe: Recipe): EntityId | null {
@@ -147,19 +190,33 @@ export function assemble(world: World, recipe: Recipe): EntityId | null {
 
   // Capture the parts in recipe-slot order before clearing the slots.
   const parts = recipe.slots.map((s) => bench.slots[s.slot]!).filter((e): e is EntityId => e != null);
-  const stats = sumPartStats(world, parts);
-  const { type } = resolveEnergyType(parts.map((e) => defOf(world, e)).filter((d): d is PartDef => d !== null));
-
-  const product = world.createEntity();
-  world.add(product, Part, { kind: recipe.productKind });
-  world.add(product, Weight, { value: stats.weight });
-  attachCapability(world, product, recipe, stats);
-  world.add(product, Assembly, { recipeId: recipe.id, parts, ...(type ? { type } : {}) });
+  const product = buildProduct(world, recipe, parts);
 
   // Consume the bench parts into the product (they're already off inventory — they were on the bench).
   for (const s of recipe.slots) clearBenchSlot(world, s.slot);
   addToInventory(world, product);
   return product;
+}
+
+/**
+ * Give a composed product world PRESENCE so it can be carried and mounted: a Transform at (x, z) on
+ * the ground, the GLB that draws its kind, a collider, and — for an engine — the outward MountFacing
+ * a directly-spawned engine had. Taking a product into the world means it leaves the inventory
+ * (conservation: a product is in exactly one place), so it's dropped from there here.
+ *
+ * The bridge the workshop's "Move to World" action and the startup pre-assembled engine both use to
+ * get a product out of the abstract inventory and into the drivable world. (A loose sub-part stays
+ * inventory-only — only whole products mount.)
+ */
+export function placeProductInWorld(world: World, product: EntityId, x: number, z: number): void {
+  const part = world.get(product, Part);
+  if (!part) return;
+  const asm = world.get(product, Assembly);
+  world.add(product, Transform, { x, z, y: 0, rotationY: 0 });
+  world.add(product, Renderable, { shape: 'model', assetId: productAssetId(part.kind, asm?.recipeId ?? '', asm?.type) });
+  world.add(product, Collider, { radius: 0.5 });
+  if (part.kind === 'engine') world.add(product, MountFacing, { kind: 'specific', rule: 'outward' });
+  removeFromInventory(world, product);
 }
 
 /**

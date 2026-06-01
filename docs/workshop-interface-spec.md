@@ -371,10 +371,43 @@ type, and refuses mixed/incomplete assemblies.
 
 ---
 
-### PR P5 — Retire Mk1/Mk2: composed engines are the engines
+### PR P5 — Retire Mk1/Mk2: composed engines are the engines — ✅ DELIVERED
 
 **Goal:** Replace the placeholder `ENGINE_MK1/MK2` with the two **composed** engine types so the
 world's engines come from assemblies, and give each type its **distinct drive feel**.
+
+> ✅ **Delivered.** `ENGINE_MK1/MK2`, `EngineDef`, and `spawnEngine` are **gone** — every engine is
+> now composed from its four catalog sub-parts. `content/engines.ts` shrank to the engine's recipe in
+> catalog terms (`engineParts(type)` → the four parts of an energy type, in slot order). The assembly
+> system grew a reusable core: **`buildProduct`** (the product-construction `assemble` already did,
+> extracted) and **`composeProduct`** (spawn fresh parts + build) — so a **directly-seeded engine is
+> built identically to a bench-assembled one**. `main.ts` seeds the rig with a **pre-assembled
+> electric engine, already mounted**, and **removes all loose world engines and containers** (decided
+> with Jaco): the world starts clean, everything is built in the workshop. **Engine-type drive feel
+> is left emergent** from the profiles (electric `13/8/4` light+fast, mechanical `8/19/8`
+> heavy+torquey) through `drive.ts` — **no `responseType` ramp was added** (kept minimal; it can earn
+> its place later). The stats HUD now **labels engines by energy type** (`Electric` / `Mechanical` /
+> `Electric ×2`), retiring the Mk1/Mk2 labels and surfacing the chassis type early. `EngineSpec` /
+> `engine.ts` / `drive.ts` contracts **untouched**. 7 new tests (123 total); game+viewer typecheck +
+> build clean.
+>
+> **Beyond the spec (by Jaco's call):**
+> - **Inventory → world bridge.** The spec never said how an *assembled* product gets from inventory
+>   into the drivable world to be mounted. Added a **"Move to World"** button beside Dismantle in a
+>   product's detail: it ejects the product onto the ground beside the rig (via new
+>   `placeProductInWorld`, which grants Transform/Renderable/Collider + an engine's MountFacing) and
+>   closes the overlay so the player can grab and mount it with the build interaction. A deliberately
+>   **temporary** stand-in until a richer place-from-interface flow exists.
+> - **Container parts in the dev grant.** The grant already seeds a **container shell + rim**, so with
+>   no pre-spawned world containers the player **builds a storage container in the workshop** and moves
+>   it out — exercising the new bridge from the first session.
+> - The product → GLB mapping (electric → `engine-mk2`, mechanical → `engine-mk1`, storage → its
+>   container) moved into **`content/product-visual.ts`** so the portrait, inventory chip, and the
+>   model placed in the world all agree.
+>
+> **Caveat:** the **no-hybrid type-lock on mount is NOT enforced yet** — that's **P6**. In P5 the build
+> interaction will currently let a mechanical engine mount alongside the starting electric one; P6 adds
+> the refusal + the chassis type readout's "—" empty state.
 
 **In:**
 - `spawnEngine()` builds an engine from an `EngineAssembly` and sets `EngineSpec`/`Weight` via

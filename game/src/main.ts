@@ -1,7 +1,6 @@
 import { World } from './core/world';
 import { spawnRig } from './content/rig';
-import { spawnEngine, ENGINE_MK1, ENGINE_MK2 } from './content/engines';
-import { spawnContainer } from './content/containers';
+import { engineParts } from './content/engines';
 import { spawnWorkshop } from './content/workshop';
 import { scatterScrap } from './content/scrap';
 import { Transform } from './components/transform';
@@ -10,6 +9,8 @@ import { Wallet } from './components/wallet';
 import { Inventory, addToInventory, inventoryItems } from './components/inventory';
 import { Bench, emptyBenchSlots } from './components/bench';
 import { ENGINE_RECIPE } from './content/recipes';
+import { composeProduct, placeProductInWorld } from './systems/assembly';
+import { mountPart } from './systems/mounting';
 import { WorkshopZone } from './components/workshop-zone';
 import { PARTS_CATALOG, spawnEnginePart } from './content/parts-catalog';
 import { movementSystem } from './systems/movement';
@@ -34,22 +35,24 @@ const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
 const world = new World();
 const player = spawnRig(world);
-// Two loose engines beside the rig to test the build loop + engine attributes: the basic Mk1
-// (slow/weak) and the stronger Mk2. Mount one to feel its tier, swap for the other to feel the
-// difference, or mount both to feel the (diminishing-returns) combined output.
-spawnEngine(world, ENGINE_MK1, 3, 1);
-spawnEngine(world, ENGINE_MK2, 4.5, 1);
-// Three empty storage containers beside the rig to build the cargo loop: mount one (or several),
-// then drive over loose scrap to fill them. Each holds 4 scrap; fill spills to the next in cell
-// order once one is full. With none mounted, scrap can't be collected — the build→run gate.
-spawnContainer(world, -3, 1);
-spawnContainer(world, -4.5, 1);
-spawnContainer(world, -3, 2.5);
-// Loose scrap scattered in a ring around the rig — drive over a piece to sweep it into storage.
+// The rig starts with a basic pre-assembled ELECTRIC engine already mounted — a gentle cold start
+// (the player can drive immediately, and electric's snappy/light profile is the friendlier default
+// than the heavy hauler). It's a normal composed engine — removable and dismantlable like any other
+// — so the type-lock and swap loop are testable from the first session. There are no longer any
+// loose engines or containers scattered in the world: everything is built in the workshop and moved
+// out (the player owns the parts to build a container — see the dev grant below).
+{
+  const engine = composeProduct(world, ENGINE_RECIPE, engineParts('electric'));
+  const rigT = world.get(player, Transform)!;
+  placeProductInWorld(world, engine, rigT.x, rigT.z);
+  mountPart(world, engine, player, 0, 1); // a deck cell; the mounting system rides it into place
+}
+// Loose scrap scattered in a ring around the rig — drive over a piece to sweep it into storage
+// (once the player has built and mounted a container).
 scatterScrap(world, 10);
 
-// The workshop — home base, a short drive up +Z from spawn, clear of the side-staged parts. Park
-// the rig in its proximity zone to move containers onto its 3×3 deck and drain them into the wallet.
+// The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
+// open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
 spawnWorkshop(world, 0, 8);
 // The player store: one singleton entity holding what the player OWNS across rebuilds — `Wallet`
 // (banked scrap) and `Inventory` (loose parts / assembled engines). Lives outside any rig/container
@@ -70,8 +73,10 @@ world.add(bench, Bench, {
 });
 
 // DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
-// will MAKE parts). Seed the player's inventory with the full 8-part catalog so the workshop can be
-// exercised end to end before any production exists. Remove once parts are produced in-game.
+// will MAKE parts). Seed the player's inventory with the full catalog — the 8 engine sub-parts AND
+// the 2 storage parts (a container shell + rim) — so the player can build a second engine of either
+// type AND a storage container to move out and mount, before any production exists. Remove once
+// parts are produced in-game.
 for (const def of PARTS_CATALOG) {
   addToInventory(world, spawnEnginePart(world, def));
 }
@@ -100,7 +105,20 @@ const overlay = new WorkshopOverlay(
   document.querySelector<HTMLButtonElement>('#workshop-tab')!,
   document.querySelector<HTMLElement>('#workshop-overlay')!,
   world,
-  { onPauseChange: (p) => { paused = p; } },
+  {
+    onPauseChange: (p) => { paused = p; },
+    // Inventory → world bridge (a temporary stand-in until a richer place-from-interface flow
+    // exists): drop the chosen product onto the ground just off the rig's side, where the player can
+    // grab it with the build interaction and mount it. Local→world by the rig's heading so it lands
+    // beside the rig whichever way it's parked. The overlay closes after, so the part is visible.
+    onMoveToWorld: (entity) => {
+      const rigT = world.get(player, Transform)!;
+      const c = Math.cos(rigT.rotationY);
+      const s = Math.sin(rigT.rotationY);
+      const lx = 2.2; // just off the right edge of the 2-wide deck
+      placeProductInWorld(world, entity, rigT.x + lx * c, rigT.z - lx * s);
+    },
+  },
 );
 
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */

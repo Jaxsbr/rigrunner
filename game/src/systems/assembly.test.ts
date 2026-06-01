@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { World } from '../core/world';
-import { Inventory, inventoryItems } from '../components/inventory';
+import { Inventory, inventoryItems, addToInventory } from '../components/inventory';
 import { Bench, emptyBenchSlots, placeOnBench, benchSlots, loadRecipe } from '../components/bench';
 import { Part } from '../components/part';
 import { Weight } from '../components/weight';
 import { EngineSpec } from '../components/engine-spec';
 import { Storage } from '../components/storage';
 import { Assembly } from '../components/assembly';
+import { Transform } from '../components/transform';
+import { Renderable } from '../components/renderable';
+import { Collider } from '../components/collider';
+import { MountFacing } from '../components/mount-facing';
 import { partDef, spawnEnginePart } from '../content/parts-catalog';
+import { engineParts } from '../content/engines';
 import { ENGINE_RECIPE, STORAGE_RECIPE } from '../content/recipes';
 import { CONTAINER_CAPACITY } from '../content/containers';
 import {
@@ -18,6 +23,8 @@ import {
   isBenchComplete,
   assembleVerdict,
   assemble,
+  composeProduct,
+  placeProductInWorld,
   dismantle,
   isProduct,
 } from './assembly';
@@ -160,6 +167,61 @@ describe('assembly — assembling a non-engine product (storage container)', () 
     expect(w.get(product, Weight)).toEqual({ value: 4 }); // shell 3 + rim 1
     expect(w.get(product, Assembly)!.type).toBeUndefined(); // untyped product
     expect(inventoryItems(w)).toEqual([product]);
+  });
+});
+
+describe('assembly — composeProduct seeds a product outside the bench', () => {
+  it('composes an electric engine identical to a bench-assembled one, not added to inventory', () => {
+    const w = setup();
+    const engine = composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
+
+    expect(w.get(engine, Part)).toEqual({ kind: 'engine' });
+    expect(w.get(engine, EngineSpec)).toEqual({ power: 13, torque: 8 });
+    expect(w.get(engine, Weight)).toEqual({ value: 4 });
+    expect(w.get(engine, Assembly)!.type).toBe('electric');
+    expect(w.get(engine, Assembly)!.parts).toHaveLength(4);
+    // It seeds itself directly — it is NOT placed in inventory, and has no world presence yet.
+    expect(inventoryItems(w)).toEqual([]);
+    expect(w.get(engine, Transform)).toBeUndefined();
+    expect(w.get(engine, Renderable)).toBeUndefined();
+  });
+
+  it('composes a mechanical engine to its profile (power 8 / torque 19 / weight 8)', () => {
+    const w = setup();
+    const engine = composeProduct(w, ENGINE_RECIPE, engineParts('mechanical'));
+    expect(w.get(engine, EngineSpec)).toEqual({ power: 8, torque: 19 });
+    expect(w.get(engine, Weight)).toEqual({ value: 8 });
+    expect(w.get(engine, Assembly)!.type).toBe('mechanical');
+  });
+});
+
+describe('assembly — placeProductInWorld gives a product world presence', () => {
+  it('adds Transform/Renderable/Collider + an engine MountFacing, and drops it from inventory', () => {
+    const w = setup();
+    const engine = composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
+    addToInventory(w, engine);
+    expect(inventoryItems(w)).toEqual([engine]);
+
+    placeProductInWorld(w, engine, 3, 5);
+
+    expect(w.get(engine, Transform)).toMatchObject({ x: 3, z: 5, y: 0 });
+    const r = w.get(engine, Renderable)!;
+    expect(r).toMatchObject({ shape: 'model', assetId: 'engine-mk2' }); // electric → mk2 stand-in
+    expect(w.get(engine, Collider)).toBeDefined();
+    expect(w.get(engine, MountFacing)).toMatchObject({ kind: 'specific', rule: 'outward' });
+    expect(inventoryItems(w)).toEqual([]); // left inventory — a product is in exactly one place
+  });
+
+  it('a storage product gets no MountFacing and renders via its recipe id', () => {
+    const w = setup();
+    loadRecipe(w, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+    STORAGE.forEach((id) => placeOnSlot(w, id));
+    const container = assemble(w, STORAGE_RECIPE)!;
+
+    placeProductInWorld(w, container, 0, 0);
+
+    expect(w.get(container, Renderable)).toMatchObject({ shape: 'model', assetId: 'storage' });
+    expect(w.get(container, MountFacing)).toBeUndefined(); // a container has no directional facing
   });
 });
 
