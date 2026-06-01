@@ -18,7 +18,9 @@ import { Renderable } from '../components/renderable';
  *
  * It spawns empty; the render layer reads Storage.amount to show the scrap rising inside it.
  */
-const CONTAINER_CAPACITY = 4; // 4 scrap pieces (value 1 each) fill one container
+/** Scrap a single container holds (value 1 each). Exported so an assembled storage product
+ *  (`systems/assembly.ts`) gives its `Storage` the same capacity a directly-spawned container has. */
+export const CONTAINER_CAPACITY = 4; // 4 scrap pieces (value 1 each) fill one container
 const CONTAINER_WEIGHT = 2;   // empty-shell mass the engines must haul (cargo is weightless for now)
 const CONTAINER_RADIUS = 0.5; // ~1-cell footprint
 

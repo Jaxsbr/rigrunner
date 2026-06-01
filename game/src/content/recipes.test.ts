@@ -9,6 +9,11 @@ describe('recipes', () => {
     expect(RECIPES.map((r) => r.id)).toEqual(['engine', 'storage']);
   });
 
+  it('each recipe declares the part kind it produces (drives the assembled product capability)', () => {
+    expect(ENGINE_RECIPE.productKind).toBe('engine');
+    expect(STORAGE_RECIPE.productKind).toBe('storage');
+  });
+
   it('resolves a recipe by id, undefined for an unknown one', () => {
     expect(recipeById('storage')).toBe(STORAGE_RECIPE);
     expect(recipeById('nope')).toBeUndefined();

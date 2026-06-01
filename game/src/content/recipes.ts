@@ -1,13 +1,17 @@
 import type { PartSlot } from './parts-catalog';
+import type { PartKind } from '../components/part';
 
 /**
  * An assembly RECIPE — the data the workshop bench renders from. A recipe lists the slots its
- * output needs (each a role + a human label) and the name of what it produces. The bench is driven
- * entirely by the active recipe, never a hardcoded slot list, so adding a new buildable later (a
- * different output with a different set of required parts) is a data change here, not a UI rewrite.
+ * output needs (each a role + a human label), the name of what it produces, and the KIND of part
+ * that product is. The bench is driven entirely by the active recipe, never a hardcoded slot list,
+ * so adding a new buildable later (a different output with a different set of required parts) is a
+ * data change here, not a UI rewrite — and assembly (P4) is recipe-generic for the same reason: it
+ * sums whatever parts the recipe asked for and stamps out a product of `productKind`.
  *
- * MW ships exactly one recipe — the engine (four parts). The four slots line up with the engine
- * part roles in the catalog (`EnginePartSlot`); future recipes can require any roles/counts.
+ * MW ships two recipes — the engine (four parts) and the storage container (two parts). The slots
+ * line up with the part roles in the catalog (`PartSlot`); future recipes can require any
+ * roles/counts and produce any part kind.
  */
 export interface RecipeSlot {
   /** The part role this slot accepts — matched against a part's catalog `slot`. */
@@ -21,6 +25,9 @@ export interface Recipe {
   id: string;
   /** Display name of what the recipe builds (shown in the bench header). */
   output: string;
+  /** The kind of `Part` this recipe assembles — gives the product its downstream capability
+   *  (engine ⇒ EngineSpec, storage ⇒ Storage). See `systems/assembly.ts`. */
+  productKind: PartKind;
   /** The slots that must be filled (in display order) to complete the build. */
   slots: readonly RecipeSlot[];
 }
@@ -29,6 +36,7 @@ export interface Recipe {
 export const ENGINE_RECIPE: Recipe = {
   id: 'engine',
   output: 'Engine',
+  productKind: 'engine',
   slots: [
     { slot: 'casing', label: 'Casing' },
     { slot: 'core', label: 'Converter Core' },
@@ -41,6 +49,7 @@ export const ENGINE_RECIPE: Recipe = {
 export const STORAGE_RECIPE: Recipe = {
   id: 'storage',
   output: 'Storage Container',
+  productKind: 'storage',
   slots: [
     { slot: 'shell', label: 'Container Shell' },
     { slot: 'rim', label: 'Container Rim' },
