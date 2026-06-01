@@ -7,7 +7,8 @@ import { EnginePart } from '../components/engine-part';
  * MW (the workshop interface). See `docs/workshop-interface-spec.md`.
  *
  * An engine is assembled from FOUR slots, always in the same grammar, and comes in TWO energy
- * types. One part per slot per type ⇒ exactly 8 catalog entries:
+ * types. One part per slot per type ⇒ 8 engine catalog entries (a second, non-engine recipe — the
+ * storage container — adds 2 more parts at the end; see `content/recipes.ts`):
  *
  *   slot         ⚡ electric                  ⛽ mechanical
  *   ----------   -------------------------    --------------------------
@@ -28,7 +29,14 @@ import { EnginePart } from '../components/engine-part';
  * nothing renders a part until real assets land (P3 falls back gracefully).
  */
 export type EnginePartSlot = 'casing' | 'core' | 'coupling' | 'regulator';
+/** A storage-container part role (a second recipe — see `content/recipes.ts`). */
+export type StoragePartSlot = 'shell' | 'rim';
+/** Any part role, across all recipes — the role a bench slot matches a part against. */
+export type PartSlot = EnginePartSlot | StoragePartSlot;
 export type EnergyType = 'electric' | 'mechanical';
+/** What a part is for — groups the catalog and drives the chip/portrait tint when there's no
+ * energy type (storage parts aren't electric/mechanical). */
+export type PartCategory = 'engine' | 'storage';
 
 /**
  * A part's contribution to the engine it's assembled into. `power`/`torque`/`weight` feed the
@@ -45,8 +53,10 @@ export interface PartAttributes {
 
 export interface PartDef {
   id: string;
-  slot: EnginePartSlot;
-  type: EnergyType;
+  slot: PartSlot;
+  category: PartCategory;
+  /** Engine parts only — electric/mechanical (drives the type-lock, P4). Omitted for storage parts. */
+  type?: EnergyType;
   displayName: string;
   attributes: PartAttributes;
   assetId: string;
@@ -57,6 +67,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'e-casing',
     slot: 'casing',
+    category: 'engine',
     type: 'electric',
     displayName: 'Coilframe Casing',
     attributes: { power: 1, torque: 1, weight: 2, durability: 5, burst: 0 },
@@ -65,6 +76,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'e-core',
     slot: 'core',
+    category: 'engine',
     type: 'electric',
     displayName: 'Motor Coil',
     attributes: { power: 8, torque: 3, weight: 1, durability: 2, burst: 0 },
@@ -73,6 +85,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'e-coupling',
     slot: 'coupling',
+    category: 'engine',
     type: 'electric',
     displayName: 'Power Terminal',
     attributes: { power: 2, torque: 1, weight: 0, durability: 1, burst: 0 },
@@ -81,6 +94,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'e-regulator',
     slot: 'regulator',
+    category: 'engine',
     type: 'electric',
     displayName: 'Discharge Regulator',
     attributes: { power: 2, torque: 3, weight: 1, durability: 1, burst: 4 },
@@ -91,6 +105,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'm-casing',
     slot: 'casing',
+    category: 'engine',
     type: 'mechanical',
     displayName: 'Drumframe Casing',
     attributes: { power: 0, torque: 2, weight: 4, durability: 8, burst: 0 },
@@ -99,6 +114,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'm-core',
     slot: 'core',
+    category: 'engine',
     type: 'mechanical',
     displayName: 'Drive Block',
     attributes: { power: 5, torque: 10, weight: 2, durability: 4, burst: 0 },
@@ -107,6 +123,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'm-coupling',
     slot: 'coupling',
+    category: 'engine',
     type: 'mechanical',
     displayName: 'Fuel Feed',
     attributes: { power: 1, torque: 3, weight: 1, durability: 2, burst: 0 },
@@ -115,10 +132,31 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   {
     id: 'm-regulator',
     slot: 'regulator',
+    category: 'engine',
     type: 'mechanical',
     displayName: 'Governor',
     attributes: { power: 2, torque: 4, weight: 1, durability: 2, burst: 3 },
     assetId: 'm-regulator',
+  },
+
+  // 📦 Storage container — a SECOND recipe (`STORAGE_RECIPE`): two parts, no energy type. Storage
+  // parts contribute weight/durability (capacity is a later axis); power/torque/burst stay 0 since a
+  // container does no engine work. They prove the bench is recipe-driven, not engine-shaped.
+  {
+    id: 'container-shell',
+    slot: 'shell',
+    category: 'storage',
+    displayName: 'Container Shell',
+    attributes: { power: 0, torque: 0, weight: 3, durability: 6, burst: 0 },
+    assetId: 'container-shell',
+  },
+  {
+    id: 'container-rim',
+    slot: 'rim',
+    category: 'storage',
+    displayName: 'Container Rim',
+    attributes: { power: 0, torque: 0, weight: 1, durability: 3, burst: 0 },
+    assetId: 'container-rim',
   },
 ];
 

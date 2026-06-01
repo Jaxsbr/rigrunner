@@ -11,6 +11,42 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-01 — Recipe rarity: basic (known/progression) vs special (loot-drop) recipes
+
+**Mode:** brainstorm while building the recipe-driven bench (MW / PR P3 — engine + storage-container
+recipes). Forward-looking texture, **not committed**.
+
+### The idea
+Two tiers of recipe, distinguished by how you get them and how good they are:
+- **Basic recipes** — **known to the player** from the start or **discovered through progression**.
+  The default way to build a thing. E.g. *(basic) storage container* — simple metals, **capacity =
+  5 units**.
+- **Special recipes** — **found in enemy loot drops**, and they **supersede** the basic recipe for
+  that output. E.g. *hyper container* — advanced metals, **capacity = 50 units**. Same role, vastly
+  better.
+
+**The goal is the feeling:** finding a special recipe should be **very special and rare**, with a
+**significant** benefit over the basic (the 5 → 50 jump is the *scale* of gap intended — not a +10%
+tweak). The rarity and the payoff are the point; a common or marginal "special" recipe kills it.
+
+### Tie-ins (this idea leans on already-captured threads)
+- **Loot tables / enemy drops** (2026-05-30 session 2): medium enemy *vehicles* drop rare parts.
+  Special recipes are a natural **rare-drop class** on those same tables.
+- **Tiered components / footprint reclaim** (2026-05-30): a "hyper" doing 10× in the same footprint
+  *is* the tier fantasy — a special recipe could be exactly how you **unlock a tier**.
+- **Advanced metals** the hyper needs implies a **material/tier axis upstream** — overlaps the
+  deferred *casing materials* + *production chain* (smelter/caster) in the spec's Deferred list.
+- The **recipe selector** will have to distinguish basic vs special and stay usable as recipes
+  multiply (observations #9).
+
+### Open threads (flagged, not answered)
+- Does a special recipe **replace** the basic in the picker, or **sit alongside** it as a separate,
+  higher-tier output? ("supersede" leans toward outranking, but both might stay buildable.)
+- **One-time unlock** (found once → known forever) vs **consumable** (a recipe you spend per craft)?
+- How rare is rare? Drop-rate / gating so a special feels earned, not farmed.
+
+---
+
 ## 2026-06-01 — Scene / game-mode architecture: deferred, with a revisit trigger
 
 **Mode:** architecture decision captured while building MW Phase 1 / PR P1 (the workshop overlay).

@@ -10,13 +10,23 @@ const SLOTS: EnginePartSlot[] = ['casing', 'core', 'coupling', 'regulator'];
 const TYPES: EnergyType[] = ['electric', 'mechanical'];
 
 describe('parts catalog', () => {
-  it('has exactly 8 parts with unique ids', () => {
-    expect(PARTS_CATALOG).toHaveLength(8);
+  it('has unique ids across all parts', () => {
     const ids = PARTS_CATALOG.map((p) => p.id);
-    expect(new Set(ids).size).toBe(8);
+    expect(new Set(ids).size).toBe(PARTS_CATALOG.length);
   });
 
-  it('covers every slot once per type — one casing/core/coupling/regulator each', () => {
+  it('has the 8 engine parts (4 per type) plus the 2 storage-container parts', () => {
+    const engine = PARTS_CATALOG.filter((p) => p.category === 'engine');
+    const storage = PARTS_CATALOG.filter((p) => p.category === 'storage');
+    expect(engine).toHaveLength(8);
+    expect(storage).toHaveLength(2);
+    // Engine parts carry an energy type; storage parts don't.
+    expect(engine.every((p) => p.type !== undefined)).toBe(true);
+    expect(storage.every((p) => p.type === undefined)).toBe(true);
+    expect(storage.map((p) => p.slot).sort()).toEqual(['rim', 'shell']);
+  });
+
+  it('covers every engine slot once per type — one casing/core/coupling/regulator each', () => {
     for (const type of TYPES) {
       const slots = PARTS_CATALOG.filter((p) => p.type === type).map((p) => p.slot).sort();
       expect(slots).toEqual([...SLOTS].sort());
