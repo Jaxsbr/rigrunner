@@ -488,13 +488,38 @@ won't snap until you remove the incumbent), and the chassis's engine type is alw
 These came out of playing P5. They are **specified before building** (Jaco's call: brainstorm/spec
 first). Sequence them after the core P-series; they don't block P6.
 
-### PR P7 (discovered) — Workshop staging grid: inventory ↔ workshop deck, in the UI
+### PR P7 (discovered) — Workshop staging deck (3D) + tabbed UI + live build preview
+
+> ✅ **Design resolved & built (2026-06-01, `/grill-me` session with Jaco).** This grew well beyond
+> the original "2D-grid-first" sketch below: Jaco chose the **3D mini-view now** (not later), and the
+> grilling surfaced that the deck is really the **bridge** in his core loop — *rig → (drag in-world) →
+> deck → (open UI) → dismantle/modify/rebuild → re-stage → (drag in-world) → rig*. Since the in-world
+> build interaction **already** lifts a part off the rig and drops it onto the workshop deck (both
+> directions), the only missing seams were **inventory ↔ deck** and the UI **seeing** the deck. The
+> resolved shape (all settled with Jaco):
+>
+> - **Tabbed UI.** Persistent **Inventory** (left) + **Inspect** (right: rotatable portrait + stats);
+>   the centre is a **Bench** tab and a **Workshop Deck** tab (default Bench). Tabs gave each surface
+>   room without the cramping a 4th column would cause.
+> - **3D Workshop Deck** (`game/src/ui/deck-view.ts`) — a live mirror of the workshop GLB + every part
+>   mounted on its grid at its cell pose (angled top-down like the in-world shot, orbit, auto-rotate
+>   off). Built on the `model-portrait` patterns (`ModelLoader` + `MODEL_ASSETS`) but multi-model.
+> - **Drag-to-stage onto the 3D deck.** Dragging a product over the deck raycasts the deck plane →
+>   deck-local point → **nearest free cell**, highlights that cell in 3D, and drops snap it there
+>   (`systems/staging.ts: stageProduct`). Starting to drag a product auto-switches to the Deck tab so
+>   the landing spot is visible. Selecting a staged product (3D click) shows it in Inspect with
+>   **Return to Inventory** (unstage) + **Dismantle**.
+> - **Live combine preview on the Bench.** As slots fill, the bench shows the **projected product
+>   stats** (power/torque/weight + resolved type) so a combination's side-effects are visible *before*
+>   Assemble — replacing the old "stats hidden until built" ghost (which is retired).
+> - **Dismantle anywhere** — a staged product can be dismantled directly (it auto-unstages first).
+> - **"Move to World" is gone** — staging is the inventory→world path now.
 
 **Why this exists.** P5 shipped a deliberately-temporary **"Move to World"** bridge: it ejects an
 assembled product onto the ground beside the rig so it can be grabbed and mounted. Two problems showed
 up in play: it's an *invisible* mechanism (you can't see the workshop's own deck or what's staged on
 it), and ejecting-to-ground is a clumsy way to hand a part over. This PR **replaces Move-to-World**
-with a visible **staging grid** inside the workshop interface.
+with a visible **staging deck** inside the workshop interface.
 
 **The model (reuse, don't invent).** The workshop already owns a `MountGrid` (its 3×3 deck, `deckY
 0.2`) and is already a valid **mount target** for the build interaction (`build-controller.ts` snaps to
@@ -515,29 +540,36 @@ in the world); **workshop-grid ↔ rig already works** via the in-world build in
 - **Conserved:** a product is in exactly one place — inventory OR a workshop cell OR mounted on the rig
   OR loose in the world.
 
-**Open design questions (resolve in this PR, or a quick brainstorm pass first):**
-- **Render style.** First cut: a **2D slot grid like the bench** (3×3 cells + product chips, drag in/out)
-  — simplest, consistent, proven. A **3D mini-view** of the workshop deck (a `model-portrait`-style
-  turntable showing real placement) is a possible later polish. *Recommendation: 2D grid first.*
-- **Direct grid ↔ rig in the UI?** Or keep rig-mounting exclusively in the in-world build interaction
-  (the player closes the overlay and drags the staged part onto the rig)? Leaning: keep rig-mounting
-  in-world for now (one place to mount), the staging grid only bridges inventory ↔ workshop deck.
+**Resolved design (2026-06-01) — was "open questions":**
+- **Render style → 3D mini-view, now.** Not the 2D-grid-first cut: a live 3D view of the workshop
+  deck (`deck-view.ts`), drag-to-stage by raycasting the deck plane to the nearest free cell. (The 2D
+  grid is no longer the plan; the deck IS the representation Jaco asked for.)
+- **Rig-mounting stays in-world.** The deck only bridges **inventory ↔ workshop deck** in the UI;
+  putting a staged product onto the rig remains the tactile in-world build interaction (+ P6's
+  type-lock). One place to mount — the loop closes because the deck is reachable from both sides.
 
 **Out:** Mounting onto the rig (stays the in-world build interaction + P6's type-lock). The
 field-reconfiguration lock and the part-collection mechanism — both **`ideas.md` (2026-06-01)**, not
-this PR. A 3D staging view (future polish).
+this PR. Dragging a staged product *off* the 3D deck back to inventory by pointer (unstage is via the
+Inspect button for now) — a possible later polish.
 
-**Manual test (sketch):**
-1. Build a storage container on the bench → it lands in inventory.
-2. Open the staging grid → drag the container onto a workshop cell → it appears on the deck (and in the
-   world on the workshop), and leaves the inventory list. Counts conserved.
-3. Drag it back to inventory → returns; deck cell empties.
-4. Try to drag a **loose sub-part** onto the grid → refused (only products stage).
-5. With a product staged on the workshop deck, close the overlay → grab it off the deck and mount it on
-   the rig with the existing build interaction. Everything stays conserved across inventory ↔ deck ↔ rig.
+**Manual test:**
+1. Build a storage container on the bench → watch the **projected stats** update as the two slots
+   fill → Assemble → it lands in inventory.
+2. Open the **Workshop Deck** tab (or just start dragging the container — it auto-switches). Drag the
+   container over the 3D deck → the nearest free cell highlights green → drop → it appears on the deck
+   and leaves the inventory list. Counts conserved.
+3. Click the staged container in 3D → Inspect shows it → **Return to Inventory** puts it back; the deck
+   cell empties.
+4. Try to drag a **loose sub-part** onto the deck → refused (rust highlight; only products stage).
+5. Stage a product, **Dismantle** it from Inspect → it auto-unstages and its sub-parts return to
+   inventory. Conserved.
+6. With a product staged, close the overlay → grab it off the deck in-world and mount it on the rig
+   with the build interaction. Everything stays conserved across inventory ↔ deck ↔ rig.
 
-**Done when:** the workshop deck and its staged products are visible in the interface, products move
-freely inventory ↔ workshop grid (sub-parts barred, fully conserved), and "Move to World" is gone.
+**Done when:** the workshop deck and its staged products are visible **in 3D** in the interface,
+products move freely inventory ↔ workshop deck (sub-parts barred, fully conserved), the bench previews
+a combination's stats before assembly, and "Move to World" is gone.
 
 ---
 

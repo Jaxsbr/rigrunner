@@ -220,6 +220,20 @@ export function placeProductInWorld(world: World, product: EntityId, x: number, 
 }
 
 /**
+ * Strip a product's world PRESENCE — the inverse of `placeProductInWorld`. Removes the Transform,
+ * Renderable, Collider and (engine) MountFacing it gained when it entered the world, leaving the
+ * abstract product entity (Part + Weight + capability + Assembly) intact so it can go back into the
+ * inventory. Does NOT touch inventory or any Mount — the caller unmounts first and stores it after
+ * (see `unstageProduct` in systems/staging.ts). Safe to call on a product with no presence (no-op).
+ */
+export function removeFromWorld(world: World, product: EntityId): void {
+  world.remove(product, Transform);
+  world.remove(product, Renderable);
+  world.remove(product, Collider);
+  world.remove(product, MountFacing);
+}
+
+/**
  * Dismantle a product: hand its parts back to inventory and destroy the product entity. Returns the
  * freed part entities (the same ones it was assembled from), or null if `product` isn't an assembly.
  * The reverse of `assemble` — fully conserved, the parts come back unchanged. The product must be
