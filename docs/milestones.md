@@ -38,6 +38,46 @@ tradeoff), collect FX, and a run lifecycle/reset frame.
 
 ---
 
+## MW — Workshop interface, parts inventory & engine composition · `pending`
+
+**What:** Two phases. **Phase 1** — an **openable workshop interface** (a tab appears in the workshop
+zone; clicking it opens a game-freezing overlay) + a **generic parts inventory** on the player and an
+**assembly bench**: browse owned parts, inspect them (details + rotatable 3D portrait, reusing the
+viewer's display), and drag parts freely between **inventory** and **bench**. **Phase 2** — **engine
+composition**: engines are **assembled from four parts** (casing · converter core · energy coupling ·
+regulator) in **two energy types** (electric / mechanical) — 8 parts total — and **mounted on a
+chassis** under a **no-hybrid type-lock** (a rig is locked to one energy type; a conflicting engine
+won't snap until you remove the incumbent). The placeholder Mk1/Mk2 engines are retired in favour of
+the two composed types.
+
+**Why:** Turns the workshop from "a second mounting grid that banks scrap" into a place you *work in*.
+Engine composition replaces the single Mk1→Mk2 choice with two distinct build identities (electric =
+snappy/scout/combat; mechanical = heavy hauler) that keep weight central and serve the **physical
+composition** pillar — success and *incompatibility* are both felt as parts snapping (or refusing to).
+
+**Decided (2026-06-01):** the four-slot grammar, the two types, and the no-hybrid type-lock. The lock
+will later extend to other components (energy weapons → electric chassis; some mechanical weapons →
+mechanical chassis) — near-future, not MW.
+
+**Deferred for MW (scope cut):** the energy **source** components (battery cell, fuel reservoir) and
+all **fuel/charge consumption** — a completed engine runs on **unlimited** energy; only its *type*
+shapes behaviour. The boost/overdrive special-ability *activation*, casing materials, and the
+production chain (smelter/caster) are also deferred. (All captured in `ideas.md`, 2026-06-01.)
+
+**Done when (verify in-game):** with the 8 parts granted to inventory, build **both** a complete
+electric and a complete mechanical engine on the bench, store them, **mount one and drive** with
+type-correct feel, and confirm the **cross-type mount is blocked** until the first engine is removed.
+
+**Spans many PRs** (deliberately — see the spec). Ship Phase 1 first, feel it, then build Phase 2.
+
+**Depends on:** the existing workshop zone + mounting (done). Acquiring parts could become M1's
+still-open **spend sink** (a future production chain spends scrap to make parts).
+
+**Full spec:** [`workshop-interface-spec.md`](workshop-interface-spec.md) — known-parts list, engine
+types, the type-lock rule, per-PR scope/files, and manual-test checklists.
+
+---
+
 ## M2 — Scrap piles: interact-to-rummage, tool-gated · `pending`
 
 **What:** Distinct from loose scrap — **not** auto-collected. Press a **special key to rummage/dig**,

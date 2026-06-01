@@ -130,3 +130,99 @@ left as obvious upgrade seams in `systems/workshop-drain.ts` — **captured, not
 These are the natural first sinks for the scrap the wallet now banks — a "spend scrap to make the
 workshop process faster / in parallel" loop — but neither is a committed mechanic. Add them only if
 play shows the drain wait is a felt friction worth upgrading away.
+
+---
+
+## 2026-06-01 — Energy systems + the two engine paths
+
+**Mode:** brainstorm / design riff while spec'ing the engine-composition feature
+([`workshop-interface-spec.md`](workshop-interface-spec.md), milestone MW). Forward-looking texture
+for that spec's Phase 2 — **not committed**. Energy is **not implemented at all yet**.
+
+### The framing: the engine converts energy, it doesn't carry it
+An engine on its own has no power — it gets it from a **separate energy-source component** bolted
+onto the rig. The source physically only fits its matching engine: a battery has a **terminal/
+socket** coupling, a fuel engine a **feed port**. The wrong source literally **won't snap** into the
+wrong engine on the assembly bench. Compatibility becomes a *tactile* thing, not an error dialog —
+which is exactly the "success = parts snap together" goal of the bench.
+
+### Two energy paths, each with a real reason to exist (no dominant choice)
+
+**⚡ Electric — Motor engine + Battery cell**
+- High **power** (top speed), instant response, light, clean (recharges, no fuel logistics). The
+  **maneuver / scout / combat** path.
+- Weak **torque** (poor hauler), range-limited by capacity, bursts drain fast.
+- **Special — the burst.** A good battery can *dump* energy in a spike → **boost** (short snappy
+  sprint/dodge, or a weapon spike). A cheap battery only trickles at a steady rate → **no boost**.
+  So *discharge/burst* is an upgrade axis distinct from *capacity*. (This is Jaco's "bad battery
+  can't boost" idea.)
+
+**⛽ Mechanical — Drive-block engine + Fuel reservoir (abstract, NOT petrol)**
+- High **torque** (hauls heavy cargo), sustained raw output, but heavy and slow to respond. The
+  **hauler / heavy** path.
+- Consumes **fuel** — a consumable resource to replenish (logistics + a resource/scrap sink),
+  weight, sluggish.
+- **Special — overdrive/grind.** Not a snappy burst but a *sustained* heavy push: burn fuel faster
+  to plow through, break free when overloaded, or ram. Electric = the *snap*; mechanical = the
+  *grind*. Neither is strictly better.
+- Fiction stays abstract/post-apocalyptic: fuel is a **reaction charge / fuel slug** (chemical or
+  nuclear-ish — fuel cells), not literal petrol (Jaco explicitly dislikes petrol-engine feel). Opens
+  **fuel grades** later (hotter slug = more output, faster burn).
+
+Maps onto Jaco's example rigs: **mechanical + big storage = the hauler**; **battery + agility = the
+combat rig**. Leans on the already-captured "multiple chassis for different jobs" idea (2026-05-30) —
+the point is you keep *both* rigs, so neither path needs to win.
+
+### Engine internals — one slot grammar, type-specific parts
+Same assembly vocabulary for both engines so the bench feels consistent; the parts differ by type.
+
+| Slot | Electric | Mechanical | Tunes |
+|---|---|---|---|
+| **Casing** (already in spec) | shell + material | shell + material | weight, durability |
+| **Converter core** *(type-defining)* | motor / coil (rotor + windings) | drive-block / turbine | power-vs-torque character |
+| **Energy coupling** *(type-gated)* | terminal / socket | fuel feed port | **enforces compatibility** |
+| **Regulator** *(special-ability axis)* | discharge controller | governor / injector | burst vs steady · sustain/overdrive |
+| *(deferred) Cooling* | — | heat sink / vents | future — heat is a parked axis in `CLAUDE.md` |
+
+Energy **sources** are their own rig components with their own upgrade axes:
+- **Battery cell:** capacity (range/runtime) · discharge/burst (boost) · weight scales with capacity ·
+  recharges.
+- **Fuel reservoir + fuel:** tank capacity · feed rate (sustained torque) · fuel grade · consumed,
+  must be refilled.
+
+### What they look like (on-palette, archetype readable at a glance)
+The win is **silhouette + colour telling you a rig's role from across the field.**
+- **Electric — clean & glowing.** Compact cylindrical motor; exposed coil windings; **`glow_green`**
+  energy accents; cool `rig_blue` cast; hums. Battery **reuses the tiered-storage tank visual** —
+  translucent pane, green charge filling bottom-up, brighter when full, **flickers on discharge/
+  boost**; charge lights along it.
+- **Mechanical — grimy & heavy.** Bulkier, blocky, top-heavy; **`rust` + `dark_metal`**; visible
+  pistons/turbine; vents + exhaust ports with heat shimmer; **`hazard_yellow`** markings. Fuel
+  reservoir is a rugged drum/canister with hazard stripes and an **amber/rust fuel-level window**
+  (deliberately *not* green — the colour contrast is the tell).
+- **The coupling is visible:** a glowing conduit/cable (electric) vs a fuel hose (mechanical) running
+  source→engine — doubles as the "components should visually connect" idea (observations #3).
+
+### Open threads (flagged, not answered)
+- **Battery recharge model** — workshop-only? regenerative while driving/braking? Changes how
+  range-anxious the electric path feels.
+- **Does fuel weight drop as it burns?** A tank that lightens as it empties would tie fuel straight
+  into the weight-tradeoff pillar (laden→light over a run).
+- **Hybrids** — probably *not* early; the clean either/or is what creates the two-rig identity.
+  Resist until play asks.
+
+### Update 2026-06-01 (later) — parts of this firmed into decisions
+Jaco confirmed direction, so some of the above moved from raw idea → committed-for-the-milestone and
+into the reworked spec ([`workshop-interface-spec.md`](workshop-interface-spec.md), milestone MW):
+- **Decided:** the four-slot engine grammar (casing · converter core · energy coupling · regulator);
+  **two** engine/energy types (electric, mechanical); **no hybrids** — a chassis is locked to one
+  energy type (mounting a conflicting type won't snap; remove first to swap).
+- **Decided (near-future, not this milestone):** the energy-type lock will extend to *other*
+  components — energy weapons need an electric chassis; some mechanical weapons (e.g. a rotating
+  turret motor) need a mechanical chassis. Flagged "soon rather than later," but out of MW scope.
+- **Deferred for MW (Jaco's call, to cut scope):** the **energy *source* components** (battery cell,
+  fuel reservoir) and all **fuel/charge consumption** — for the milestone, a completed engine just
+  runs on *unlimited* energy; only its *type* (electric vs mechanical) shapes behaviour. The richer
+  energy economy (capacity, discharge/burst boost, fuel grades, recharge) stays raw above.
+- **Still raw (unchanged above):** visuals/identifiability direction, the boost-vs-overdrive special
+  abilities, and the open threads — kept as texture to draw on, not built yet.
