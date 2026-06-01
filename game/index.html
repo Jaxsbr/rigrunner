@@ -323,6 +323,32 @@
         cursor: pointer;
       }
       .wk-dismantle:hover { background: rgba(138, 75, 47, 0.22); }
+      /* Scrollbars inside the overlay. The OS default (chunky, light-grey) clashes with the dark
+         panel, so every scrollable column wears a thin dark thumb on a transparent track. The detail
+         pane also reserves a stable gutter, so the scrollbar appearing on a tall selection never
+         nudges the text sideways. */
+      #workshop-overlay .wk-inv-list,
+      #workshop-overlay .wk-bench-slots,
+      #workshop-overlay .wk-detail {
+        scrollbar-width: thin;                  /* Firefox */
+        scrollbar-color: #3a444b transparent;   /* thumb / track */
+      }
+      #workshop-overlay .wk-detail { scrollbar-gutter: stable; }
+      #workshop-overlay .wk-inv-list::-webkit-scrollbar,
+      #workshop-overlay .wk-bench-slots::-webkit-scrollbar,
+      #workshop-overlay .wk-detail::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      #workshop-overlay ::-webkit-scrollbar-track { background: transparent; }
+      #workshop-overlay ::-webkit-scrollbar-thumb {
+        background: #2c343a;
+        border-radius: 8px;
+        border: 2px solid transparent;          /* inset the thumb so it reads as a slim pill */
+        background-clip: padding-box;
+      }
+      #workshop-overlay ::-webkit-scrollbar-thumb:hover { background: #3a444b; }
+      #workshop-overlay ::-webkit-scrollbar-corner { background: transparent; }
       /* Portrait host — a fixed square so the preview doesn't stretch into a tall, wasteful strip;
          the turntable canvas sizes itself to fill it. The detail panel below takes the slack. */
       .wk-portrait-host {
