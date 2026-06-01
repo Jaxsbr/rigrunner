@@ -2,6 +2,7 @@ import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
 import { EnginePart } from '../components/engine-part';
 import { partDef, type PartDef, type EnginePartSlot } from '../content/parts-catalog';
+import { ENGINE_RECIPE } from '../content/recipes';
 import { inventoryItems, addToInventory, removeFromInventory } from '../components/inventory';
 import { benchSlots, placeOnBench, clearBenchSlot, benchSlotOf } from '../components/bench';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
@@ -34,13 +35,9 @@ const TYPE_COLOR: Record<PartDef['type'], number> = {
   mechanical: 0x8a4b2f,
 };
 
-/** The four bench slots, in display order — labels mirror the catalog roles. */
-const SLOT_ORDER: readonly { slot: EnginePartSlot; label: string }[] = [
-  { slot: 'casing', label: 'Casing' },
-  { slot: 'core', label: 'Converter Core' },
-  { slot: 'coupling', label: 'Energy Coupling' },
-  { slot: 'regulator', label: 'Regulator' },
-];
+// The bench renders the active recipe's slots — data-driven, not a hardcoded list, so a future
+// buildable with a different recipe just works (see `content/recipes.ts`). MW has one: the engine.
+const RECIPE = ENGINE_RECIPE;
 
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
@@ -67,6 +64,7 @@ export class WorkshopOverlay {
 
   private readonly closeBtn: HTMLButtonElement;
   private readonly invList: HTMLElement;
+  private readonly recipeEl: HTMLElement;
   private readonly benchEl: HTMLElement;
   private readonly detailEl: HTMLElement;
   private readonly portrait: ModelPortrait;
@@ -89,6 +87,7 @@ export class WorkshopOverlay {
   ) {
     this.closeBtn = panel.querySelector<HTMLButtonElement>('#workshop-close')!;
     this.invList = panel.querySelector<HTMLElement>('#wk-inv-list')!;
+    this.recipeEl = panel.querySelector<HTMLElement>('#wk-recipe')!;
     this.benchEl = panel.querySelector<HTMLElement>('#wk-bench-slots')!;
     this.detailEl = panel.querySelector<HTMLElement>('#wk-detail')!;
     this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!);
@@ -135,9 +134,9 @@ export class WorkshopOverlay {
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
 
-  /** Build the four (initially empty) bench role slots once; `refresh` fills/clears them. */
+  /** Build the recipe's (initially empty) bench role slots once; `refresh` fills/clears them. */
   private buildBenchSlots(): void {
-    for (const { slot, label } of SLOT_ORDER) {
+    for (const { slot, label } of RECIPE.slots) {
       const el = document.createElement('div');
       el.className = 'wk-slot';
       el.dataset['drop'] = `slot:${slot}`;
@@ -181,15 +180,17 @@ export class WorkshopOverlay {
       }
     }
 
-    // Bench slots.
+    // Bench slots (driven by the recipe), counting how many are filled for the header.
     const slots = benchSlots(this.world);
-    for (const { slot } of SLOT_ORDER) {
+    let filled = 0;
+    for (const { slot } of RECIPE.slots) {
       const el = this.slotEls.get(slot)!;
       // Drop everything after the label (index 0) so the label persists.
       while (el.children.length > 1) el.removeChild(el.lastChild!);
       const entity = slots[slot];
       const def = entity !== null ? this.defOf(entity) : null;
       if (entity !== null && def) {
+        filled++;
         el.appendChild(this.makeChip(entity, def));
       } else {
         const empty = document.createElement('div');
@@ -198,6 +199,9 @@ export class WorkshopOverlay {
         el.appendChild(empty);
       }
     }
+
+    // Recipe header: what's being built and how far along (e.g. "Engine · 2 / 4 parts").
+    this.recipeEl.textContent = `${RECIPE.output} · ${filled} / ${RECIPE.slots.length} parts`;
 
     this.renderDetail();
   }

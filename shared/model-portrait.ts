@@ -29,8 +29,13 @@ export interface ModelPortrait {
   dispose(): void;
 }
 
+export interface ModelPortraitOptions {
+  /** Gently spin the model on its own? Off by default — callers opt in (the viewer does). */
+  autoRotate?: boolean;
+}
+
 /** Create a portrait widget that renders into a canvas appended to `host`. */
-export function createModelPortrait(host: HTMLElement): ModelPortrait {
+export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOptions = {}): ModelPortrait {
   const canvas = document.createElement('canvas');
   canvas.style.width = '100%';
   canvas.style.height = '100%';
@@ -49,7 +54,7 @@ export function createModelPortrait(host: HTMLElement): ModelPortrait {
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.enablePan = false;
-  controls.autoRotate = true;
+  controls.autoRotate = opts.autoRotate ?? false;
   controls.autoRotateSpeed = 1.6;
   controls.target.set(0, 0.5, 0);
 
@@ -67,6 +72,7 @@ export function createModelPortrait(host: HTMLElement): ModelPortrait {
 
   const models = new ModelLoader();
   let currentId: string | null = null; // what's requested (guards async races)
+  let framed: THREE.Object3D | null = null; // the object the camera is framed on (re-fit on resize)
   let running = false;
   let rafId = 0;
 
@@ -85,13 +91,22 @@ export function createModelPortrait(host: HTMLElement): ModelPortrait {
     }
   }
 
-  /** Frame the orbit camera on an object's bounds so any size of asset fills the view nicely. */
+  /**
+   * Frame the orbit camera on an object's bounds so any size of asset sits fully in view with a
+   * little breathing room. Accounts for BOTH the vertical and horizontal FOV (the horizontal one is
+   * the tighter constraint in a narrow/tall pane), so a wide part never spills past the edges, and
+   * pads the distance a touch so it's never edge-to-edge. Re-run on resize since the aspect changes.
+   */
   function frame(obj: THREE.Object3D): void {
+    framed = obj;
     const box = new THREE.Box3().setFromObject(obj);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
-    const dist = radius / Math.sin((camera.fov * Math.PI) / 180 / 2) + radius;
+    const vFov = (camera.fov * Math.PI) / 180;
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * Math.max(camera.aspect, 0.0001));
+    const fit = Math.max(radius / Math.sin(vFov / 2), radius / Math.sin(hFov / 2));
+    const dist = fit * 1.25 + radius; // 1.25 = padding so the part isn't cropped to the frame
     controls.target.copy(center);
     camera.position
       .copy(center)
@@ -116,6 +131,7 @@ export function createModelPortrait(host: HTMLElement): ModelPortrait {
 
   function show(assetId: string | null, opts?: { fallbackColor?: number }): void {
     currentId = assetId;
+    framed = null;
     clearHolder();
     if (assetId === null) return;
 
@@ -152,6 +168,7 @@ export function createModelPortrait(host: HTMLElement): ModelPortrait {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    if (framed) frame(framed); // the tighter FOV dimension changed — re-fit so nothing crops
   }
 
   function tick(): void {
