@@ -64,6 +64,18 @@ const COLOR_BY_KEY: Record<string, number> = {
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
+/**
+ * Which GLB previews an assembled engine, by energy type. There are no bespoke composed-engine
+ * assets yet, so we reuse the two existing engine models: mk2 (the brighter, more-illuminated build)
+ * stands in for the clean/glowing ELECTRIC engine, and mk1 (the plainer starter) for the grimier
+ * MECHANICAL one. Swap these for dedicated assets when they land. A storage product needs no entry —
+ * its recipe id (`storage`) already resolves to the container GLB.
+ */
+const ENGINE_PREVIEW_ASSET: Record<EnergyType, string> = {
+  electric: 'engine-mk2',
+  mechanical: 'engine-mk1',
+};
+
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
 /**
@@ -567,6 +579,9 @@ export class WorkshopOverlay {
       const kind = this.world.get(entity, Part)?.kind ?? 'engine';
       const output = recipe?.output ?? cap(kind);
       const key = asm.type ?? kind; // engine product → its energy type; storage → 'storage'
+      // An engine reuses the mk1/mk2 GLBs by type; any other product previews via its recipe id
+      // (the storage container's `storage` id resolves to the container GLB). Unregistered → tint.
+      const assetId = kind === 'engine' && asm.type ? ENGINE_PREVIEW_ASSET[asm.type] : asm.recipeId;
       return {
         entity,
         displayName: asm.type ? `${cap(asm.type)} ${output}` : output,
@@ -574,7 +589,7 @@ export class WorkshopOverlay {
         tag: kind,
         sub: asm.type ? `${asm.type} · ${kind}` : kind,
         attrs: sumPartStats(this.world, asm.parts),
-        assetId: asm.recipeId, // no product GLB yet → portrait shows a tinted placeholder
+        assetId,
         slot: null,
         ...(asm.type ? { type: asm.type } : {}),
         isProduct: true,
