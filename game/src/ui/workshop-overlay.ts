@@ -2,7 +2,7 @@ import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
 import { EnginePart } from '../components/engine-part';
 import { Assembly } from '../components/assembly';
-import { Part } from '../components/part';
+import { Part, type PartKind } from '../components/part';
 import { partDef, type PartSlot, type EnergyType } from '../content/parts-catalog';
 import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '../content/recipes';
 import { inventoryItems, addToInventory, removeFromInventory } from '../components/inventory';
@@ -20,6 +20,7 @@ import {
   assembleVerdict,
   assemble,
   dismantle,
+  benchEnergyType,
   type ProductStats,
 } from '../systems/assembly';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
@@ -383,8 +384,7 @@ export class WorkshopOverlay {
   private renderDetail(): void {
     const view = this.selected !== null ? this.viewOf(this.selected) : null;
     if (!view) {
-      this.detailEl.innerHTML = `<div class="wk-detail-empty">Select a part to inspect it.</div>`;
-      this.portrait.show(null);
+      this.renderBuildTarget();
       return;
     }
     const a = view.attrs;
@@ -405,6 +405,32 @@ export class WorkshopOverlay {
         .addEventListener('click', () => this.dismantleSelected());
     }
     this.portrait.show(view.assetId, { fallbackColor: tintOf(view.colorKey) });
+  }
+
+  /**
+   * With nothing selected (the default while building), the preview shows the active recipe's
+   * BUILD TARGET: the part you're working toward. It's a flat-grey ghost silhouette while the recipe
+   * is empty/incomplete (or a hybrid), and snaps to the full-colour part — exactly what the assembled
+   * product looks like — the moment the slots are complete and Assemble enables. You can't read the
+   * product's stats until it's actually assembled.
+   */
+  private renderBuildTarget(): void {
+    const recipe = this.activeRecipe();
+    const ready = assembleVerdict(this.world, recipe).ok;
+    // For an engine, the silhouette follows the type the bench is committing to (default electric
+    // when still empty). Other products have no type.
+    const type = recipe.productKind === 'engine' ? (benchEnergyType(this.world) ?? 'electric') : undefined;
+    const colorKey = type ?? recipe.productKind;
+    this.detailEl.innerHTML =
+      `<h4>${recipe.output}</h4>` +
+      `<div class="wk-detail-sub">build target · ${ready ? 'ready to assemble' : 'incomplete'}</div>` +
+      `<div class="wk-detail-empty">` +
+      (ready ? 'Assemble to add it to your inventory.' : 'Fill the slots to assemble — full stats appear once built.') +
+      `</div>`;
+    this.portrait.show(this.productAssetId(recipe.productKind, recipe.id, type), {
+      ghost: !ready,
+      fallbackColor: tintOf(colorKey),
+    });
   }
 
   /** Set (or clear) the selection and repaint — selection drives the bench mode, so it's a full
@@ -471,7 +497,9 @@ export class WorkshopOverlay {
     if (moved) {
       d.ghost.remove();
       d.chip.classList.remove('dragging');
-      this.setSelected(d.view.entity); // keep the moved item selected (refreshes)
+      // Clearing selection returns the preview to the live build target, so the player watches the
+      // part take shape (and snap to full colour) as they fill the slots.
+      this.setSelected(null); // refreshes
       this.flashSnap(d.view.entity);
     } else {
       this.returnGhost(d);
@@ -622,9 +650,6 @@ export class WorkshopOverlay {
       const kind = this.world.get(entity, Part)?.kind ?? 'engine';
       const output = recipe?.output ?? cap(kind);
       const key = asm.type ?? kind; // engine product → its energy type; storage → 'storage'
-      // An engine reuses the mk1/mk2 GLBs by type; any other product previews via its recipe id
-      // (the storage container's `storage` id resolves to the container GLB). Unregistered → tint.
-      const assetId = kind === 'engine' && asm.type ? ENGINE_PREVIEW_ASSET[asm.type] : asm.recipeId;
       return {
         entity,
         displayName: asm.type ? `${cap(asm.type)} ${output}` : output,
@@ -632,7 +657,7 @@ export class WorkshopOverlay {
         tag: kind,
         sub: asm.type ? `${asm.type} · ${kind}` : kind,
         attrs: sumPartStats(this.world, asm.parts),
-        assetId,
+        assetId: this.productAssetId(kind, asm.recipeId, asm.type),
         slot: null,
         ...(asm.type ? { type: asm.type } : {}),
         isProduct: true,
@@ -640,6 +665,17 @@ export class WorkshopOverlay {
     }
 
     return null;
+  }
+
+  /**
+   * The GLB that previews a product. An engine reuses the mk1/mk2 models by energy type (until
+   * bespoke composed-engine assets exist); any other product previews via its recipe id (the storage
+   * container's `storage` id resolves to the container GLB). Unregistered ids fall back to a tint.
+   * Shared by the inventory product view and the live "build target" preview, so both look the same.
+   */
+  private productAssetId(kind: PartKind, recipeId: string, type: EnergyType | undefined): string {
+    if (kind === 'engine' && type) return ENGINE_PREVIEW_ASSET[type];
+    return recipeId;
   }
 
   /** Tab is visible only while a zone is active and the overlay is closed. */

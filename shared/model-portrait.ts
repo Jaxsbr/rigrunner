@@ -17,8 +17,12 @@ import { MODEL_ASSETS } from './assets';
  * placeholder is what the player actually sees until real assets land.
  */
 export interface ModelPortrait {
-  /** Swap the displayed model. `null` clears it. `fallbackColor` tints the placeholder block. */
-  show(assetId: string | null, opts?: { fallbackColor?: number }): void;
+  /**
+   * Swap the displayed model. `null` clears it. `fallbackColor` tints the placeholder block.
+   * `ghost: true` renders the model in flat desaturated grey — the "build target" silhouette shown
+   * while a recipe is still incomplete, before the full-colour part exists.
+   */
+  show(assetId: string | null, opts?: { fallbackColor?: number; ghost?: boolean }): void;
   /** Re-read the host's size and resize the renderer — call after the host becomes visible. */
   resize(): void;
   /** Begin the render loop (call when the host is shown). Idempotent. */
@@ -76,18 +80,49 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
   let running = false;
   let rafId = 0;
 
+  // Resources the portrait CREATES itself (placeholder blocks) — disposed when cleared. A loaded
+  // model is a `clone(true)` of the loader's cached template and SHARES its geometry + materials, so
+  // disposing those would corrupt the cache for every other consumer; such clones are only removed.
+  const ownedRoots = new Set<THREE.Object3D>();
+
+  // One reusable flat-grey material — the "ghost" / build-target look. Applied by reference to a
+  // loaded model's meshes (never disposed per-clear since it's shared across ghost renders); freed
+  // once in dispose().
+  let ghostMaterial: THREE.MeshStandardMaterial | null = null;
+  function getGhostMaterial(): THREE.MeshStandardMaterial {
+    return (ghostMaterial ??= new THREE.MeshStandardMaterial({
+      color: 0x6b7077,
+      roughness: 0.9,
+      metalness: 0.0,
+    }));
+  }
+  function applyGhost(obj: THREE.Object3D): void {
+    const mat = getGhostMaterial();
+    obj.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (mesh.isMesh) mesh.material = mat;
+    });
+  }
+
+  function disposeObject(obj: THREE.Object3D): void {
+    obj.traverse?.((node) => {
+      const mesh = node as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.geometry?.dispose();
+        const mat = mesh.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose();
+      }
+    });
+  }
+
   function clearHolder(): void {
     for (const child of [...holder.children]) {
       holder.remove(child);
-      child.traverse?.((node) => {
-        const mesh = node as THREE.Mesh;
-        if (mesh.isMesh) {
-          mesh.geometry?.dispose();
-          const mat = mesh.material;
-          if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-          else mat?.dispose();
-        }
-      });
+      if (ownedRoots.has(child)) {
+        disposeObject(child); // only placeholders we built; model clones share cache resources
+        ownedRoots.delete(child);
+      }
     }
   }
 
@@ -129,19 +164,27 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
     return mesh;
   }
 
-  function show(assetId: string | null, opts?: { fallbackColor?: number }): void {
+  function show(assetId: string | null, opts?: { fallbackColor?: number; ghost?: boolean }): void {
     currentId = assetId;
     framed = null;
     clearHolder();
     if (assetId === null) return;
 
-    const fallbackColor = opts?.fallbackColor ?? 0x6b6b6b; // scrap_grey by default
+    const ghost = opts?.ghost ?? false;
+    // While ghosting, the placeholder block uses the ghost grey too, so a missing asset still reads
+    // as a silhouette rather than a coloured box.
+    const fallbackColor = ghost ? 0x6b7077 : (opts?.fallbackColor ?? 0x6b6b6b); // scrap_grey default
+
+    const showPlaceholder = (): void => {
+      const block = placeholder(fallbackColor);
+      ownedRoots.add(block);
+      holder.add(block);
+      frame(block);
+    };
 
     // Unregistered id → straight to the placeholder (the part GLBs aren't registered yet in MW).
     if (!(assetId in MODEL_ASSETS)) {
-      const block = placeholder(fallbackColor);
-      holder.add(block);
-      frame(block);
+      showPlaceholder();
       return;
     }
 
@@ -150,14 +193,13 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
       .then((template) => {
         if (currentId !== assetId) return; // a newer selection won the race
         const obj = template.clone(true);
+        if (ghost) applyGhost(obj); // flat-grey build-target silhouette
         holder.add(obj);
         frame(obj);
       })
       .catch(() => {
         if (currentId !== assetId) return;
-        const block = placeholder(fallbackColor);
-        holder.add(block);
-        frame(block);
+        showPlaceholder();
       });
   }
 
@@ -194,6 +236,8 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
   function dispose(): void {
     stop();
     clearHolder();
+    ghostMaterial?.dispose();
+    ghostMaterial = null;
     controls.dispose();
     renderer.dispose();
     canvas.remove();
