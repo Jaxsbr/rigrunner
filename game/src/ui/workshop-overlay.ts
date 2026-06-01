@@ -3,6 +3,9 @@ import type { EntityId } from '../core/types';
 import { EnginePart } from '../components/engine-part';
 import { Assembly } from '../components/assembly';
 import { Part } from '../components/part';
+import { Mount } from '../components/mount';
+import { MountGrid } from '../components/mount-grid';
+import { Renderable } from '../components/renderable';
 import { partDef, type PartSlot, type EnergyType } from '../content/parts-catalog';
 import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '../content/recipes';
 import { productAssetId } from '../content/product-visual';
@@ -17,46 +20,50 @@ import {
 } from '../components/bench';
 import {
   sumPartStats,
+  resolveEnergyType,
   acceptsType,
   assembleVerdict,
   assemble,
   dismantle,
-  benchEnergyType,
   type ProductStats,
 } from '../systems/assembly';
+import {
+  workshopEntity,
+  stagedProducts,
+  stageProduct,
+  unstageProduct,
+} from '../systems/staging';
+import { closestFreeCellLocal } from '../systems/mounting';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
+import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from './deck-view';
 
 /**
  * The workshop interface: a bottom-centre "🔧 Open Workshop" tab that appears while the rig is
  * parked in a workshop zone, and a full-screen overlay that opens when it's clicked. Opening the
  * overlay freezes the simulation; closing it resumes.
  *
- * Inside the overlay the player can BROWSE owned items, INSPECT one (detail panel + a rotatable 3D
- * portrait), pick a RECIPE to build, MOVE parts between the inventory and the active recipe's bench
- * role slots, and — once the slots are full of one consistent type — ASSEMBLE them into a finished
- * product that drops into inventory (P4). A composed product can be DISMANTLED back into its parts.
+ * Layout (P7): a persistent INVENTORY rail (left) and INSPECT pane (right, a rotatable portrait +
+ * stats of the selection), around a tabbed centre WORKSPACE:
+ *   - BENCH tab — pick a recipe, drag loose parts into its role slots, watch the projected product
+ *     stats update live (the "side-effects of this combination" readout), then ASSEMBLE.
+ *   - WORKSHOP DECK tab — a live 3D view of the workshop deck and the products staged on it. Drag a
+ *     product from inventory onto the deck to STAGE it (it snaps to the nearest free cell); click a
+ *     staged product to inspect it, then UNSTAGE or DISMANTLE it.
  *
- * Inventory items are now of two shapes: loose parts (`EnginePart`) and composed products
- * (`Assembly`). The overlay treats them uniformly through `ItemView` — a part carries a role `slot`
- * (so it's bench-droppable), a product carries `slot: null` (it's inspect/dismantle-only here;
- * mounting is P6). Assembly itself is recipe-generic (see `systems/assembly.ts`): the engine and the
- * storage container build through the exact same path, so this UI never special-cases the engine.
+ * The deck is the bridge between inventory and the drivable world: staging a product mounts it on
+ * the workshop's own grid (gaining world presence), so once the overlay closes the player can grab
+ * it off the deck and mount it on the rig with the in-world build interaction — and vice-versa, a
+ * product set on the deck in-world (lifted off the rig) shows up here too. Rig-mounting itself stays
+ * the tactile in-world drag; this interface owns browse / build / inspect / stage / dismantle.
  *
  * The class reads and mutates the World only through the component model (`Inventory` + `Bench` +
- * the assembly system), never a parallel store, so state survives close/reopen. It surfaces two
- * seams to the composition root (main.ts):
- *   - `onPauseChange(paused)` fires when the overlay opens (true) / closes (false).
- *   - `setZoneActive(active)` is pushed each frame from main so the tab tracks proximity.
+ * the assembly & staging systems), never a parallel store, so state survives close/reopen. It
+ * surfaces two seams to main: `onPauseChange(paused)` (open ⇒ true, close ⇒ false) and
+ * `setZoneActive(active)`, pushed each frame so the tab tracks proximity.
  */
 export interface WorkshopOverlayOptions {
   /** Fired with `true` when the overlay opens, `false` when it closes — main flips `paused`. */
   onPauseChange(paused: boolean): void;
-  /**
-   * Eject a composed product from inventory into the world (next to the rig), so the player can grab
-   * and mount it with the build interaction. Main owns the rig position; the overlay just names the
-   * product to move. (Temporary inventory → world bridge until the workshop-staging-grid replaces it.)
-   */
-  onMoveToWorld(product: EntityId): void;
 }
 
 /**
@@ -73,6 +80,9 @@ const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
+
+/** Which centre-workspace tab is showing. */
+type Tab = 'bench' | 'deck';
 
 /**
  * A uniform façade over an inventory/bench item, whether it's a loose part or a composed product.
@@ -108,47 +118,67 @@ interface DragState {
 export class WorkshopOverlay {
   private open = false;
   private zoneActive = false;
+  private tab: Tab = 'bench';
   private selected: EntityId | null = null;
   private drag: DragState | null = null;
 
   private readonly closeBtn: HTMLButtonElement;
   private readonly invList: HTMLElement;
+  private readonly tabBenchBtn: HTMLButtonElement;
+  private readonly tabDeckBtn: HTMLButtonElement;
+  private readonly benchPanel: HTMLElement;
+  private readonly deckPanel: HTMLElement;
+  private readonly deckHost: HTMLElement;
   private readonly recipeTabsEl: HTMLElement;
   private readonly recipeEl: HTMLElement;
   private readonly benchEl: HTMLElement;
+  private readonly benchPreviewEl: HTMLElement;
   private readonly assembleBtn: HTMLButtonElement;
   private readonly detailEl: HTMLElement;
   private readonly portrait: ModelPortrait;
+  private readonly deck: DeckView;
   private readonly slotEls = new Map<string, HTMLElement>();
   private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
 
-  private readonly onTabClick = (): void => this.openOverlay();
   private readonly onCloseClick = (): void => this.closeOverlay();
+  private readonly onTabClick = (): void => this.openOverlay();
   private readonly onAssembleClick = (): void => this.assembleActive();
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (this.open && e.key === 'Escape') this.closeOverlay();
   };
   private readonly onPointerMove = (e: PointerEvent): void => this.handlePointerMove(e);
   private readonly onPointerUp = (e: PointerEvent): void => this.handlePointerUp(e);
-  private readonly onResize = (): void => this.portrait.resize();
+  private readonly onResize = (): void => {
+    this.portrait.resize();
+    this.deck.resize();
+  };
 
   constructor(
-    private readonly tab: HTMLButtonElement,
+    private readonly tabEl: HTMLButtonElement,
     private readonly panel: HTMLElement,
     private readonly world: World,
     private readonly opts: WorkshopOverlayOptions,
   ) {
     this.closeBtn = panel.querySelector<HTMLButtonElement>('#workshop-close')!;
     this.invList = panel.querySelector<HTMLElement>('#wk-inv-list')!;
+    this.tabBenchBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-bench')!;
+    this.tabDeckBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-deck')!;
+    this.benchPanel = panel.querySelector<HTMLElement>('#wk-bench-panel')!;
+    this.deckPanel = panel.querySelector<HTMLElement>('#wk-deck-panel')!;
+    this.deckHost = panel.querySelector<HTMLElement>('#wk-deck-host')!;
     this.recipeTabsEl = panel.querySelector<HTMLElement>('#wk-recipe-tabs')!;
     this.recipeEl = panel.querySelector<HTMLElement>('#wk-recipe')!;
     this.benchEl = panel.querySelector<HTMLElement>('#wk-bench-slots')!;
+    this.benchPreviewEl = panel.querySelector<HTMLElement>('#wk-bench-preview')!;
     this.assembleBtn = panel.querySelector<HTMLButtonElement>('#wk-assemble')!;
     this.detailEl = panel.querySelector<HTMLElement>('#wk-detail')!;
     this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!);
+    this.deck = createDeckView(this.deckHost, { onSelect: (e) => this.onDeckSelect(e) });
 
-    this.tab.addEventListener('click', this.onTabClick);
+    this.tabEl.addEventListener('click', this.onTabClick);
     this.closeBtn.addEventListener('click', this.onCloseClick);
+    this.tabBenchBtn.addEventListener('click', () => this.switchTab('bench'));
+    this.tabDeckBtn.addEventListener('click', () => this.switchTab('deck'));
     this.assembleBtn.addEventListener('click', this.onAssembleClick);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('pointermove', this.onPointerMove);
@@ -157,6 +187,7 @@ export class WorkshopOverlay {
 
     this.syncTab();
     this.syncPanel();
+    this.syncTabButtons();
   }
 
   /** Pushed in each frame by main from the WorkshopZone state. Updates tab visibility. */
@@ -174,6 +205,7 @@ export class WorkshopOverlay {
     this.syncTab(); // hide the tab while the overlay covers it
     this.refresh();
     this.portrait.start();
+    if (this.tab === 'deck') this.deck.start();
   }
 
   private closeOverlay(): void {
@@ -182,8 +214,37 @@ export class WorkshopOverlay {
     this.cancelDrag();
     this.opts.onPauseChange(false);
     this.portrait.stop();
+    this.deck.stop();
     this.syncPanel();
     this.syncTab(); // restore the tab if the rig is still in the zone
+  }
+
+  // ── Tabs ────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Switch the centre workspace tab. Deliberately light — it only toggles panel visibility and
+   * starts/stops the deck render loop; it does NOT rebuild the inventory list or bench DOM (those
+   * don't change with the tab), so an in-flight drag whose source chip lives in the inventory stays
+   * valid across an auto-switch to the deck.
+   */
+  private switchTab(tab: Tab): void {
+    if (tab === this.tab) return;
+    this.tab = tab;
+    this.syncTabButtons();
+    if (tab === 'deck') {
+      this.deck.resize();
+      this.renderDeck();
+      if (this.open) this.deck.start();
+    } else {
+      this.deck.stop();
+    }
+  }
+
+  private syncTabButtons(): void {
+    this.tabBenchBtn.classList.toggle('active', this.tab === 'bench');
+    this.tabDeckBtn.classList.toggle('active', this.tab === 'deck');
+    this.benchPanel.classList.toggle('hidden', this.tab !== 'bench');
+    this.deckPanel.classList.toggle('hidden', this.tab !== 'deck');
   }
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
@@ -265,7 +326,7 @@ export class WorkshopOverlay {
     return chip;
   }
 
-  /** Rebuild the inventory list + bench slots from world state; re-apply selection + detail. */
+  /** Rebuild the inventory list + bench + deck (if shown) from world state; re-apply selection. */
   private refresh(): void {
     // Inventory list.
     this.invList.innerHTML = '';
@@ -273,7 +334,7 @@ export class WorkshopOverlay {
     if (items.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'wk-inv-empty';
-      empty.textContent = 'Empty — every part is on the bench.';
+      empty.textContent = 'Empty — every part is on the bench or the deck.';
       this.invList.appendChild(empty);
     } else {
       for (const entity of items) {
@@ -283,9 +344,9 @@ export class WorkshopOverlay {
     }
 
     // The bench has two modes. Working mode (default): the live bench for the active recipe, with
-    // the recipe picker + Assemble. Inspect mode (a composed product is selected): a READ-ONLY view
-    // of that product's sub-parts in its recipe's slots, so the player can read what it's made of
-    // before dismantling. The slot DOM is rebuilt only when the recipe shape changes.
+    // the recipe picker + a projected-stats preview + Assemble. Inspect mode (a composed product is
+    // selected): a READ-ONLY view of that product's sub-parts in its recipe's slots, so the player
+    // can read what it's made of before dismantling. The slot DOM is rebuilt only when the shape changes.
     const inspected = this.inspectedAssembly();
     const recipe = inspected ? inspected.recipe : this.activeRecipe();
     this.renderRecipeTabs();
@@ -296,8 +357,7 @@ export class WorkshopOverlay {
     let filled = 0;
     for (const { slot } of recipe.slots) {
       const el = this.slotEls.get(slot)!;
-      // Drop everything after the label (index 0) so the label persists.
-      while (el.children.length > 1) el.removeChild(el.lastChild!);
+      while (el.children.length > 1) el.removeChild(el.lastChild!); // keep the label (index 0)
       const entity = inspected ? (inspected.parts[slot] ?? null) : (slots[slot] ?? null);
       const view = entity !== null ? this.viewOf(entity) : null;
       if (entity !== null && view) {
@@ -311,7 +371,7 @@ export class WorkshopOverlay {
       }
     }
 
-    // Header + picker + Assemble switch between the two modes.
+    // Header + picker + preview + Assemble switch between the two modes.
     if (inspected) {
       const product = this.viewOf(this.selected!);
       this.recipeEl.textContent = `${product?.displayName ?? recipe.output} · assembled`;
@@ -319,15 +379,16 @@ export class WorkshopOverlay {
       this.recipeEl.textContent = `${recipe.output} · ${filled} / ${recipe.slots.length} parts`;
     }
     this.recipeTabsEl.style.display = inspected ? 'none' : '';
+    this.renderBenchPreview(recipe, inspected !== null);
     this.renderAssemble(recipe, inspected !== null);
     this.renderDetail();
+    if (this.tab === 'deck') this.renderDeck();
   }
 
   /**
    * When the selected inventory item is a composed product, the bench enters read-only INSPECT mode:
    * it shows that product's recipe with its sub-parts dropped into the matching slots (disabled), so
-   * the player can read its composition (e.g. "rare casing, common everything else") before deciding
-   * to dismantle. Returns null in normal working mode (nothing or a loose part selected).
+   * the player can read its composition before deciding to dismantle. Returns null otherwise.
    */
   private inspectedAssembly(): { recipe: Recipe; parts: Record<string, EntityId> } | null {
     if (this.selected === null) return null;
@@ -345,13 +406,47 @@ export class WorkshopOverlay {
   }
 
   /**
+   * The live "what you'll get" readout under the bench slots: the projected product stats summed
+   * from whatever parts are placed so far (partial while incomplete), plus the resolved energy type
+   * — so the player can compare combinations BEFORE committing to Assemble. Hidden while inspecting
+   * an already-assembled product (its real stats show in the Inspect pane instead).
+   */
+  private renderBenchPreview(recipe: Recipe, inspecting: boolean): void {
+    if (inspecting) {
+      this.benchPreviewEl.style.display = 'none';
+      return;
+    }
+    this.benchPreviewEl.style.display = '';
+    const filled = Object.values(benchSlots(this.world)).filter((e): e is EntityId => e !== null);
+    const stats = sumPartStats(this.world, filled);
+    const defs = filled
+      .map((e) => {
+        const ep = this.world.get(e, EnginePart);
+        return ep ? partDef(ep.id) : undefined;
+      })
+      .filter((d): d is NonNullable<typeof d> => d != null);
+    const { type, mismatch } = resolveEnergyType(defs);
+    const typeLabel = mismatch
+      ? `<span class="wk-bp-bad">mixed — one type only</span>`
+      : type
+        ? `<span class="${type}">${cap(type)}</span>`
+        : recipe.productKind === 'engine'
+          ? '—'
+          : cap(recipe.productKind);
+    this.benchPreviewEl.innerHTML =
+      `<div class="wk-bp-title">Projected ${recipe.output.toLowerCase()} · ${typeLabel}</div>` +
+      `<div class="wk-bp-stats">` +
+      `<span class="k">power</span><span class="v">${stats.power}</span>` +
+      `<span class="k">torque</span><span class="v">${stats.torque}</span>` +
+      `<span class="k">weight</span><span class="v">${stats.weight}</span>` +
+      `</div>`;
+  }
+
+  /**
    * The Assemble action: enabled only when the bench can assemble the active recipe (all slots
-   * filled, one consistent energy type). Otherwise it's disabled and shows WHY — the readable
-   * "won't assemble" state that pairs with the per-slot drop refusal.
+   * filled, one consistent energy type). Otherwise it's disabled and shows WHY.
    */
   private renderAssemble(recipe: Recipe, inspecting = false): void {
-    // No Assemble while inspecting an already-assembled product — the relevant action there is
-    // Dismantle (in the detail panel).
     this.assembleBtn.style.display = inspecting ? 'none' : '';
     if (inspecting) return;
     const verdict = assembleVerdict(this.world, recipe);
@@ -368,38 +463,48 @@ export class WorkshopOverlay {
     this.flashSnap(product);
   }
 
-  /** Dismantle the selected product back into its parts (returned to inventory); clear selection. */
-  private dismantleSelected(): void {
-    if (this.selected === null) return;
-    if (dismantle(this.world, this.selected) === null) return; // not a product
-    this.setSelected(null);
-  }
-
   /**
-   * Eject the selected product into the world (main places it beside the rig), then repaint so it
-   * drops out of the inventory list. The overlay stays OPEN — the player can keep working (move
-   * more parts out, build another) and close when they're ready to grab what they ejected. Only a
-   * composed product can be moved out — a loose part stays inventory-only.
+   * Dismantle the selected product back into its parts (returned to inventory); clear selection.
+   * Works whether the product sits in inventory OR is staged on the deck — a staged product is
+   * unstaged first (back to inventory), then dismantled, so "dismantle anywhere" holds.
    */
-  private moveSelectedToWorld(): void {
+  private dismantleSelected(): void {
     if (this.selected === null) return;
     const product = this.selected;
     if (!this.world.get(product, Assembly)) return; // products only
-    this.opts.onMoveToWorld(product);
-    this.setSelected(null); // it has left the inventory — clear the now-stale selection + repaint
+    if (this.isStaged(product)) unstageProduct(this.world, product); // deck → inventory first
+    if (dismantle(this.world, product) === null) return;
+    this.setSelected(null);
+  }
+
+  /** Pull the selected staged product off the deck and back into inventory (keeps it selected). */
+  private unstageSelected(): void {
+    if (this.selected === null || !this.isStaged(this.selected)) return;
+    unstageProduct(this.world, this.selected);
+    this.refresh();
+  }
+
+  /** True if a product is currently staged on the workshop deck (mounted on the workshop). */
+  private isStaged(entity: EntityId): boolean {
+    const m = this.world.get(entity, Mount);
+    return m != null && m.rig === workshopEntity(this.world);
   }
 
   /** Render the detail panel + portrait for the current selection. */
   private renderDetail(): void {
     const view = this.selected !== null ? this.viewOf(this.selected) : null;
     if (!view) {
-      this.renderBuildTarget();
+      this.detailEl.innerHTML =
+        `<div class="wk-detail-empty">Select a part or product to inspect it. Build on the ` +
+        `Bench; drag finished products onto the Workshop Deck to stage them.</div>`;
+      this.portrait.show(null);
       return;
     }
     const a = view.attrs;
+    const staged = view.isProduct && this.isStaged(view.entity);
     this.detailEl.innerHTML =
       `<h4>${view.displayName}</h4>` +
-      `<div class="wk-detail-sub">${view.sub}</div>` +
+      `<div class="wk-detail-sub">${view.sub}${staged ? ' · staged on deck' : ''}</div>` +
       `<div class="wk-attrs">` +
       `<span class="k">power</span><span class="v">${a.power}</span>` +
       `<span class="k">torque</span><span class="v">${a.torque}</span>` +
@@ -407,18 +512,21 @@ export class WorkshopOverlay {
       `<span class="k reserved">durability</span><span class="v reserved">${a.durability} (reserved)</span>` +
       `<span class="k reserved">burst</span><span class="v reserved">${a.burst} (reserved)</span>` +
       `</div>` +
-      // A product's two actions: send it out to the rig/world to mount, or take it apart. A loose
-      // part shows neither (it's only bench-droppable).
+      // A product's actions: unstage (only when it's on the deck) + dismantle. A loose part shows a
+      // hint that it builds on the bench (it isn't directly stageable).
       (view.isProduct
         ? `<div class="wk-actions">` +
-          `<button id="wk-move" class="wk-move" type="button">Move to World</button>` +
+          (staged ? `<button id="wk-unstage" class="wk-unstage" type="button">Return to Inventory</button>` : '') +
           `<button id="wk-dismantle" class="wk-dismantle" type="button">Dismantle</button>` +
-          `</div>`
-        : '');
+          `</div>` +
+          (staged ? '' : `<div class="wk-hint">Drag onto the Workshop Deck to stage it.</div>`)
+        : `<div class="wk-hint">A sub-part — drop it on a Bench slot to build with it.</div>`);
     if (view.isProduct) {
-      this.detailEl
-        .querySelector<HTMLButtonElement>('#wk-move')!
-        .addEventListener('click', () => this.moveSelectedToWorld());
+      if (staged) {
+        this.detailEl
+          .querySelector<HTMLButtonElement>('#wk-unstage')!
+          .addEventListener('click', () => this.unstageSelected());
+      }
       this.detailEl
         .querySelector<HTMLButtonElement>('#wk-dismantle')!
         .addEventListener('click', () => this.dismantleSelected());
@@ -426,34 +534,43 @@ export class WorkshopOverlay {
     this.portrait.show(view.assetId, { fallbackColor: tintOf(view.colorKey) });
   }
 
-  /**
-   * With nothing selected (the default while building), the preview shows the active recipe's
-   * BUILD TARGET: the part you're working toward. It's a flat-grey ghost silhouette while the recipe
-   * is empty/incomplete (or a hybrid), and snaps to the full-colour part — exactly what the assembled
-   * product looks like — the moment the slots are complete and Assemble enables. You can't read the
-   * product's stats until it's actually assembled.
-   */
-  private renderBuildTarget(): void {
-    const recipe = this.activeRecipe();
-    const ready = assembleVerdict(this.world, recipe).ok;
-    // For an engine, the silhouette follows the type the bench is committing to (default electric
-    // when still empty). Other products have no type.
-    const type = recipe.productKind === 'engine' ? (benchEnergyType(this.world) ?? 'electric') : undefined;
-    const colorKey = type ?? recipe.productKind;
-    this.detailEl.innerHTML =
-      `<h4>${recipe.output}</h4>` +
-      `<div class="wk-detail-sub">build target · ${ready ? 'ready to assemble' : 'incomplete'}</div>` +
-      `<div class="wk-detail-empty">` +
-      (ready ? 'Assemble to add it to your inventory.' : 'Fill the slots to assemble — full stats appear once built.') +
-      `</div>`;
-    this.portrait.show(productAssetId(recipe.productKind, recipe.id, type), {
-      ghost: !ready,
-      fallbackColor: tintOf(colorKey),
-    });
+  // ── Deck (3D staging view) ──────────────────────────────────────────────────────────────────
+
+  /** Build the deck snapshot from world state and hand it to the 3D view. */
+  private renderDeck(): void {
+    this.deck.render(this.deckSnapshot());
   }
 
-  /** Set (or clear) the selection and repaint — selection drives the bench mode, so it's a full
-   *  refresh, not just a highlight swap. */
+  private deckSnapshot(): DeckSnapshot {
+    const workshop = workshopEntity(this.world);
+    const grid = workshop !== null ? this.world.get(workshop, MountGrid) : null;
+    const parts: DeckPart[] = [];
+    if (workshop !== null) {
+      for (const e of stagedProducts(this.world, workshop)) {
+        const m = this.world.get(e, Mount)!;
+        const r = this.world.get(e, Renderable);
+        const asm = this.world.get(e, Assembly);
+        const assetId =
+          r && r.shape === 'model'
+            ? r.assetId
+            : productAssetId(this.world.get(e, Part)?.kind ?? 'engine', asm?.recipeId ?? '', asm?.type);
+        parts.push({ entity: e, assetId, col: m.col, row: m.row, yaw: m.yaw });
+      }
+    }
+    return {
+      workshopAssetId: 'workshop',
+      grid: grid ?? { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 },
+      parts,
+      selected: this.selected,
+    };
+  }
+
+  /** A clean click on the 3D deck: select the staged product hit (or clear). */
+  private onDeckSelect(entity: EntityId | null): void {
+    this.setSelected(entity);
+  }
+
+  /** Set (or clear) the selection and repaint — selection drives the bench/deck mode. */
   private setSelected(entity: EntityId | null): void {
     this.selected = entity;
     this.refresh();
@@ -464,7 +581,7 @@ export class WorkshopOverlay {
     this.setSelected(this.selected === entity ? null : entity);
   }
 
-  // ── Drag-and-drop: inventory ↔ bench ──────────────────────────────────────────────────────
+  // ── Drag-and-drop: inventory ↔ bench, inventory → deck ──────────────────────────────────────
 
   private beginDrag(e: PointerEvent, view: ItemView): void {
     if (e.button !== 0) return;
@@ -488,11 +605,11 @@ export class WorkshopOverlay {
     const d = this.drag;
     if (!d) return;
     if (!d.ghost) {
-      // Not yet a drag — only promote to one once the pointer has travelled past the threshold,
-      // so a plain click still reads as a selection rather than a (zero-distance) drag.
       if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
       d.ghost = this.makeGhost(d.chip);
       d.chip.classList.add('dragging');
+      // A product can only go to the deck — reveal it so the player sees where the drop will land.
+      if (d.view.isProduct && this.tab !== 'deck') this.switchTab('deck');
     }
     d.ghost.style.left = `${e.clientX - d.offsetX}px`;
     d.ghost.style.top = `${e.clientY - d.offsetY}px`;
@@ -505,20 +622,18 @@ export class WorkshopOverlay {
     this.drag = null;
 
     if (!d.ghost) {
-      // Never crossed the threshold → it was a click: toggle selection of the item.
-      this.toggleSelect(d.view.entity);
+      this.toggleSelect(d.view.entity); // never crossed the threshold → it was a click
       return;
     }
 
     this.clearDropHighlights();
+    this.deck.highlight(null);
     const dropEl = this.dropTargetAt(e.clientX, e.clientY);
-    const moved = this.commitDrop(d, dropEl);
+    const moved = this.commitDrop(d, dropEl, e.clientX, e.clientY);
     if (moved) {
       d.ghost.remove();
       d.chip.classList.remove('dragging');
-      // Clearing selection returns the preview to the live build target, so the player watches the
-      // part take shape (and snap to full colour) as they fill the slots.
-      this.setSelected(null); // refreshes
+      this.setSelected(null); // refreshes — preview returns to the live build target
       this.flashSnap(d.view.entity);
     } else {
       this.returnGhost(d);
@@ -527,18 +642,16 @@ export class WorkshopOverlay {
 
   /**
    * Apply a drop. Returns true if a part actually moved (so the caller refreshes), false if the
-   * drop was invalid or a no-op (the ghost glides back to its origin — the tactile "refusal").
+   * drop was invalid or a no-op (the ghost glides back — the tactile "refusal").
    *
    * Rules:
    *  - inventory part → a bench slot: allowed only when the slot matches the part's role, is empty,
-   *    AND the part's energy type doesn't clash with what's already on the bench (the no-hybrid
-   *    type-lock — a cross-type part won't snap). The part leaves inventory and takes the slot.
+   *    and the type doesn't clash (no-hybrid). The part leaves inventory and takes the slot.
    *  - bench part → the inventory list: always allowed; the slot empties and the part returns.
-   *  - a product (no role slot) anywhere on the bench: refused — products are inspect/dismantle-only
-   *    here (mounting is P6).
-   *  - anything else (wrong-role slot, occupied slot, inventory→inventory, same-slot): no move.
+   *  - inventory PRODUCT → the deck: stage it onto the nearest free workshop cell.
+   *  - a product onto a bench slot, or a sub-part onto the deck: refused.
    */
-  private commitDrop(d: DragState, dropEl: HTMLElement | null): boolean {
+  private commitDrop(d: DragState, dropEl: HTMLElement | null, x: number, y: number): boolean {
     const drop = dropEl?.dataset['drop'];
     if (!drop) return false;
 
@@ -549,15 +662,34 @@ export class WorkshopOverlay {
       return true;
     }
 
+    if (drop === 'deck') {
+      if (!d.view.isProduct || d.source.kind !== 'inventory') return false; // products from inventory only
+      const cell = this.deckCellAt(x, y);
+      if (!cell) return false; // deck full / off-deck
+      const workshop = workshopEntity(this.world)!;
+      return stageProduct(this.world, d.view.entity, workshop, cell.col, cell.row);
+    }
+
     // drop === `slot:<name>`
     if (this.inspectedAssembly()) return false; // the shown slots are a read-only product view
     const slot = drop.slice('slot:'.length);
-    if (d.view.slot === null || slot !== d.view.slot) return false; // wrong role (or a product) — won't snap
+    if (d.view.slot === null || slot !== d.view.slot) return false; // wrong role (or a product)
     if (d.source.kind === 'bench' && d.source.slot === slot) return false; // already here
     if (!acceptsType(this.world, d.view.type)) return false; // cross-type — the no-hybrid refusal
     if (!placeOnBench(this.world, slot, d.view.entity)) return false; // slot occupied — refused
-    removeFromInventory(this.world, d.view.entity); // (no-op if it came off the bench, but it can't here)
+    removeFromInventory(this.world, d.view.entity);
     return true;
+  }
+
+  /** The nearest free workshop cell under a screen point on the deck, or null. */
+  private deckCellAt(x: number, y: number): { col: number; row: number } | null {
+    const workshop = workshopEntity(this.world);
+    if (workshop === null) return null;
+    const lp = this.deck.localPointAt(x, y);
+    if (!lp) return null;
+    // The deck view raycasts in workshop-local space, so the snap takes the local point directly —
+    // no reach bound (the deck plane is unbounded; an off-deck miss is caught by `localPointAt`).
+    return closestFreeCellLocal(this.world, workshop, lp.lx, lp.lz);
   }
 
   /** Create the floating clone that follows the cursor. Sized to match the source chip. */
@@ -595,7 +727,7 @@ export class WorkshopOverlay {
     chip.addEventListener('animationend', () => chip.classList.remove('snapped'), { once: true });
   }
 
-  /** The drop zone under the cursor (a bench slot or the inventory list), or null. */
+  /** The drop zone under the cursor (a bench slot, the inventory list, or the deck), or null. */
   private dropTargetAt(x: number, y: number): HTMLElement | null {
     return (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>('[data-drop]') ?? null;
   }
@@ -605,16 +737,28 @@ export class WorkshopOverlay {
     const d = this.drag;
     if (!d) return;
     const el = this.dropTargetAt(x, y);
-    if (!el) return;
-    // Mirror commitDrop's verdict so the highlight reads honestly: green = will snap, rust = refused.
-    const ok = this.wouldAccept(d, el.dataset['drop']!);
+    if (!el) {
+      this.deck.highlight(null);
+      return;
+    }
+    const drop = el.dataset['drop']!;
+    if (drop === 'deck') {
+      // Honest 3D highlight: green on the cell a valid product will land on, rust otherwise.
+      const ok = d.view.isProduct && d.source.kind === 'inventory';
+      const cell = ok ? this.deckCellAt(x, y) : null;
+      this.deck.highlight(cell, ok && cell !== null);
+      el.classList.add(ok && cell ? 'drop-hover' : 'drop-reject');
+      return;
+    }
+    this.deck.highlight(null); // moved off the deck mid-drag
+    const ok = this.wouldAccept(d, drop);
     el.classList.add(ok ? 'drop-hover' : 'drop-reject');
   }
 
-  /** Pure predicate version of `commitDrop` for the hover highlight (no mutation). */
+  /** Pure predicate version of `commitDrop` for the hover highlight (bench/inventory targets). */
   private wouldAccept(d: DragState, drop: string): boolean {
     if (drop === 'inventory') return d.source.kind === 'bench';
-    if (this.inspectedAssembly()) return false; // read-only product view — bench slots take no drops
+    if (this.inspectedAssembly()) return false;
     const slot = drop.slice('slot:'.length);
     if (d.view.slot === null || slot !== d.view.slot) return false;
     if (d.source.kind === 'bench' && d.source.slot === slot) return false;
@@ -633,15 +777,16 @@ export class WorkshopOverlay {
     this.drag.ghost?.remove();
     this.drag.chip.classList.remove('dragging');
     this.clearDropHighlights();
+    this.deck.highlight(null);
     this.drag = null;
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Resolve an inventory/bench entity to a uniform `ItemView`, or null if it's neither a known part
-   * nor a product. A loose part (`EnginePart`) carries a bench role; a composed product (`Assembly`)
-   * carries `slot: null` and shows its summed stats + the recipe-derived display name.
+   * Resolve an inventory/bench/deck entity to a uniform `ItemView`, or null if it's neither a known
+   * part nor a product. A loose part (`EnginePart`) carries a bench role; a composed product
+   * (`Assembly`) carries `slot: null` and shows its summed stats + recipe-derived display name.
    */
   private viewOf(entity: EntityId): ItemView | null {
     const part = this.world.get(entity, EnginePart);
@@ -668,7 +813,7 @@ export class WorkshopOverlay {
       const recipe = recipeById(asm.recipeId);
       const kind = this.world.get(entity, Part)?.kind ?? 'engine';
       const output = recipe?.output ?? cap(kind);
-      const key = asm.type ?? kind; // engine product → its energy type; storage → 'storage'
+      const key = asm.type ?? kind;
       return {
         entity,
         displayName: asm.type ? `${cap(asm.type)} ${output}` : output,
@@ -688,18 +833,19 @@ export class WorkshopOverlay {
 
   /** Tab is visible only while a zone is active and the overlay is closed. */
   private syncTab(): void {
-    this.tab.classList.toggle('hidden', !this.zoneActive || this.open);
+    this.tabEl.classList.toggle('hidden', !this.zoneActive || this.open);
   }
 
   private syncPanel(): void {
     this.panel.classList.toggle('hidden', !this.open);
   }
 
-  /** Tear down listeners + the portrait — for HMR / teardown symmetry. */
+  /** Tear down listeners + the portrait/deck — for HMR / teardown symmetry. */
   dispose(): void {
     this.cancelDrag();
     this.portrait.dispose();
-    this.tab.removeEventListener('click', this.onTabClick);
+    this.deck.dispose();
+    this.tabEl.removeEventListener('click', this.onTabClick);
     this.closeBtn.removeEventListener('click', this.onCloseClick);
     this.assembleBtn.removeEventListener('click', this.onAssembleClick);
     window.removeEventListener('keydown', this.onKeyDown);

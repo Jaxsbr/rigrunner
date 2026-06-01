@@ -104,17 +104,6 @@ const overlay = new WorkshopOverlay(
   world,
   {
     onPauseChange: (p) => { paused = p; },
-    // Inventory → world bridge (a temporary stand-in until the workshop-staging-grid flow replaces
-    // it): drop the chosen product onto the ground just off the rig's side, where the player can
-    // grab it with the build interaction and mount it. Local→world by the rig's heading so it lands
-    // beside the rig whichever way it's parked. The overlay stays open; closing it reveals the part.
-    onMoveToWorld: (entity) => {
-      const rigT = world.get(player, Transform)!;
-      const c = Math.cos(rigT.rotationY);
-      const s = Math.sin(rigT.rotationY);
-      const lx = 2.2; // just off the right edge of the 2-wide deck
-      placeProductInWorld(world, entity, rigT.x + lx * c, rigT.z - lx * s);
-    },
   },
 );
 

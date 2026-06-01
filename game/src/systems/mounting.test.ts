@@ -14,6 +14,7 @@ import {
   hasMountedPartKind,
   committedEngineType,
   canMountPartOn,
+  closestFreeCellLocal,
   nearestMountTarget,
   outwardLocalYaw,
   leanLocalYaw,
@@ -120,6 +121,48 @@ describe('mounting occupancy + gating', () => {
     const w = new World();
     const r = rig(w);
     expect(nearestMountTarget(w, [r], 20, 20, 0.7)).toBeNull();
+  });
+});
+
+describe('closestFreeCellLocal', () => {
+  /** A bare 3×3 deck (no Transform needed — the scan is purely local). */
+  function deck(world: World): EntityId {
+    const e = world.createEntity();
+    world.add(e, MountGrid, { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 });
+    return e;
+  }
+
+  it('picks the cell under a deck-local point', () => {
+    const w = new World();
+    const d = deck(w);
+    // 3×3, cellSize 1, centred: local (0,0) is the centre cell (col 1, row 1).
+    expect(closestFreeCellLocal(w, d, 0, 0)).toMatchObject({ col: 1, row: 1 });
+    expect(closestFreeCellLocal(w, d, -1, -1)).toMatchObject({ col: 0, row: 0 });
+  });
+
+  it('skips an occupied cell, returning the nearest free one', () => {
+    const w = new World();
+    const d = deck(w);
+    mountPart(w, enginePart(w), d, 1, 1); // occupy the centre
+    const cell = closestFreeCellLocal(w, d, 0, 0);
+    expect(cell).not.toBeNull();
+    expect(cell).not.toMatchObject({ col: 1, row: 1 }); // not the taken centre
+  });
+
+  it('honours maxDist — null when the nearest free cell is out of reach', () => {
+    const w = new World();
+    const d = deck(w);
+    expect(closestFreeCellLocal(w, d, 20, 20, 0.7)).toBeNull();
+    expect(closestFreeCellLocal(w, d, 20, 20)).not.toBeNull(); // unbounded default still finds one
+  });
+
+  it('returns null when every cell is taken', () => {
+    const w = new World();
+    const d = deck(w);
+    for (let col = 0; col < 3; col++) {
+      for (let row = 0; row < 3; row++) mountPart(w, enginePart(w), d, col, row);
+    }
+    expect(closestFreeCellLocal(w, d, 0, 0)).toBeNull();
   });
 });
 

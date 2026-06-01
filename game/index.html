@@ -129,8 +129,35 @@
         background: #11151800;
       }
       .wk-inventory { width: 230px; }
-      .wk-bench { flex: 1; min-width: 0; }
+      .wk-center { flex: 1; min-width: 0; }
       .wk-inspect { width: 300px; }
+      /* Centre workspace tabs — switch the centre column between the Bench and the 3D Workshop Deck. */
+      .wk-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+      .wk-tab {
+        padding: 7px 12px;
+        border: 1px solid #2c343a;
+        border-radius: 7px;
+        background: transparent;
+        color: #8b97a0;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .wk-tab:hover { background: #1b2125; color: #c7ced3; }
+      .wk-tab.active { border-color: #59ff9f; color: #59ff9f; background: rgba(89, 255, 159, 0.08); }
+      .wk-tab-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .wk-tab-panel.hidden { display: none; }
+      /* The 3D workshop-deck host — the deck-view canvas fills it; it's also the staging drop target. */
+      .wk-deck-host {
+        flex: 1;
+        min-height: 0;
+        border: 1px solid #2c343a;
+        border-radius: 8px;
+        background: #0d1114;
+        overflow: hidden;
+      }
+      .wk-deck-host.drop-hover { border-color: #59ff9f; }
+      .wk-deck-host.drop-reject { border-color: #8a4b2f; }
       .wk-col-title {
         margin: 0 0 8px;
         font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -279,6 +306,22 @@
         100% { transform: scale(1); }
       }
       .wk-chip.snapped { animation: wk-snap 0.16s ease-out; }
+      /* Live "what you'll get" preview — the projected product stats as the slots fill, so the player
+         can compare combinations before committing to Assemble. */
+      .wk-bench-preview {
+        margin-top: 10px;
+        padding: 8px 10px;
+        border: 1px solid #2c343a;
+        border-radius: 7px;
+        background: #10151800;
+      }
+      .wk-bp-title { font-size: 11px; color: #8b97a0; letter-spacing: 0.04em; margin-bottom: 6px; }
+      .wk-bp-title .electric { color: #59ff9f; }
+      .wk-bp-title .mechanical { color: #d98a63; }
+      .wk-bp-bad { color: #d98a63; }
+      .wk-bp-stats { display: grid; grid-template-columns: repeat(6, auto); width: max-content; gap: 2px 6px; font-size: 12px; }
+      .wk-bp-stats .k { color: #8b97a0; }
+      .wk-bp-stats .v { color: #e6ebee; margin-right: 12px; }
       /* Assemble action — sits under the bench slots. Enabled (glow_green) only when the slots are
          full of one consistent type; disabled it shows the reason ("Fill all…", "Parts don’t match…"). */
       .wk-assemble {
@@ -316,21 +359,23 @@
       .wk-attrs .k { color: #8b97a0; }
       .wk-attrs .v { color: #e6ebee; }
       .wk-attrs .k.reserved, .wk-attrs .v.reserved { color: #5a646b; }
-      /* A product's actions, side by side: Move to World (eject to the rig) + Dismantle. */
+      /* A product's actions, side by side: Return to Inventory (unstage, deck only) + Dismantle. */
       .wk-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-      /* Move to World — sends the product out of inventory into the world to be mounted (green =
-         "build it onto the rig", matching the assemble action). */
-      .wk-move {
+      /* A small italic hint under a selection's stats (how to stage a product / use a sub-part). */
+      .wk-hint { margin-top: 10px; color: #6b757c; font-size: 11px; font-style: italic; }
+      /* Return to Inventory — pulls a staged product off the deck back into inventory (rig_blue =
+         "back to the abstract store", distinct from the green build / rust dismantle). */
+      .wk-unstage {
         padding: 7px 11px;
-        border: 1px solid #2f6f4a;
+        border: 1px solid #2f6f9f;
         border-radius: 7px;
-        background: rgba(89, 255, 159, 0.10);
-        color: #7fe0a5;
+        background: rgba(47, 111, 159, 0.14);
+        color: #7fb6e0;
         font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         letter-spacing: 0.06em;
         cursor: pointer;
       }
-      .wk-move:hover { background: rgba(89, 255, 159, 0.18); }
+      .wk-unstage:hover { background: rgba(47, 111, 159, 0.24); }
       /* Dismantle — returns a product's parts to inventory (rust = the "take it apart" inverse of
          the green assemble). */
       .wk-dismantle {
@@ -400,12 +445,21 @@
             <h3 class="wk-col-title">Inventory</h3>
             <div id="wk-inv-list" class="wk-inv-list" data-drop="inventory"></div>
           </section>
-          <section class="wk-col wk-bench">
-            <h3 class="wk-col-title">Assembly Bench</h3>
-            <div id="wk-recipe-tabs" class="wk-recipe-tabs"></div>
-            <div id="wk-recipe" class="wk-recipe"></div>
-            <div id="wk-bench-slots" class="wk-bench-slots"></div>
-            <button id="wk-assemble" class="wk-assemble" type="button" disabled></button>
+          <section class="wk-col wk-center">
+            <div class="wk-tabs">
+              <button id="wk-tab-bench" class="wk-tab active" type="button">⚒ Bench</button>
+              <button id="wk-tab-deck" class="wk-tab" type="button">▦ Workshop Deck</button>
+            </div>
+            <div id="wk-bench-panel" class="wk-tab-panel">
+              <div id="wk-recipe-tabs" class="wk-recipe-tabs"></div>
+              <div id="wk-recipe" class="wk-recipe"></div>
+              <div id="wk-bench-slots" class="wk-bench-slots"></div>
+              <div id="wk-bench-preview" class="wk-bench-preview"></div>
+              <button id="wk-assemble" class="wk-assemble" type="button" disabled></button>
+            </div>
+            <div id="wk-deck-panel" class="wk-tab-panel hidden">
+              <div id="wk-deck-host" class="wk-deck-host" data-drop="deck"></div>
+            </div>
           </section>
           <section class="wk-col wk-inspect">
             <h3 class="wk-col-title">Preview</h3>

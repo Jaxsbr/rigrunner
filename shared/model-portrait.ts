@@ -1,20 +1,19 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ModelLoader } from './model-loader';
 import { MODEL_ASSETS } from './assets';
+import { createThreeCanvas, disposeObject } from './three-canvas';
 
 /**
  * A small, self-contained turntable preview of a single GLB — the rotatable "portrait" the workshop
- * shows for the selected part. It owns its own canvas, scene, camera, lights, `OrbitControls`
- * (gentle auto-rotate + drag-to-spin) and render loop, so it can coexist with another live scene on
- * the page (e.g. the game's frozen main canvas) without sharing any state.
+ * shows for the selected part. It builds on the shared `three-canvas` host (canvas, scene, camera,
+ * lights, `OrbitControls`, render loop), adding only the single-model turntable content: gentle
+ * auto-rotate + drag-to-spin, bounds-fit framing, and a ghost/build-target render mode.
  *
- * Extracted from the asset viewer's preview core (`viewer/src/main.ts`) so the two don't fork: the
- * framing, lighting, and turntable feel live here once. Generic on purpose — it knows only an
- * `assetId` (resolved through the shared `MODEL_ASSETS` registry + `ModelLoader`). When an asset is
- * unregistered or fails to load, it shows a neutral placeholder block (optionally tinted by the
- * caller) so the widget is always populated — the part GLBs don't exist yet in milestone MW, so the
- * placeholder is what the player actually sees until real assets land.
+ * Generic on purpose — it knows only an `assetId` (resolved through the shared `MODEL_ASSETS`
+ * registry + `ModelLoader`). When an asset is unregistered or fails to load, it shows a neutral
+ * placeholder block (optionally tinted by the caller) so the widget is always populated — the part
+ * GLBs don't exist yet in milestone MW, so the placeholder is what the player actually sees until
+ * real assets land.
  */
 export interface ModelPortrait {
   /**
@@ -40,36 +39,21 @@ export interface ModelPortraitOptions {
 
 /** Create a portrait widget that renders into a canvas appended to `host`. */
 export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOptions = {}): ModelPortrait {
-  const canvas = document.createElement('canvas');
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.display = 'block';
-  canvas.style.touchAction = 'none'; // let OrbitControls own drag gestures
-  host.appendChild(canvas);
-
-  const scene = new THREE.Scene();
-
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 500);
+  const cv = createThreeCanvas(host, {
+    fov: 45,
+    autoRotate: opts.autoRotate ?? false,
+    onResize: () => {
+      if (framed) frame(framed); // the tighter FOV dimension changed — re-fit so nothing crops
+    },
+    onDispose: () => {
+      clearHolder();
+      ghostMaterial?.dispose();
+      ghostMaterial = null;
+    },
+  });
+  const { scene, camera, controls } = cv;
   camera.position.set(2.4, 1.9, 2.8);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.enablePan = false;
-  controls.autoRotate = opts.autoRotate ?? false;
-  controls.autoRotateSpeed = 1.6;
   controls.target.set(0, 0.5, 0);
-
-  // Lighting mirrors the viewer so a part reads the same here as it would in-game.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-  sun.position.set(5, 10, 7);
-  scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.25);
-  fill.position.set(-6, 4, -5);
-  scene.add(fill);
 
   const holder = new THREE.Group(); // the currently-displayed model/placeholder lives here
   scene.add(holder);
@@ -77,8 +61,6 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
   const models = new ModelLoader();
   let currentId: string | null = null; // what's requested (guards async races)
   let framed: THREE.Object3D | null = null; // the object the camera is framed on (re-fit on resize)
-  let running = false;
-  let rafId = 0;
 
   // Resources the portrait CREATES itself (placeholder blocks) — disposed when cleared. A loaded
   // model is a `clone(true)` of the loader's cached template and SHARES its geometry + materials, so
@@ -101,18 +83,6 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
     obj.traverse((node) => {
       const mesh = node as THREE.Mesh;
       if (mesh.isMesh) mesh.material = mat;
-    });
-  }
-
-  function disposeObject(obj: THREE.Object3D): void {
-    obj.traverse?.((node) => {
-      const mesh = node as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.geometry?.dispose();
-        const mat = mesh.material;
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-        else mat?.dispose();
-      }
     });
   }
 
@@ -203,45 +173,5 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
       });
   }
 
-  function resize(): void {
-    const w = host.clientWidth;
-    const h = host.clientHeight;
-    if (w === 0 || h === 0) return; // host not laid out yet (e.g. still hidden)
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    if (framed) frame(framed); // the tighter FOV dimension changed — re-fit so nothing crops
-  }
-
-  function tick(): void {
-    if (!running) return;
-    controls.update();
-    renderer.render(scene, camera);
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function start(): void {
-    if (running) return;
-    running = true;
-    resize();
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function stop(): void {
-    running = false;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = 0;
-  }
-
-  function dispose(): void {
-    stop();
-    clearHolder();
-    ghostMaterial?.dispose();
-    ghostMaterial = null;
-    controls.dispose();
-    renderer.dispose();
-    canvas.remove();
-  }
-
-  return { show, resize, start, stop, dispose };
+  return { show, resize: cv.resize, start: cv.start, stop: cv.stop, dispose: cv.dispose };
 }
