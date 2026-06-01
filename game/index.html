@@ -176,6 +176,14 @@
       .wk-chip.electric .wk-dot { background: #59ff9f; }
       .wk-chip.mechanical .wk-dot { background: #8a4b2f; }
       .wk-chip.storage .wk-dot { background: #2f6f9f; }
+      /* A composed product (assembled engine / built container) reads as a finished article: a
+         brighter fill + a left accent in its type colour, so it's clearly not a loose part. */
+      .wk-chip.product {
+        background: #20282d;
+        border-left: 3px solid #59ff9f;
+      }
+      .wk-chip.product.mechanical { border-left-color: #8a4b2f; }
+      .wk-chip.product.storage { border-left-color: #2f6f9f; }
       .wk-chip .wk-name {
         flex: 1;
         min-width: 0;
@@ -264,6 +272,26 @@
         100% { transform: scale(1); }
       }
       .wk-chip.snapped { animation: wk-snap 0.16s ease-out; }
+      /* Assemble action — sits under the bench slots. Enabled (glow_green) only when the slots are
+         full of one consistent type; disabled it shows the reason ("Fill all…", "Parts don’t match…"). */
+      .wk-assemble {
+        margin-top: 10px;
+        padding: 9px 12px;
+        border: 1px solid #59ff9f;
+        border-radius: 8px;
+        background: rgba(89, 255, 159, 0.1);
+        color: #59ff9f;
+        font: 600 12px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .wk-assemble:hover:not(:disabled) { background: rgba(89, 255, 159, 0.18); }
+      .wk-assemble:disabled {
+        border-color: #2c343a;
+        background: #161b1e;
+        color: #5a646b;
+        cursor: not-allowed;
+      }
       /* Detail panel — slot/type/attrs of the selected part. */
       .wk-detail {
         flex: 1;
@@ -281,6 +309,20 @@
       .wk-attrs .k { color: #8b97a0; }
       .wk-attrs .v { color: #e6ebee; }
       .wk-attrs .k.reserved, .wk-attrs .v.reserved { color: #5a646b; }
+      /* Dismantle — shown in a product's detail panel; returns its parts to inventory (rust = the
+         "take it apart" inverse of the green assemble). */
+      .wk-dismantle {
+        margin-top: 12px;
+        padding: 7px 11px;
+        border: 1px solid #8a4b2f;
+        border-radius: 7px;
+        background: rgba(138, 75, 47, 0.12);
+        color: #d98a63;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .wk-dismantle:hover { background: rgba(138, 75, 47, 0.22); }
       /* Portrait host — a fixed square so the preview doesn't stretch into a tall, wasteful strip;
          the turntable canvas sizes itself to fill it. The detail panel below takes the slack. */
       .wk-portrait-host {
@@ -316,6 +358,7 @@
             <div id="wk-recipe-tabs" class="wk-recipe-tabs"></div>
             <div id="wk-recipe" class="wk-recipe"></div>
             <div id="wk-bench-slots" class="wk-bench-slots"></div>
+            <button id="wk-assemble" class="wk-assemble" type="button" disabled></button>
           </section>
           <section class="wk-col wk-inspect">
             <h3 class="wk-col-title">Preview</h3>
