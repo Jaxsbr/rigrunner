@@ -483,6 +483,64 @@ won't snap until you remove the incumbent), and the chassis's engine type is alw
 
 ---
 
+## Discovered scope (spec-first, not yet built)
+
+These came out of playing P5. They are **specified before building** (Jaco's call: brainstorm/spec
+first). Sequence them after the core P-series; they don't block P6.
+
+### PR P7 (discovered) — Workshop staging grid: inventory ↔ workshop deck, in the UI
+
+**Why this exists.** P5 shipped a deliberately-temporary **"Move to World"** bridge: it ejects an
+assembled product onto the ground beside the rig so it can be grabbed and mounted. Two problems showed
+up in play: it's an *invisible* mechanism (you can't see the workshop's own deck or what's staged on
+it), and ejecting-to-ground is a clumsy way to hand a part over. This PR **replaces Move-to-World**
+with a visible **staging grid** inside the workshop interface.
+
+**The model (reuse, don't invent).** The workshop already owns a `MountGrid` (its 3×3 deck, `deckY
+0.2`) and is already a valid **mount target** for the build interaction (`build-controller.ts` snaps to
+any active workshop deck). So "staging" is just **mounting a product onto the workshop's grid** instead
+of the rig's. The new piece is only the **inventory ↔ workshop-grid** move (inventory is abstract, not
+in the world); **workshop-grid ↔ rig already works** via the in-world build interaction when parked.
+
+**In:**
+- A **staging-grid panel** in the overlay showing the workshop's deck cells and the products currently
+  on them (occupancy + each product's chip/name), refreshed from world state like the bench.
+- **Move inventory → staging grid:** drop a product into a free workshop cell → it leaves inventory and
+  mounts on the workshop deck (`mountPart(product, workshop, cell)`), gaining world presence
+  (Transform/Renderable/Collider/MountFacing — the `placeProductInWorld` capability seam already exists).
+- **Move staging grid → inventory:** pull a staged product back → unmount + return to inventory.
+- **Only assembled/mountable products** may be staged. **Loose sub-parts are barred** (a lone casing
+  has no standalone use on a deck) — captured as a possible future unbar in `ideas.md` (2026-06-01).
+- **Remove the "Move to World" button** — staging is the inventory→world path now.
+- **Conserved:** a product is in exactly one place — inventory OR a workshop cell OR mounted on the rig
+  OR loose in the world.
+
+**Open design questions (resolve in this PR, or a quick brainstorm pass first):**
+- **Render style.** First cut: a **2D slot grid like the bench** (3×3 cells + product chips, drag in/out)
+  — simplest, consistent, proven. A **3D mini-view** of the workshop deck (a `model-portrait`-style
+  turntable showing real placement) is a possible later polish. *Recommendation: 2D grid first.*
+- **Direct grid ↔ rig in the UI?** Or keep rig-mounting exclusively in the in-world build interaction
+  (the player closes the overlay and drags the staged part onto the rig)? Leaning: keep rig-mounting
+  in-world for now (one place to mount), the staging grid only bridges inventory ↔ workshop deck.
+
+**Out:** Mounting onto the rig (stays the in-world build interaction + P6's type-lock). The
+field-reconfiguration lock and the part-collection mechanism — both **`ideas.md` (2026-06-01)**, not
+this PR. A 3D staging view (future polish).
+
+**Manual test (sketch):**
+1. Build a storage container on the bench → it lands in inventory.
+2. Open the staging grid → drag the container onto a workshop cell → it appears on the deck (and in the
+   world on the workshop), and leaves the inventory list. Counts conserved.
+3. Drag it back to inventory → returns; deck cell empties.
+4. Try to drag a **loose sub-part** onto the grid → refused (only products stage).
+5. With a product staged on the workshop deck, close the overlay → grab it off the deck and mount it on
+   the rig with the existing build interaction. Everything stays conserved across inventory ↔ deck ↔ rig.
+
+**Done when:** the workshop deck and its staged products are visible in the interface, products move
+freely inventory ↔ workshop grid (sub-parts barred, fully conserved), and "Move to World" is gone.
+
+---
+
 ## Deferred (captured, not committed)
 
 Out of MW by Jaco's call; pulled forward only when play asks.

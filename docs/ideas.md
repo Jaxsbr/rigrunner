@@ -300,3 +300,48 @@ into the reworked spec ([`workshop-interface-spec.md`](workshop-interface-spec.m
   energy economy (capacity, discharge/burst boost, fuel grades, recharge) stays raw above.
 - **Still raw (unchanged above):** visuals/identifiability direction, the boost-vs-overdrive special
   abilities, and the open threads — kept as texture to draw on, not built yet.
+
+---
+
+## 2026-06-01 — Workshop-only re-fitting & where collected parts live
+
+**Mode:** brainstorm/observation while testing MW / P5 (composed engines + the inventory→world
+bridge). Two threads surfaced. **Not committed** — captured to revisit once the workshop
+**staging grid** (the spec'd follow-up) is in and we can feel them.
+
+### Thread 1 — rig re-fitting only makes sense inside the workshop
+A side-effect we noticed: the build interaction now always snaps a grabbed rig part back to a deck
+cell — you can no longer dump a part loose in the field; it only moves between cells on the rig.
+That was **not intentional**, but the more Jaco sat with it, the more it reads as the *right*
+boundary: **you shouldn't be able to reconfigure your rig out in the field.** Re-fitting is a
+workshop activity.
+
+**The idea:** make it a real rule — **rig reconfiguration (grab/move/mount/unmount of rig parts) is
+allowed only while the rig is parked in a workshop zone.** Outside the zone the build is frozen: the
+rig is whatever you drove out with. A clean, teachable constraint that gives the workshop more
+meaning and makes "park to re-fit" a deliberate beat.
+- **Felt cost:** a bad build can't be salvaged mid-run — you live with it until you limp home. That's
+  on-pillar (the run teaches the bay) but worth feeling before committing.
+- **Scope when built:** small — gate the build-controller's grab/drop on the same `WorkshopZone.active`
+  flag the overlay tab already uses. Self-contained; flagged as a likely **follow-up PR** (Jaco's call
+  was "capture for now, revisit once the staging grid lands").
+
+### Thread 2 — how does a player *collect* parts, and where do they go?
+Open question raised by the inventory work: when the player gets a part — e.g. **looting an enemy
+drop** (a rare part) — **where does it land?** Two shapes:
+- **(a) Straight to inventory.** Simple, "magic backpack" — the part just appears in the abstract
+  inventory the workshop browses. Cheap, but unphysical and free.
+- **(b) A physical carry mechanism on the rig.** Parts must be hauled home in a **salvage/cargo
+  module** mounted on the rig (like containers carry scrap) — capacity-limited, weighs you down,
+  and **only what you physically carried back enters the inventory** at the workshop. On-pillar: it
+  ties looting into the weight/build tradeoff and the build→run loop.
+
+**Wrinkle:** collected parts can be **sub-parts** (a casing, a core) *or* **whole products** (a
+complete engine, a container) — the carry mechanism (if any) has to handle both. Leaning toward (b)
+in spirit (physical, costed) but it's unbuilt and unscoped; (a) may be the pragmatic first cut.
+
+### Note — sub-parts are barred from the staging grid (for now)
+The staging-grid spec only lets **assembled/mountable products** move between inventory and the
+workshop deck; **loose sub-parts cannot** (a lone casing has no standalone use on a deck). Captured
+here as a **possible future unbar** — e.g. a workshop *fixture* that consumes raw sub-parts off the
+deck (smelter/caster territory) might want them there. Not a reason to allow it yet.
