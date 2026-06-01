@@ -7,6 +7,8 @@ import type { PartKind } from '../components/part';
 import { Mount } from '../components/mount';
 import { MountGrid } from '../components/mount-grid';
 import type { MountFacing } from '../components/mount-facing';
+import { Assembly } from '../components/assembly';
+import type { EnergyType } from '../content/parts-catalog';
 
 /**
  * Mounting: the seam that lets parts compose onto rigs. A part's attachment is pure data (a
@@ -89,6 +91,43 @@ export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind):
     if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === kind) return true;
   }
   return false;
+}
+
+/**
+ * The single energy type a chassis is committed to — the type of whatever engine is already mounted
+ * on it — or null when it carries no typed engine (an empty chassis, or one with only untyped/legacy
+ * engines). By the no-hybrid invariant every mounted engine shares this type, so the first one found
+ * answers for the rig.
+ */
+export function committedEngineType(world: World, rig: EntityId): EnergyType | null {
+  for (const p of world.query(Part, Mount, Assembly)) {
+    if (world.get(p, Mount)!.rig !== rig) continue;
+    if (world.get(p, Part)!.kind !== 'engine') continue;
+    const t = world.get(p, Assembly)!.type;
+    if (t) return t;
+  }
+  return null;
+}
+
+/**
+ * The no-hybrid type-lock, expressed as a mount-time predicate: may `part` mount on `target`?
+ *
+ * A chassis is locked to a single energy type. Mounting an engine whose type CLASHES with the type
+ * the chassis is already committed to is refused (the build interaction treats this target as having
+ * no free cell, so the part won't snap). Same-type engines, the first engine onto an empty chassis,
+ * non-engine parts, and untyped/legacy engines impose no constraint — so this is a no-op for
+ * everything except a cross-type engine onto an already-committed chassis. A workshop deck holds no
+ * engines, so it always accepts (staging is type-agnostic; the lock is per-chassis).
+ *
+ * Designed to extend to type-locked weapons later — they'll read the same `committedEngineType` —
+ * without changing this signature.
+ */
+export function canMountPartOn(world: World, target: EntityId, part: EntityId): boolean {
+  if (world.get(part, Part)?.kind !== 'engine') return true;
+  const incoming = world.get(part, Assembly)?.type;
+  if (!incoming) return true;
+  const current = committedEngineType(world, target);
+  return current === null || current === incoming;
 }
 
 /**

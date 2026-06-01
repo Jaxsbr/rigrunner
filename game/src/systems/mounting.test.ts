@@ -5,11 +5,15 @@ import { Transform } from '../components/transform';
 import { MountGrid } from '../components/mount-grid';
 import { Part } from '../components/part';
 import { Mount } from '../components/mount';
+import { Assembly } from '../components/assembly';
+import type { EnergyType } from '../content/parts-catalog';
 import {
   cellLocalOffset,
   cellWorldPose,
   partAtCell,
   hasMountedPartKind,
+  committedEngineType,
+  canMountPartOn,
   nearestMountTarget,
   outwardLocalYaw,
   leanLocalYaw,
@@ -39,6 +43,15 @@ function enginePart(world: World, x = 0, z = 0): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY: 0, y: 0 });
   world.add(e, Part, { kind: 'engine' });
+  return e;
+}
+
+/** A composed engine carrying its resolved energy type — the shape the no-hybrid lock reads. */
+function typedEngine(world: World, type: EnergyType): EntityId {
+  const e = world.createEntity();
+  world.add(e, Transform, { x: 0, z: 0, rotationY: 0, y: 0 });
+  world.add(e, Part, { kind: 'engine' });
+  world.add(e, Assembly, { recipeId: 'engine', parts: [], type });
   return e;
 }
 
@@ -107,6 +120,73 @@ describe('mounting occupancy + gating', () => {
     const w = new World();
     const r = rig(w);
     expect(nearestMountTarget(w, [r], 20, 20, 0.7)).toBeNull();
+  });
+});
+
+describe('no-hybrid type-lock', () => {
+  it('reports the chassis as uncommitted until a typed engine is mounted', () => {
+    const w = new World();
+    const r = rig(w);
+    expect(committedEngineType(w, r)).toBeNull();
+
+    const elec = typedEngine(w, 'electric');
+    mountPart(w, elec, r, 0, 0);
+    expect(committedEngineType(w, r)).toBe('electric');
+
+    unmountPart(w, elec);
+    expect(committedEngineType(w, r)).toBeNull(); // removing frees the chassis again
+  });
+
+  it('accepts any engine onto an empty chassis', () => {
+    const w = new World();
+    const r = rig(w);
+    expect(canMountPartOn(w, r, typedEngine(w, 'electric'))).toBe(true);
+    expect(canMountPartOn(w, r, typedEngine(w, 'mechanical'))).toBe(true);
+  });
+
+  it('allows a same-type engine but refuses a cross-type one', () => {
+    const w = new World();
+    const r = rig(w);
+    mountPart(w, typedEngine(w, 'electric'), r, 0, 0); // commits the chassis to electric
+
+    expect(canMountPartOn(w, r, typedEngine(w, 'electric'))).toBe(true); // second electric: fine
+    expect(canMountPartOn(w, r, typedEngine(w, 'mechanical'))).toBe(false); // hybrid: refused
+  });
+
+  it('re-opens to the other type once the incumbent engine is removed', () => {
+    const w = new World();
+    const r = rig(w);
+    const elec = typedEngine(w, 'electric');
+    mountPart(w, elec, r, 0, 0);
+    const mech = typedEngine(w, 'mechanical');
+    expect(canMountPartOn(w, r, mech)).toBe(false);
+
+    unmountPart(w, elec); // remove the electric engine
+    expect(canMountPartOn(w, r, mech)).toBe(true); // mechanical may now go on
+  });
+
+  it('locks each chassis independently — a commitment on one rig never gates another', () => {
+    const w = new World();
+    const r1 = rig(w, 0, 0);
+    const r2 = rig(w, 20, 0);
+    mountPart(w, typedEngine(w, 'electric'), r1, 0, 0);
+    // r2 is untouched, so a mechanical engine mounts on it freely.
+    expect(canMountPartOn(w, r2, typedEngine(w, 'mechanical'))).toBe(true);
+  });
+
+  it('imposes no constraint on non-engine parts or typeless engines', () => {
+    const w = new World();
+    const r = rig(w);
+    mountPart(w, typedEngine(w, 'electric'), r, 0, 0); // chassis committed to electric
+
+    // A storage part has no energy type → never clashes.
+    const storage = w.createEntity();
+    w.add(storage, Transform, { x: 0, z: 0, rotationY: 0, y: 0 });
+    w.add(storage, Part, { kind: 'storage' });
+    expect(canMountPartOn(w, r, storage)).toBe(true);
+
+    // A typeless engine (no Assembly type) imposes no clash either.
+    expect(canMountPartOn(w, r, enginePart(w))).toBe(true);
   });
 });
 
