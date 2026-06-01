@@ -93,16 +93,19 @@ export function createBuildController(
    * its cells never highlight and a part dropped over it glides to the ground instead — the gate
    * that makes "park to transfer" mean something. workshopZoneSystem owns the `active` flag.
    *
-   * Targets the part can't mount on are filtered out (the no-hybrid type-lock: a cross-type engine
-   * is rejected by an already-committed chassis). A filtered-out rig has no free cell for this part,
-   * so nothing highlights and the drop returns to origin / settles loose — the tactile "won't snap"
-   * refusal, identical to dropping over no free cell.
+   * The no-hybrid type-lock applies ONLY to the rig: a chassis is committed to a single energy
+   * type, so a cross-type engine can't snap onto it — the rig drops out of the target list, leaving
+   * it no free cell, so the drop returns to origin / settles loose (the tactile "won't snap"
+   * refusal, identical to dropping over no free cell). A workshop is NOT a chassis — it's a
+   * type-agnostic staging surface that must accept any and all parts at once (e.g. an electric AND
+   * a mechanical engine side by side, while you swap which one is on the rig) — so it is never
+   * type-gated.
    */
   function mountTargets(part: EntityId): EntityId[] {
     const targets: EntityId[] = [];
     if (canMountPartOn(world, rig, part)) targets.push(rig);
     for (const w of world.query(WorkshopZone)) {
-      if (world.get(w, WorkshopZone)!.active && canMountPartOn(world, w, part)) targets.push(w);
+      if (world.get(w, WorkshopZone)!.active) targets.push(w); // staging accepts any part — no type-lock
     }
     return targets;
   }

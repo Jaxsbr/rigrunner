@@ -174,6 +174,17 @@ describe('no-hybrid type-lock', () => {
     expect(canMountPartOn(w, r2, typedEngine(w, 'mechanical'))).toBe(true);
   });
 
+  it('is a target-agnostic clash check — the CALLER decides which targets are locked', () => {
+    // The predicate reports a clash on ANY target already committed to a type, including a workshop
+    // the player is merely STAGING engines on. That is exactly why the build controller applies it
+    // to the rig only: a workshop deck must hold both engine types at once during a swap. This guards
+    // against anyone re-gating the staging surface (the bug that prevented swapping engines).
+    const w = new World();
+    const shop = rig(w); // any MountGrid target stands in for the workshop staging deck
+    mountPart(w, typedEngine(w, 'electric'), shop, 0, 0);
+    expect(canMountPartOn(w, shop, typedEngine(w, 'mechanical'))).toBe(false);
+  });
+
   it('imposes no constraint on non-engine parts or typeless engines', () => {
     const w = new World();
     const r = rig(w);

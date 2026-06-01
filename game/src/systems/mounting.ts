@@ -110,17 +110,19 @@ export function committedEngineType(world: World, rig: EntityId): EnergyType | n
 }
 
 /**
- * The no-hybrid type-lock, expressed as a mount-time predicate: may `part` mount on `target`?
+ * The no-hybrid type-lock as a pure CLASH CHECK: would mounting `part` on `target` put a second
+ * energy type onto it? Returns true (no clash) unless `part` is an engine whose type differs from
+ * the type `target` is already committed to. Same-type engines, the first engine onto an
+ * uncommitted target, non-engine parts, and untyped/legacy engines never clash.
  *
- * A chassis is locked to a single energy type. Mounting an engine whose type CLASHES with the type
- * the chassis is already committed to is refused (the build interaction treats this target as having
- * no free cell, so the part won't snap). Same-type engines, the first engine onto an empty chassis,
- * non-engine parts, and untyped/legacy engines impose no constraint — so this is a no-op for
- * everything except a cross-type engine onto an already-committed chassis. A workshop deck holds no
- * engines, so it always accepts (staging is type-agnostic; the lock is per-chassis).
+ * It only describes the clash; it does NOT decide which targets are SUBJECT to the lock — that is a
+ * policy the caller owns. The build controller applies it to the rig (a chassis IS type-locked) but
+ * never to a workshop deck: a workshop is a type-agnostic staging surface that must hold any parts
+ * at once (an electric and a mechanical engine side by side) while the player swaps them onto the
+ * rig. Applied naively to a workshop with one engine staged, this would wrongly refuse the other
+ * type — hence the lock lives in the caller's target policy, not here.
  *
- * Designed to extend to type-locked weapons later — they'll read the same `committedEngineType` —
- * without changing this signature.
+ * Shaped to extend to type-locked weapons later — they'll read the same `committedEngineType`.
  */
 export function canMountPartOn(world: World, target: EntityId, part: EntityId): boolean {
   if (world.get(part, Part)?.kind !== 'engine') return true;
