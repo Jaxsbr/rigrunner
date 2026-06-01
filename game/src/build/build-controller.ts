@@ -17,6 +17,7 @@ import {
   partAtCell,
   mountPart,
   unmountPart,
+  canMountPartOn,
 } from '../systems/mounting';
 
 /**
@@ -87,15 +88,24 @@ export function createBuildController(
   const glides: Glide[] = [];
 
   /**
-   * The decks a carried part may snap onto this frame: the rig always, plus any workshop whose
+   * The decks the carried `part` may snap onto this frame: the rig, plus any workshop whose
    * proximity zone is currently active (rig parked in range). A dormant workshop is excluded, so
    * its cells never highlight and a part dropped over it glides to the ground instead — the gate
    * that makes "park to transfer" mean something. workshopZoneSystem owns the `active` flag.
+   *
+   * The no-hybrid type-lock applies ONLY to the rig: a chassis is committed to a single energy
+   * type, so a cross-type engine can't snap onto it — the rig drops out of the target list, leaving
+   * it no free cell, so the drop returns to origin / settles loose (the tactile "won't snap"
+   * refusal, identical to dropping over no free cell). A workshop is NOT a chassis — it's a
+   * type-agnostic staging surface that must accept any and all parts at once (e.g. an electric AND
+   * a mechanical engine side by side, while you swap which one is on the rig) — so it is never
+   * type-gated.
    */
-  function mountTargets(): EntityId[] {
-    const targets: EntityId[] = [rig];
+  function mountTargets(part: EntityId): EntityId[] {
+    const targets: EntityId[] = [];
+    if (canMountPartOn(world, rig, part)) targets.push(rig);
     for (const w of world.query(WorkshopZone)) {
-      if (world.get(w, WorkshopZone)!.active) targets.push(w);
+      if (world.get(w, WorkshopZone)!.active) targets.push(w); // staging accepts any part — no type-lock
     }
     return targets;
   }
@@ -132,7 +142,7 @@ export function createBuildController(
     world.remove(part, Carried);
 
     const t = world.get(part, Transform)!;
-    const cell = nearestMountTarget(world, mountTargets(), dragX, dragZ, SNAP_DIST);
+    const cell = nearestMountTarget(world, mountTargets(part), dragX, dragZ, SNAP_DIST);
     if (cell) {
       // Connect: mount on the winning deck's cell at the facing the preview was showing — recompute
       // from the same inputs (and the SAME target) so the dropped facing matches what the player saw.
@@ -241,7 +251,7 @@ export function createBuildController(
       // workshops), highlight it, and ease the part toward the exact yaw its MountFacing rule will
       // give it there — so the held part visibly turns to show how it will sit before you let go.
       // No cell in reach → align to the rig and hide the marker (and the shadow falls to the floor).
-      const cell = nearestMountTarget(world, mountTargets(), dragX, dragZ, SNAP_DIST);
+      const cell = nearestMountTarget(world, mountTargets(carried), dragX, dragZ, SNAP_DIST);
       const targetT = world.get(cell?.target ?? rig, Transform)!;
       const grid = world.get(cell?.target ?? rig, MountGrid)!;
       const local = worldToRigLocal(targetT, dragX, dragZ);

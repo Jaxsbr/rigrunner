@@ -7,6 +7,8 @@ import type { PartKind } from '../components/part';
 import { Mount } from '../components/mount';
 import { MountGrid } from '../components/mount-grid';
 import type { MountFacing } from '../components/mount-facing';
+import { Assembly } from '../components/assembly';
+import type { EnergyType } from '../content/parts-catalog';
 
 /**
  * Mounting: the seam that lets parts compose onto rigs. A part's attachment is pure data (a
@@ -89,6 +91,45 @@ export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind):
     if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === kind) return true;
   }
   return false;
+}
+
+/**
+ * The single energy type a chassis is committed to — the type of whatever engine is already mounted
+ * on it — or null when it carries no typed engine (an empty chassis, or one with only untyped/legacy
+ * engines). By the no-hybrid invariant every mounted engine shares this type, so the first one found
+ * answers for the rig.
+ */
+export function committedEngineType(world: World, rig: EntityId): EnergyType | null {
+  for (const p of world.query(Part, Mount, Assembly)) {
+    if (world.get(p, Mount)!.rig !== rig) continue;
+    if (world.get(p, Part)!.kind !== 'engine') continue;
+    const t = world.get(p, Assembly)!.type;
+    if (t) return t;
+  }
+  return null;
+}
+
+/**
+ * The no-hybrid type-lock as a pure CLASH CHECK: would mounting `part` on `target` put a second
+ * energy type onto it? Returns true (no clash) unless `part` is an engine whose type differs from
+ * the type `target` is already committed to. Same-type engines, the first engine onto an
+ * uncommitted target, non-engine parts, and untyped/legacy engines never clash.
+ *
+ * It only describes the clash; it does NOT decide which targets are SUBJECT to the lock — that is a
+ * policy the caller owns. The build controller applies it to the rig (a chassis IS type-locked) but
+ * never to a workshop deck: a workshop is a type-agnostic staging surface that must hold any parts
+ * at once (an electric and a mechanical engine side by side) while the player swaps them onto the
+ * rig. Applied naively to a workshop with one engine staged, this would wrongly refuse the other
+ * type — hence the lock lives in the caller's target policy, not here.
+ *
+ * Shaped to extend to type-locked weapons later — they'll read the same `committedEngineType`.
+ */
+export function canMountPartOn(world: World, target: EntityId, part: EntityId): boolean {
+  if (world.get(part, Part)?.kind !== 'engine') return true;
+  const incoming = world.get(part, Assembly)?.type;
+  if (!incoming) return true;
+  const current = committedEngineType(world, target);
+  return current === null || current === incoming;
 }
 
 /**

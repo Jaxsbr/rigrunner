@@ -73,17 +73,18 @@ world.add(bench, Bench, {
 });
 
 // DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
-// will MAKE parts). The rig already ships with its electric engine, so the only thing the player
-// needs to build right now is a STORAGE CONTAINER (to start the cargo loop). Seed JUST the two
-// container parts (shell + rim) — deliberately NOT the engine sub-parts, so the starting inventory
-// holds only what's currently useful. Engine parts come back when there's a reason to build a second
-// engine (the P6 type-lock work). Remove this grant once parts are produced in-game.
-for (const def of PARTS_CATALOG.filter((p) => p.category === 'storage')) {
+// will MAKE parts). Seed the FULL catalog: the two container parts (shell + rim) to build a storage
+// container and start the cargo loop, AND both engine part sets (4 electric + 4 mechanical). The rig
+// already ships with an electric engine, but the engine sub-parts are back now (P5 had trimmed them
+// to just the container) so P6's type-lock is testable: build a MECHANICAL engine to confirm the
+// cross-type mount is refused, and a second ELECTRIC engine to confirm same-type mounting is allowed.
+// Remove this grant once parts are produced in-game.
+for (const def of PARTS_CATALOG) {
   addToInventory(world, spawnEnginePart(world, def));
 }
 console.info(
-  `[dev grant] inventory seeded with ${inventoryItems(world).length} container parts ` +
-    `(shell + rim) — stand-in for the real production chain (deferred).`,
+  `[dev grant] inventory seeded with ${inventoryItems(world).length} parts ` +
+    `(container shell + rim, plus the 8 engine sub-parts) — stand-in for the real production chain (deferred).`,
 );
 
 const input = createDriveInput();
