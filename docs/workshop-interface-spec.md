@@ -295,11 +295,46 @@ Decide the assembly mechanics (Phase 2) are right before building them.
 Turn placed parts into **complete engines** of two types, and let the player **mount** them onto a
 chassis under the **no-hybrid lock**.
 
-### PR P4 — Engine assembly: four same-type parts → a complete engine
+### PR P4 — Engine assembly: four same-type parts → a complete engine — ✅ DELIVERED (PR #8)
 
 **Goal:** When the bench's four slots hold parts **all of the same type**, the bench can **assemble**
 them into a **complete engine**; the result computes its `EngineSpec` + `Weight` and can be moved to
 inventory. Mixed-type or incomplete slots → **cannot complete** (won't snap together).
+
+> ✅ **Delivered, built RECIPE-GENERIC** (Jaco's call — any buildable assembles, not just the engine).
+> A new lean **`Assembly` component** (`components/assembly.ts`) marks a composed product: its
+> `recipeId`, the **part entities it owns** (kept alive — dismantle hands the same ones back, fully
+> conserved), and the resolved energy `type`. A new pure, recipe-driven **`systems/assembly.ts`** does
+> the work: `sumPartStats`, `resolveEnergyType` (the no-hybrid rule), `benchEnergyType`/`acceptsType`
+> (the **tactile cross-type drop refusal** — a wrong-type part won't snap onto a bench committed to a
+> type), `isBenchComplete`, `assembleVerdict` (with a readable disabled reason), `assemble` (stamps
+> `Part{kind}` + `Weight` + the kind's capability + `Assembly`, consuming the bench parts into it),
+> and `dismantle` (the conserved reverse). The **one** place kinds differ is `attachCapability`:
+> engine → `EngineSpec`, storage → `Storage`. `Recipe` gained `productKind`; the storage container
+> assembles through the identical path, proving the genericity.
+>
+> The overlay generalised every item to a uniform **`ItemView`** (loose parts AND composed products),
+> and gained the **Assemble** action (enabled only when complete + one type, else it shows why) and
+> **Dismantle** (in a product's detail). `EngineSpec`/`engine.ts`/`drive.ts` **untouched**. 15 new
+> tests (116 total) cover summing, the no-hybrid rule, completeness/verdict, engine + storage
+> assembly, and conserved dismantle.
+>
+> **Beyond the spec (discovery, by Jaco):**
+> - **Composed engines preview with the existing GLBs** — electric → `engine-mk2`, mechanical →
+>   `engine-mk1` (a stand-in until bespoke composed-engine assets exist); storage previews via its
+>   container GLB.
+> - **Product sub-part inspection** — selecting a composed product puts the bench into a read-only
+>   view of its sub-parts (disabled chips), so you can read what it's made of (e.g. "rare casing,
+>   common rest") before dismantling.
+> - **Live build-target preview** — with nothing selected, the preview shows the active recipe's
+>   product as a flat-grey **ghost silhouette** while the recipe is incomplete, snapping to the
+>   full-colour part the instant Assemble enables (stats stay hidden until built). Also fixed a latent
+>   `model-portrait` bug that disposed the loader's cache-shared geometry/materials on every swap.
+> - **Dark scrollbars** in the overlay (the OS light-grey bar clashed with the panel).
+>
+> **Caveat:** Mk1/Mk2 are still the spawned world engines — **retiring them for composed engines is
+> P5**; mounting a completed engine on the chassis (the type-lock) is **P6**. Note the file names
+> landed as `assembly.ts` (not the spec's `engine-assembly.ts`) to reflect the generic scope.
 
 **In:**
 - New `game/src/components/engine-assembly.ts`: `EngineAssembly` = the four slots + the part filling
