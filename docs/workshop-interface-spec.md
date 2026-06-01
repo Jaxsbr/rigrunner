@@ -149,11 +149,18 @@ Stand up the surface and the part-moving plumbing. No engine assembly logic yet 
 Phase 1 you can open the workshop, browse owned parts, inspect them, and shuffle them between
 inventory and the bench.
 
-### PR P1 — Open tab + freezing overlay shell
+### PR P1 — Open tab + freezing overlay shell — ✅ DELIVERED (PR #5, tested 2026-06-01)
 
 **Goal:** A tab-like "🔧 Open Workshop" button appears bottom-centre while the rig is in the workshop
 zone. Clicking it opens a full-screen overlay that **freezes the simulation**; closing it resumes.
 Ignoring it leaves today's manual offload untouched.
+
+> ✅ **Delivered.** Tab tracks zone state (fades in/out), the overlay opens and freezes the sim
+> (wheels still, no drift, drain paused) while still rendering the frozen scene, and `Esc`/Close
+> resumes cleanly with no stuck input. Drive input is zeroed while paused; the sim block, build
+> interaction, and the sim-driven animators are gated behind a `paused` flag owned by `main.ts`.
+> New `game/src/ui/workshop-overlay.ts` owns the DOM and surfaces `onPauseChange` + `setZoneActive`.
+> The empty overlay shell is intentional — contents land in P2/P3.
 
 **In:**
 - DOM tab anchored bottom-centre, shown only when any `WorkshopZone.active` is true (reuse the flag
