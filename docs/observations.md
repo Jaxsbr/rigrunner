@@ -200,3 +200,23 @@ driving is always live, parts can be re-fitted any time, dropped parts orient to
 deck (animated, not snapped), and nothing ever resets the rig's rotation. The workshop
 pad became a **safe zone** (the enemy can't touch you while you're on it) instead of a
 mode trigger — keeping the "return home to re-fit in peace" beat without a toggle.
+
+---
+
+## 9. The recipe picker works for two recipes but won't scale to many
+
+**Context:** Workshop interface (MW / PR P3). The bench was made **recipe-driven**, and a second
+buildable (the **storage container** — shell + rim) was added beside the engine to prove the bench
+isn't engine-shaped. Recipes are surfaced as a **row of "tab" buttons** above the bench slots.
+
+**Observation:** A flat horizontal tab strip is fine for **two** recipes and is **acceptable in its
+current state** — but it clearly won't scale. As recipes multiply (per-output recipes, tiers, and
+especially the future *loot-drop special recipes* — see `ideas.md` 2026-06-01), a single row of tabs
+becomes unreadable and unusable. A more robust selector is needed: a searchable / categorised /
+scrolling list that can **group basic vs special** recipes and survive dozens of entries.
+
+**Why it matters:** recipes are set to grow, and the selector is the seam that has to absorb that
+growth. Naming the limit now means we replace it deliberately rather than discovering it the hard way.
+
+**Status:** ACCEPTED FOR NOW — ships as a tab strip. Flagged to replace with a scalable recipe
+selector once recipe count grows past a handful. Not built yet.

@@ -231,11 +231,29 @@ add/remove helpers, and nothing else changes.
 
 ---
 
-### PR P3 — Inventory browser + portrait + bench with inventory↔bench drag
+### PR P3 — Inventory browser + portrait + bench with inventory↔bench drag — ✅ DELIVERED (PR #7, accepted 2026-06-01)
 
 **Goal:** Inside the overlay: **browse owned parts**, **inspect** a selection (details + rotatable
 3D portrait), and **move parts between inventory and the assembly bench** freely. The bench shows the
 four engine slots but does **not** assemble yet — this PR is about *moving and looking*.
+
+> ✅ **Delivered.** The overlay now hosts an **inventory list**, a **detail panel** (slot/type/attrs;
+> `durability`/`burst` shown as reserved), a **rotatable portrait**, and the **four-slot bench** with
+> **pointer drag inventory↔bench** — role-matched, conserved (a part is always in exactly one place),
+> with a snap pulse + return-to-origin glide mirroring the build-controller feel. The portrait core
+> was extracted into a reusable **`shared/model-portrait.ts`** (own canvas/scene/loop, aspect-aware
+> auto-fit, drag-spin, auto-rotate off; falls back to a tinted placeholder since part GLBs don't
+> exist yet). Bench state lives in a new **`Bench` component** and survives close/reopen.
+>
+> **Beyond the spec (by Jaco's call, discovery):** the bench was made **recipe-driven** (new
+> `content/recipes.ts`) rather than hardcoded to the engine, and a **second recipe — the storage
+> container** (`container shell` + `container rim`, 2 parts, no energy type) — was added with a
+> **recipe picker** to prove the bench is genuinely generic. Parts generalised: a `category`
+> (`engine`/`storage`) and an optional `type` (engine-only). Switching recipes returns bench parts to
+> inventory and reshapes the slots. **Caveat:** the picker is a flat tab strip — fine for two
+> recipes, **won't scale** to many; a robust selector is flagged for later (`observations.md` #9).
+> Forward idea captured: **loot-drop "special" recipes** that supersede basics (`ideas.md`
+> 2026-06-01). 100 tests pass; game+viewer typecheck + build clean.
 
 **In:**
 - **Inventory panel:** list of owned parts (displayName, slot, type). Selecting one shows a detail
