@@ -73,22 +73,18 @@ world.add(bench, Bench, {
 });
 
 // DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
-// will MAKE parts). Seed the player's inventory with the full catalog — the 8 engine sub-parts AND
-// the 2 storage parts (a container shell + rim) — so the player can build a second engine of either
-// type AND a storage container to move out and mount, before any production exists. Remove once
-// parts are produced in-game.
-for (const def of PARTS_CATALOG) {
+// will MAKE parts). The rig already ships with its electric engine, so the only thing the player
+// needs to build right now is a STORAGE CONTAINER (to start the cargo loop). Seed JUST the two
+// container parts (shell + rim) — deliberately NOT the engine sub-parts, so the starting inventory
+// holds only what's currently useful. Engine parts come back when there's a reason to build a second
+// engine (the P6 type-lock work). Remove this grant once parts are produced in-game.
+for (const def of PARTS_CATALOG.filter((p) => p.category === 'storage')) {
   addToInventory(world, spawnEnginePart(world, def));
 }
-{
-  const granted = inventoryItems(world);
-  const engine = PARTS_CATALOG.filter((p) => p.category === 'engine').length;
-  const storage = PARTS_CATALOG.filter((p) => p.category === 'storage').length;
-  console.info(
-    `[dev grant] inventory seeded with ${granted.length} parts ` +
-      `(${engine} engine, ${storage} storage) — stand-in for the real production chain (deferred).`,
-  );
-}
+console.info(
+  `[dev grant] inventory seeded with ${inventoryItems(world).length} container parts ` +
+    `(shell + rim) — stand-in for the real production chain (deferred).`,
+);
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
@@ -107,10 +103,10 @@ const overlay = new WorkshopOverlay(
   world,
   {
     onPauseChange: (p) => { paused = p; },
-    // Inventory → world bridge (a temporary stand-in until a richer place-from-interface flow
-    // exists): drop the chosen product onto the ground just off the rig's side, where the player can
+    // Inventory → world bridge (a temporary stand-in until the workshop-staging-grid flow replaces
+    // it): drop the chosen product onto the ground just off the rig's side, where the player can
     // grab it with the build interaction and mount it. Local→world by the rig's heading so it lands
-    // beside the rig whichever way it's parked. The overlay closes after, so the part is visible.
+    // beside the rig whichever way it's parked. The overlay stays open; closing it reveals the part.
     onMoveToWorld: (entity) => {
       const rigT = world.get(player, Transform)!;
       const c = Math.cos(rigT.rotationY);

@@ -54,7 +54,7 @@ export interface WorkshopOverlayOptions {
   /**
    * Eject a composed product from inventory into the world (next to the rig), so the player can grab
    * and mount it with the build interaction. Main owns the rig position; the overlay just names the
-   * product to move. (Temporary inventory → world bridge until a richer place-from-interface flow.)
+   * product to move. (Temporary inventory → world bridge until the workshop-staging-grid replaces it.)
    */
   onMoveToWorld(product: EntityId): void;
 }
@@ -376,8 +376,9 @@ export class WorkshopOverlay {
   }
 
   /**
-   * Eject the selected product into the world (main places it beside the rig) and close the overlay,
-   * so the player lands back in world-mode looking at the part, ready to grab and mount it. Only a
+   * Eject the selected product into the world (main places it beside the rig), then repaint so it
+   * drops out of the inventory list. The overlay stays OPEN — the player can keep working (move
+   * more parts out, build another) and close when they're ready to grab what they ejected. Only a
    * composed product can be moved out — a loose part stays inventory-only.
    */
   private moveSelectedToWorld(): void {
@@ -385,8 +386,7 @@ export class WorkshopOverlay {
     const product = this.selected;
     if (!this.world.get(product, Assembly)) return; // products only
     this.opts.onMoveToWorld(product);
-    this.selected = null; // it has left the inventory — drop the now-stale selection
-    this.closeOverlay();
+    this.setSelected(null); // it has left the inventory — clear the now-stale selection + repaint
   }
 
   /** Render the detail panel + portrait for the current selection. */

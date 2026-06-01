@@ -395,12 +395,12 @@ world's engines come from assemblies, and give each type its **distinct drive fe
 > - **Inventory → world bridge.** The spec never said how an *assembled* product gets from inventory
 >   into the drivable world to be mounted. Added a **"Move to World"** button beside Dismantle in a
 >   product's detail: it ejects the product onto the ground beside the rig (via new
->   `placeProductInWorld`, which grants Transform/Renderable/Collider + an engine's MountFacing) and
->   closes the overlay so the player can grab and mount it with the build interaction. A deliberately
->   **temporary** stand-in until a richer place-from-interface flow exists.
-> - **Container parts in the dev grant.** The grant already seeds a **container shell + rim**, so with
->   no pre-spawned world containers the player **builds a storage container in the workshop** and moves
->   it out — exercising the new bridge from the first session.
+>   `placeProductInWorld`, which grants Transform/Renderable/Collider + an engine's MountFacing) so the
+>   player can grab and mount it with the build interaction (the overlay stays open). A deliberately
+>   **temporary** stand-in — the **workshop-staging-grid** follow-up replaces it (see below).
+> - **Dev grant trimmed to the container parts.** The rig already ships its electric engine, so the
+>   starting inventory holds only the **container shell + rim** — exactly enough to build a storage
+>   container and start the cargo loop. Engine sub-parts return when the P6 type-lock work needs them.
 > - The product → GLB mapping (electric → `engine-mk2`, mechanical → `engine-mk1`, storage → its
 >   container) moved into **`content/product-visual.ts`** so the portrait, inventory chip, and the
 >   model placed in the world all agree.
