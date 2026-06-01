@@ -316,10 +316,24 @@
       .wk-attrs .k { color: #8b97a0; }
       .wk-attrs .v { color: #e6ebee; }
       .wk-attrs .k.reserved, .wk-attrs .v.reserved { color: #5a646b; }
-      /* Dismantle — shown in a product's detail panel; returns its parts to inventory (rust = the
-         "take it apart" inverse of the green assemble). */
+      /* A product's actions, side by side: Move to World (eject to the rig) + Dismantle. */
+      .wk-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+      /* Move to World — sends the product out of inventory into the world to be mounted (green =
+         "build it onto the rig", matching the assemble action). */
+      .wk-move {
+        padding: 7px 11px;
+        border: 1px solid #2f6f4a;
+        border-radius: 7px;
+        background: rgba(89, 255, 159, 0.10);
+        color: #7fe0a5;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .wk-move:hover { background: rgba(89, 255, 159, 0.18); }
+      /* Dismantle — returns a product's parts to inventory (rust = the "take it apart" inverse of
+         the green assemble). */
       .wk-dismantle {
-        margin-top: 12px;
         padding: 7px 11px;
         border: 1px solid #8a4b2f;
         border-radius: 7px;

@@ -1,6 +1,6 @@
 import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
-import { Renderable } from '../components/renderable';
+import { Assembly } from '../components/assembly';
 import { mountedEngines } from '../systems/engine';
 import { rigPerformance } from '../systems/drive';
 
@@ -29,9 +29,11 @@ export class StatsHud {
   private compose(world: World, rig: EntityId): string {
     const perf = rigPerformance(world, rig);
 
+    // Label each mounted engine by its energy type (electric/mechanical) — every engine is now a
+    // composed product carrying that type. A typeless engine (shouldn't occur) reads as 'engine'.
     const labels = mountedEngines(world, rig).map((e) => {
-      const r = world.get(e, Renderable);
-      return r && r.shape === 'model' ? engineLabel(r.assetId) : 'engine';
+      const t = world.get(e, Assembly)?.type;
+      return t ? cap(t) : 'engine';
     });
     const type = labels.length === 0 ? '— none (no drive)' : groupLabels(labels);
 
@@ -49,7 +51,7 @@ export class StatsHud {
   }
 }
 
-/** Group engine labels → e.g. "Mk1 + Mk2", "Mk2 ×2". */
+/** Group engine labels → e.g. "Electric + Mechanical", "Electric ×2". */
 function groupLabels(labels: string[]): string {
   const counts = new Map<string, number>();
   for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
@@ -58,10 +60,9 @@ function groupLabels(labels: string[]): string {
     .join(' + ');
 }
 
-/** 'engine-mk1' → 'Mk1'. Falls back to the raw id for anything unrecognised. */
-function engineLabel(assetId: string): string {
-  const tail = assetId.replace(/^engine-/, '');
-  return tail ? tail.charAt(0).toUpperCase() + tail.slice(1) : assetId;
+/** 'electric' → 'Electric'. */
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function fmt(n: number): string {

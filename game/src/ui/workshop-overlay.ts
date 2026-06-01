@@ -2,9 +2,10 @@ import type { World } from '../core/world';
 import type { EntityId } from '../core/types';
 import { EnginePart } from '../components/engine-part';
 import { Assembly } from '../components/assembly';
-import { Part, type PartKind } from '../components/part';
+import { Part } from '../components/part';
 import { partDef, type PartSlot, type EnergyType } from '../content/parts-catalog';
 import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '../content/recipes';
+import { productAssetId } from '../content/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '../components/inventory';
 import {
   getBench,
@@ -50,6 +51,12 @@ import { createModelPortrait, type ModelPortrait } from '../../../shared/model-p
 export interface WorkshopOverlayOptions {
   /** Fired with `true` when the overlay opens, `false` when it closes — main flips `paused`. */
   onPauseChange(paused: boolean): void;
+  /**
+   * Eject a composed product from inventory into the world (next to the rig), so the player can grab
+   * and mount it with the build interaction. Main owns the rig position; the overlay just names the
+   * product to move. (Temporary inventory → world bridge until the workshop-staging-grid replaces it.)
+   */
+  onMoveToWorld(product: EntityId): void;
 }
 
 /**
@@ -64,18 +71,6 @@ const COLOR_BY_KEY: Record<string, number> = {
 };
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-
-/**
- * Which GLB previews an assembled engine, by energy type. There are no bespoke composed-engine
- * assets yet, so we reuse the two existing engine models: mk2 (the brighter, more-illuminated build)
- * stands in for the clean/glowing ELECTRIC engine, and mk1 (the plainer starter) for the grimier
- * MECHANICAL one. Swap these for dedicated assets when they land. A storage product needs no entry —
- * its recipe id (`storage`) already resolves to the container GLB.
- */
-const ENGINE_PREVIEW_ASSET: Record<EnergyType, string> = {
-  electric: 'engine-mk2',
-  mechanical: 'engine-mk1',
-};
 
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
@@ -380,6 +375,20 @@ export class WorkshopOverlay {
     this.setSelected(null);
   }
 
+  /**
+   * Eject the selected product into the world (main places it beside the rig), then repaint so it
+   * drops out of the inventory list. The overlay stays OPEN — the player can keep working (move
+   * more parts out, build another) and close when they're ready to grab what they ejected. Only a
+   * composed product can be moved out — a loose part stays inventory-only.
+   */
+  private moveSelectedToWorld(): void {
+    if (this.selected === null) return;
+    const product = this.selected;
+    if (!this.world.get(product, Assembly)) return; // products only
+    this.opts.onMoveToWorld(product);
+    this.setSelected(null); // it has left the inventory — clear the now-stale selection + repaint
+  }
+
   /** Render the detail panel + portrait for the current selection. */
   private renderDetail(): void {
     const view = this.selected !== null ? this.viewOf(this.selected) : null;
@@ -398,8 +407,18 @@ export class WorkshopOverlay {
       `<span class="k reserved">durability</span><span class="v reserved">${a.durability} (reserved)</span>` +
       `<span class="k reserved">burst</span><span class="v reserved">${a.burst} (reserved)</span>` +
       `</div>` +
-      (view.isProduct ? `<button id="wk-dismantle" class="wk-dismantle" type="button">Dismantle</button>` : '');
+      // A product's two actions: send it out to the rig/world to mount, or take it apart. A loose
+      // part shows neither (it's only bench-droppable).
+      (view.isProduct
+        ? `<div class="wk-actions">` +
+          `<button id="wk-move" class="wk-move" type="button">Move to World</button>` +
+          `<button id="wk-dismantle" class="wk-dismantle" type="button">Dismantle</button>` +
+          `</div>`
+        : '');
     if (view.isProduct) {
+      this.detailEl
+        .querySelector<HTMLButtonElement>('#wk-move')!
+        .addEventListener('click', () => this.moveSelectedToWorld());
       this.detailEl
         .querySelector<HTMLButtonElement>('#wk-dismantle')!
         .addEventListener('click', () => this.dismantleSelected());
@@ -427,7 +446,7 @@ export class WorkshopOverlay {
       `<div class="wk-detail-empty">` +
       (ready ? 'Assemble to add it to your inventory.' : 'Fill the slots to assemble — full stats appear once built.') +
       `</div>`;
-    this.portrait.show(this.productAssetId(recipe.productKind, recipe.id, type), {
+    this.portrait.show(productAssetId(recipe.productKind, recipe.id, type), {
       ghost: !ready,
       fallbackColor: tintOf(colorKey),
     });
@@ -657,7 +676,7 @@ export class WorkshopOverlay {
         tag: kind,
         sub: asm.type ? `${asm.type} · ${kind}` : kind,
         attrs: sumPartStats(this.world, asm.parts),
-        assetId: this.productAssetId(kind, asm.recipeId, asm.type),
+        assetId: productAssetId(kind, asm.recipeId, asm.type),
         slot: null,
         ...(asm.type ? { type: asm.type } : {}),
         isProduct: true,
@@ -665,17 +684,6 @@ export class WorkshopOverlay {
     }
 
     return null;
-  }
-
-  /**
-   * The GLB that previews a product. An engine reuses the mk1/mk2 models by energy type (until
-   * bespoke composed-engine assets exist); any other product previews via its recipe id (the storage
-   * container's `storage` id resolves to the container GLB). Unregistered ids fall back to a tint.
-   * Shared by the inventory product view and the live "build target" preview, so both look the same.
-   */
-  private productAssetId(kind: PartKind, recipeId: string, type: EnergyType | undefined): string {
-    if (kind === 'engine' && type) return ENGINE_PREVIEW_ASSET[type];
-    return recipeId;
   }
 
   /** Tab is visible only while a zone is active and the overlay is closed. */
