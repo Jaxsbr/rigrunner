@@ -175,6 +175,48 @@ def join(objects, name: str):
 
 
 # --------------------------------------------------------------------------------------
+# Articulation  (multi-node, animatable assets — see docs/asset-style.md "Articulated assets")
+# --------------------------------------------------------------------------------------
+# Most assets are one static GLB. An *articulated* asset (e.g. the Reclaimer arm) is instead
+# a parented hierarchy of named nodes the GAME/VIEWER rotates at runtime. The convention:
+#   * `joint_<name>` nodes are motion handles — the app rotates these about their origin.
+#   * `socket_<name>` empties are attach points — the app parents a separate head GLB here.
+#   * A node's ORIGIN is its pivot, so set each joint's origin to the axis it turns about.
+# A module that builds one of these sets `ARTICULATED = True` so build_asset.py exports the
+# scene hierarchy as-is (no single-object base-centre re-origin, which would flatten the rig).
+
+
+def empty(name: str, location: tuple[float, float, float] = (0.0, 0.0, 0.0), size: float = 0.08):
+    """A PLAIN_AXES empty at `location` — used for joints and attach sockets. Its location IS
+    its pivot/origin, so no `set_origin` is needed. Exports to glTF as a transform-only node."""
+    bpy.ops.object.empty_add(type="PLAIN_AXES", location=location)
+    e = bpy.context.active_object
+    e.name = name
+    e.empty_display_size = size
+    return e
+
+
+def set_origin(obj, location: tuple[float, float, float]) -> None:
+    """Move a mesh object's origin (its pivot) to a world `location`, leaving the mesh in place.
+    Rotating the object then turns its geometry about that point — how a joint hinges."""
+    cursor = bpy.context.scene.cursor
+    saved = tuple(cursor.location)
+    cursor.location = location
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
+    cursor.location = saved
+
+
+def parent_keep(child, parent) -> None:
+    """Parent `child` under `parent` while preserving the child's current world transform, so
+    the authored rest pose is unchanged. Build at rest pose, set origins, then chain with this."""
+    child.parent = parent
+    child.matrix_parent_inverse = parent.matrix_world.inverted()
+
+
+# --------------------------------------------------------------------------------------
 # Orientation + origin conventions  (call ONCE, just before export)
 # --------------------------------------------------------------------------------------
 

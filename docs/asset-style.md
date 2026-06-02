@@ -73,6 +73,31 @@ Anchor = a compact, nimble scrap **buggy**: parts are small (~1 m), the world fe
 fast. Verify scale in the viewer (`npm run dev:viewer`) — the grid is 1 m cells and the HUD prints
 the asset's metric dimensions, so you can read its class straight off.
 
+## Articulated & attached assets (multi-node, animatable)
+
+Most assets are one static GLB. A few — starting with the **Reclaimer arm** (Option C) — instead
+export a **parented hierarchy of named nodes** that the game/viewer **rotate at runtime**. Nothing is
+baked: the motion lives in code, so one arm can idle, dig, or aim. The convention:
+
+| Concern | Rule |
+|---------|------|
+| **Joint nodes** | Name motion handles `joint_<name>` (e.g. `joint_yaw`, `joint_boom`, `joint_wrist`). The app rotates these by name; an unnamed/renamed node is invisible to the driver. |
+| **Pivots** | A node's **origin is its pivot** — set each joint's origin to the point it turns about (`rr.set_origin(obj, pivot)`), so rotating it hinges correctly. |
+| **Sockets** | Name attach points `socket_<name>` empties (e.g. `socket_wrist`). A separate **head** GLB is parented here at runtime and inherits the whole chain's transform. This is the swappable-head seam (bucket today, tiller later). |
+| **Heads** | A head GLB's **origin is its attach pivot** (the point that meets the socket), *not* base-centre — it hangs off a hinge, it doesn't rest on the ground. |
+| **Export flag** | The builder module sets `ARTICULATED = True`; `build_asset.py` then exports the **scene hierarchy as-is** (skipping the single-object base-centre re-origin that would flatten the rig). The **root** still uses the base-centre-on-ground origin convention. |
+
+Build with the `rr_style` articulation helpers: `empty(name, location)` for joints/sockets,
+`set_origin(obj, location)` to place a mesh joint's pivot, and `parent_keep(child, parent)` to chain
+nodes while preserving the authored rest pose. Reference build: `tools/blender/assets/reclaimer_arm.py`.
+
+**Verify in the viewer** (`npm run dev:viewer`, or deep-link `#<assetId>`): an articulated asset is
+flagged `articulated` in the HUD, attaches its head, sits on a pedestal, and offers its named **poses**
+as a state toggle — for the Reclaimer, **Dig** (the looping animation) and **Stow** (the static,
+not-in-operation raised pose). The driver that knows the Reclaimer's joints/socket/poses is
+`viewer/src/articulation.ts` — the same node-name contract the game will drive later (e.g. stow while
+driving, deploy to dig).
+
 ## How an asset reaches the screen (the seam)
 
 ```

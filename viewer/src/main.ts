@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ModelLoader } from '../../shared/model-loader';
 import { MODEL_ASSETS } from '../../shared/assets';
 import paletteData from '../../shared/palette.json';
+import { ReclaimerRig, isArticulated } from './articulation';
 
 /**
  * RIGRUNNER asset viewer — a standalone tool to inspect any registered GLB in isolation,
@@ -69,6 +70,74 @@ scene.add(holder);
 const models = new ModelLoader();
 let currentId: string | null = null;
 
+// ── Articulation playback (the Reclaimer dig demo) ──────────────────────────────────────
+const clock = new THREE.Clock();
+let rig: ReclaimerRig | null = null; // non-null while an articulated asset is shown
+let pedestal: THREE.Mesh | null = null; // the cube an articulated asset is raised onto
+type ArmState = 'dig' | 'stow';
+let armState: ArmState = 'dig'; // 'dig' = the looping animation, 'stow' = static raised pose
+let rigElapsed = 0; // seconds of dig cycle accrued (only advances while digging)
+
+/** A plain stand the arm sits on so its dig swings into free space instead of through the floor
+ * (in-game the arm is mounted up on the rig; the pedestal stands in for that here). */
+function makePedestal(height: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, height, 0.85),
+    new THREE.MeshStandardMaterial({ color: 0x2f3133, roughness: 0.8 }), // dark_metal
+  );
+  mesh.position.y = height / 2; // bottom on the floor, top at y=height
+  return mesh;
+}
+
+/** Lift an object so its lowest point rests on the floor (y=0). A no-op for base-centre assets;
+ * fixes attach-pivot heads like the bucket, whose body hangs below their origin. */
+function restOnFloor(obj: THREE.Object3D): void {
+  const minY = new THREE.Box3().setFromObject(obj).min.y;
+  if (minY < -1e-4) obj.position.y -= minY;
+}
+
+// A small overlay control, shown only while an articulated asset is selected: the arm's two
+// states — Dig (the looping animation) and Stow (the static "not in operation" raised pose).
+const animBar = document.createElement('div');
+animBar.id = 'animbar';
+animBar.hidden = true;
+const digBtn = document.createElement('button');
+digBtn.className = 'animbtn';
+digBtn.textContent = '⛏ Dig';
+const stowBtn = document.createElement('button');
+stowBtn.className = 'animbtn';
+stowBtn.textContent = '↗ Stow';
+animBar.append(digBtn, stowBtn);
+stage.appendChild(animBar);
+
+/** Switch the arm between digging (animated) and stowed (static raised). */
+function setArmState(state: ArmState): void {
+  armState = state;
+  digBtn.classList.toggle('on', state === 'dig');
+  stowBtn.classList.toggle('on', state === 'stow');
+  if (!rig) return;
+  if (state === 'stow') {
+    rig.stow();
+  } else {
+    rigElapsed = 0; // restart the dig cycle from rest
+    clock.getDelta(); // drop accrued dt so the first frame starts clean
+  }
+}
+digBtn.addEventListener('click', () => setArmState('dig'));
+stowBtn.addEventListener('click', () => setArmState('stow'));
+
+/** Tear down any active rig and restore the default turntable-preview behaviour. */
+function clearRig(): void {
+  rig = null;
+  if (pedestal) {
+    pedestal.geometry.dispose();
+    (pedestal.material as THREE.Material).dispose();
+    pedestal = null;
+  }
+  animBar.hidden = true;
+  controls.autoRotate = true;
+}
+
 function resize(): void {
   const w = stage.clientWidth;
   const h = stage.clientHeight;
@@ -81,6 +150,7 @@ resize();
 
 function clearHolder(): void {
   for (const child of [...holder.children]) holder.remove(child);
+  clearRig();
 }
 
 function countTris(obj: THREE.Object3D): number {
@@ -109,6 +179,12 @@ function frame(obj: THREE.Object3D): { size: THREE.Vector3 } {
   return { size };
 }
 
+/** Select an asset and keep the URL hash in sync, so a view is shareable/reloadable. */
+function selectAndHash(assetId: string): Promise<void> {
+  if (location.hash.slice(1) !== assetId) history.replaceState(null, '', `#${assetId}`);
+  return select(assetId);
+}
+
 async function select(assetId: string): Promise<void> {
   currentId = assetId;
   document.querySelectorAll('.item').forEach((el) =>
@@ -121,10 +197,34 @@ async function select(assetId: string): Promise<void> {
     if (currentId !== assetId) return; // a newer selection won the race
     const obj = template.clone(true);
     holder.add(obj);
-    const { size } = frame(obj);
+
+    // Articulated assets: attach the head, drive the joints, and show the dig control.
+    if (isArticulated(assetId)) {
+      const bucket = (await models.load('reclaimer-bucket')).clone(true);
+      if (currentId !== assetId) return;
+      rig = new ReclaimerRig(obj, bucket);
+      // Raise the arm onto a pedestal so the deepest scoop clears the floor (it's mounted up on
+      // the rig in-game). Measure the dig dip first, then lift the arm by exactly that much.
+      const dip = rig.measureDip();
+      const lift = dip < 0 ? -dip + 0.05 : 0;
+      if (lift > 0) {
+        obj.position.y += lift;
+        pedestal = makePedestal(lift);
+        holder.add(pedestal);
+      }
+      controls.autoRotate = false; // hold the camera still so the motion reads
+      animBar.hidden = false;
+      setArmState('dig'); // open in the operating state (also resets the cycle clock)
+    } else {
+      restOnFloor(obj); // attach-pivot heads (the bucket) hang below their origin — sit them down
+    }
+
+    frame(holder); // frame the camera on the whole display (asset + any pedestal)
+    const size = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()); // asset dims only
     hud.innerHTML =
       `<b>${assetId}</b> &nbsp; ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m` +
-      ` &nbsp; ${countTris(obj).toLocaleString()} tris`;
+      ` &nbsp; ${countTris(obj).toLocaleString()} tris` +
+      (rig ? ` &nbsp; <span class="artic">articulated</span>` : '');
   } catch (err) {
     hud.innerHTML = `<b>${assetId}</b> — failed to load (see console)`;
     console.error(err);
@@ -142,7 +242,7 @@ if (ids.length === 0) {
     row.className = 'item';
     row.dataset['id'] = id;
     row.innerHTML = `<span class="id">${id}</span>`;
-    row.addEventListener('click', () => void select(id));
+    row.addEventListener('click', () => void selectAndHash(id));
     assetPane.appendChild(row);
   }
 }
@@ -175,11 +275,19 @@ document.querySelectorAll<HTMLButtonElement>('.tab').forEach((tab) => {
 
 // ── Render loop ─────────────────────────────────────────────────────────────────────────
 function tick(): void {
+  const dt = clock.getDelta();
+  if (rig && armState === 'dig') {
+    rigElapsed += dt; // advances only while digging; the stow pose is set once and held
+    rig.update(rigElapsed);
+  }
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
 tick();
 
-// Auto-select the first asset so the viewer isn't empty on open.
-if (ids.length > 0) void select(ids[0]!);
+// Open straight onto an asset via the URL hash (e.g. #reclaimer-arm), else the first one so the
+// viewer isn't empty.
+const fromHash = location.hash.slice(1);
+const initial = fromHash && MODEL_ASSETS[fromHash] ? fromHash : ids[0];
+if (initial) void selectAndHash(initial);

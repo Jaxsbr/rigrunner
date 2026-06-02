@@ -48,7 +48,12 @@ def main() -> None:
 
     rr_style.reset_scene()
     obj = module.build()
-    rr_style.finalize_and_export(obj, out_path)
+    if getattr(module, "ARTICULATED", False):
+        # The module already placed its root at base-centre and parented its named joints;
+        # export the scene hierarchy as-is so those nodes survive (no single-object re-origin).
+        rr_style.export_glb(out_path)
+    else:
+        rr_style.finalize_and_export(obj, out_path)
 
     print(f"[build_asset] wrote {out_path}")
     print(f"[build_asset] register in game/src/content/assets.ts as '{asset_id}'")
