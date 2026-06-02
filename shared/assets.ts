@@ -16,6 +16,10 @@ export const MODEL_ASSETS: Record<string, string> = {
   'engine-mk1': '/assets/engine-mk1.glb',
   'engine-mk2': '/assets/engine-mk2.glb',
   'workshop': '/assets/workshop.glb',
+  // The Reclaimer (Option C): an articulated arm (named joint_* nodes + a socket_wrist attach
+  // point) and its swappable unearthing-bucket head. See docs/asset-style.md "Articulated assets".
+  'reclaimer-arm': '/assets/reclaimer-arm.glb',
+  'reclaimer-bucket': '/assets/reclaimer-bucket.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

@@ -52,6 +52,13 @@
       #hud { position: absolute; left: 14px; bottom: 12px; color: var(--muted);
         font-family: ui-monospace, monospace; font-size: 12px; pointer-events: none; }
       #hud b { color: var(--text); }
+      #hud .artic { color: var(--accent); }
+
+      #animbar { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; }
+      #animbar[hidden] { display: none; }
+      .animbtn { font: inherit; color: var(--text); background: var(--panel);
+        border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+      .animbtn:hover { background: #2b2e30; border-color: var(--accent); }
     </style>
   </head>
   <body>

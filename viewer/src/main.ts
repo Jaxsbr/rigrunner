@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ModelLoader } from '../../shared/model-loader';
 import { MODEL_ASSETS } from '../../shared/assets';
 import paletteData from '../../shared/palette.json';
+import { ReclaimerRig, isArticulated } from './articulation';
 
 /**
  * RIGRUNNER asset viewer — a standalone tool to inspect any registered GLB in isolation,
@@ -69,6 +70,37 @@ scene.add(holder);
 const models = new ModelLoader();
 let currentId: string | null = null;
 
+// ── Articulation playback (the Reclaimer dig demo) ──────────────────────────────────────
+const clock = new THREE.Clock();
+let rig: ReclaimerRig | null = null; // non-null while an articulated asset is shown
+let playing = true; // dig animation on/off
+let rigElapsed = 0; // seconds of dig cycle accrued while playing (paused time excluded)
+
+// A small overlay control, shown only while an articulated asset is selected.
+const animBar = document.createElement('div');
+animBar.id = 'animbar';
+animBar.hidden = true;
+const playBtn = document.createElement('button');
+playBtn.className = 'animbtn';
+animBar.appendChild(playBtn);
+stage.appendChild(animBar);
+
+function refreshPlayBtn(): void {
+  playBtn.textContent = playing ? '⏸ Pause dig' : '▶ Play dig';
+}
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  if (!playing) rig?.rest();
+  refreshPlayBtn();
+});
+
+/** Tear down any active rig and restore the default turntable-preview behaviour. */
+function clearRig(): void {
+  rig = null;
+  animBar.hidden = true;
+  controls.autoRotate = true;
+}
+
 function resize(): void {
   const w = stage.clientWidth;
   const h = stage.clientHeight;
@@ -81,6 +113,7 @@ resize();
 
 function clearHolder(): void {
   for (const child of [...holder.children]) holder.remove(child);
+  clearRig();
 }
 
 function countTris(obj: THREE.Object3D): number {
@@ -109,6 +142,12 @@ function frame(obj: THREE.Object3D): { size: THREE.Vector3 } {
   return { size };
 }
 
+/** Select an asset and keep the URL hash in sync, so a view is shareable/reloadable. */
+function selectAndHash(assetId: string): Promise<void> {
+  if (location.hash.slice(1) !== assetId) history.replaceState(null, '', `#${assetId}`);
+  return select(assetId);
+}
+
 async function select(assetId: string): Promise<void> {
   currentId = assetId;
   document.querySelectorAll('.item').forEach((el) =>
@@ -121,10 +160,24 @@ async function select(assetId: string): Promise<void> {
     if (currentId !== assetId) return; // a newer selection won the race
     const obj = template.clone(true);
     holder.add(obj);
+
+    // Articulated assets: attach the head, drive the joints, and show the dig control.
+    if (isArticulated(assetId)) {
+      const bucket = (await models.load('reclaimer-bucket')).clone(true);
+      if (currentId !== assetId) return;
+      rig = new ReclaimerRig(obj, bucket);
+      controls.autoRotate = false; // hold the camera still so the motion reads
+      rigElapsed = 0;
+      clock.getDelta(); // drop any accrued dt so the cycle starts at rest
+      refreshPlayBtn();
+      animBar.hidden = false;
+    }
+
     const { size } = frame(obj);
     hud.innerHTML =
       `<b>${assetId}</b> &nbsp; ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m` +
-      ` &nbsp; ${countTris(obj).toLocaleString()} tris`;
+      ` &nbsp; ${countTris(obj).toLocaleString()} tris` +
+      (rig ? ` &nbsp; <span class="artic">articulated</span>` : '');
   } catch (err) {
     hud.innerHTML = `<b>${assetId}</b> — failed to load (see console)`;
     console.error(err);
@@ -142,7 +195,7 @@ if (ids.length === 0) {
     row.className = 'item';
     row.dataset['id'] = id;
     row.innerHTML = `<span class="id">${id}</span>`;
-    row.addEventListener('click', () => void select(id));
+    row.addEventListener('click', () => void selectAndHash(id));
     assetPane.appendChild(row);
   }
 }
@@ -175,11 +228,19 @@ document.querySelectorAll<HTMLButtonElement>('.tab').forEach((tab) => {
 
 // ── Render loop ─────────────────────────────────────────────────────────────────────────
 function tick(): void {
+  const dt = clock.getDelta();
+  if (rig && playing) {
+    rigElapsed += dt; // accrue only while playing, so pause/resume is seamless
+    rig.update(rigElapsed);
+  }
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
 tick();
 
-// Auto-select the first asset so the viewer isn't empty on open.
-if (ids.length > 0) void select(ids[0]!);
+// Open straight onto an asset via the URL hash (e.g. #reclaimer-arm), else the first one so the
+// viewer isn't empty.
+const fromHash = location.hash.slice(1);
+const initial = fromHash && MODEL_ASSETS[fromHash] ? fromHash : ids[0];
+if (initial) void selectAndHash(initial);

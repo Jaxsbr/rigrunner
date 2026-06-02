@@ -187,6 +187,11 @@ storage.
 **Reclaimer** — that visibly depletes as you work, bursting collectible scrap out around the rig and
 revealing hidden non-scrap loot from a data-driven loot table.
 
+**Build plan:** the PR-by-PR path to deliver this option lives in
+[`option-c-build-plan.md`](option-c-build-plan.md). **PR1 (articulated arm + bucket assets + viewer
+animation) is `done`**; PR2–PR5 (game-side articulation runtime → the Reclaimer as a mountable,
+purchasable part → gated hold-to-work rummage → loot table + UI) remain.
+
 ### The gating tool — the Reclaimer
 
 A **mounted, directional manipulator arm with a swappable digging head** (the **unearthing bucket**,
