@@ -11,6 +11,119 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-02 — World/progression/restoration/tech: how it all fits (+ greenery, carry-over, fuel-as-signal)
+
+**Mode:** brainstorm + synthesis, sparked by researching *Machine Mind* (Targem Games) and its
+world/map approach. The connective overview that came out of it lives in its own doc —
+[`world-progression-guidance.md`](world-progression-guidance.md) — this entry logs the **raw threads**
+behind it. **Not committed.**
+
+### Carry-over (meta-progression) candidates that feel prized
+- **Workshop upgrades** — *hard* to acquire/unlock; a better workshop = **advanced alloy processing**
+  + **more complex part manufacturing**. A prime thing to carry across sessions.
+- **Rare/unique recipes** — basics via normal progression, **rares scavenged** across the phases and
+  kept. (Same spirit as the 2026-06-01 recipe-rarity thread below.)
+
+### Greenery trail — leave life behind you *(unsure: texture or mechanic?)*
+The more you traverse, the more **greenery/plant life** you leave; more greenery → more **animal life
+appears and moves**; greenery **lures life, including hostile life**. You can **ruin your own trail**
+by driving back over it — *unless* you have a **gentle/preventive drivetrain** (upgradeable part).
+- Worry: as a real mechanic this means *lots* of driving/reversing → fights fuel/distance balance →
+  pushes toward a **huge map** → huge area to restore → very hard to balance.
+- Alt: keep it **mostly cosmetic** (special hardware upgrade), still **lures animal life**, great
+  visually, **decoupled from the progression gate**.
+
+### Regeneration vs restoration — the thing I'm most unsure about
+How does a roguelite **map regeneration** loop coexist with **permanent world-healing**? Undecided.
+Leaning toward a **two-layer world** (persistent healed places + regenerating expedition ground), but
+whether healing is truly permanent or can be **reclaimed if unprotected** is open.
+
+### Fuel — a great teacher, maybe a poor gate
+"Far travel + fuel management" as the **primary progression gate** feels **unexciting**. BUT fuel is a
+great **mechanical-progression signal**: repeatedly running dry tells the player to invest in their
+**energy system first** (before load / offense / defense). So: **fuel = signal, not gate.**
+
+### Ancient-tree reclamation — the gate I'm leaning toward
+A focal **ancient tree** + beautiful area, restored via **multiple quest steps**: restore **water** →
+make **fertilizer** → erect **protection** (restoration *lures* malicious characters who attack the
+tree). A run does **some** steps; the arc **survives across sessions**; **quest items are kept and
+re-appliable** (if an area is ruined, re-apply rather than re-scavenge; finishing one quest reveals
+the next requirement). Could be **one grand tree** or **multiple areas where reclaiming X unlocks
+progression**. This (area reclamation) is the *exciting* gate vs. far-travel.
+
+### Difficulty has three sources, all present
+Rig progression (player gets stronger), world/environment **escalation**, and a **scaling enemy** that
+forces **defensive** upgrading (not just offense). Getting stronger shouldn't trivialize the game.
+
+## 2026-06-02 (cont.) — Separate the ancient tree into a Restoration Sanctuary (a sub-game)
+
+A reframe of the restoration idea above. **The roguelike loop is not the mission — it's a means to an
+end.** So restoration shouldn't live inside the part of the game that regenerates. *(Guidance updated
+in [`world-progression-guidance.md`](world-progression-guidance.md).)*
+
+### Pull the ancient tree out of the run
+- The ancient tree / restoration area **doesn't need to render inside a run**. Make it a **separate,
+  persistent area you visit from a menu** to *see* the restoration you've applied.
+- So **no re-applying** quest items in-world. Instead you **earn special parts/upgrades/mechanisms in
+  runs** and bring them to this area.
+- Maybe it isn't even a hard roguelike — could be a **long-term persistent world** where being "out in
+  the field" has a **penalty** that resolves back at the **workshop**, vs. restart-and-rebuild.
+- The area should be **3D and beautiful**, with art of life that **gradually evolves and improves** over
+  time. The slow gorgeous payoff.
+
+### It's an ecosystem you solve (high intent)
+- Problems over time = **life but lack of balance**: moles, rats, etc. You introduce things to regain
+  balance.
+- Interlocking: right **crops/plants** → better **soil / pH** → **thicker plants** → **rats target the
+  tree less**. *Really complex ecosystem solving* — want to pour intent into this.
+
+### Life-trails: earned, upgradeable, persistent
+- Upside of separating the sanctuary: **tracks left in the world don't disappear** → satisfaction of
+  trying to **cover the whole world** in life.
+- Life-trails are **NOT default** — gained through **progression / special mechanisms**. The rig's
+  tracks can be **upgraded over time**:
+  - improve **soil quality** (darker, richer),
+  - leave **grass**,
+  - force **blooms and shrubs** randomly.
+  More of it = the world looks better.
+- Enemy camps → **tree stumps**; clear the enemies (once or repeatedly) and surround the stump with
+  restored soil. Tracks **grow** → trees **drop fruit**, **flowers**, **lure new animal types**.
+
+### Bring-from-main → apply-to-sanctuary IS the progression
+- Enough world-restoration earns a reward, e.g. **bunnies** → move them **into the sanctuary** → new
+  life for the ancient tree. (One small example of a big intended system.)
+- The main game **generates** rewards; the sanctuary is where you **spend/apply** them — **that's how
+  progression is tracked.** Almost a **sub/mini-game**.
+
+This supersedes-leaning the earlier "drive over your trail and ruin it unless gentle drivetrain" idea
+(trails now persist); that destructible variant is **parked, not deleted**.
+
+## 2026-06-02 (cont. 2) — Energy identity: electric vs mechanical, both restorative
+
+Layering on the existing engine duality (MW: electric vs mechanical, no-hybrid type-lock). Candidate.
+*(Threaded into [`world-progression-guidance.md`](world-progression-guidance.md) §5.)*
+
+### Both should be restorative — no "dirty" option
+- I want **both** energy systems considered **restorative**.
+- **Electric** = clean, environmentally safe.
+- **Mechanical** = keep **high torque / more power**, but **avoid** fossil-fuel / air-pollution
+  connotations. Think **steam power**, not petrol/exhaust. (Matches the "abstract reaction charge, not
+  petrol" note from 2026-06-01.)
+- The choice could be a bit **stigmatised**, but it shouldn't be moralised into good-vs-evil.
+
+### Energy type as a class / build identity
+- It's a **good option to let the player have multiple rigs** so he can experience both — players may
+  enjoy **different rigs for different purposes**. But **acquiring multiple rigs should be very hard**
+  vs. a single one.
+- Alternatively, make it a **choice from the start**: mechanical (steam) vs electrical, which affects
+  everything afterwards — **every unlock / progression and the rewards in the heart system** would be
+  **specific to that energy type**. Like a **class / build type**: the player decides a direction.
+- Once completed, they can **retry with a new build** → a clean **replayability** mechanism.
+
+Not deciding multiple-rigs vs start-choice yet; they're not mutually exclusive.
+
+---
+
 ## 2026-06-01 — Recipe rarity: basic (known/progression) vs special (loot-drop) recipes
 
 **Mode:** brainstorm while building the recipe-driven bench (MW / PR P3 — engine + storage-container
