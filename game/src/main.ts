@@ -3,6 +3,7 @@ import { spawnRig } from './content/rig';
 import { engineParts } from './content/engines';
 import { spawnWorkshop } from './content/workshop';
 import { scatterScrap } from './content/scrap';
+import { spawnReclaimer } from './content/reclaimer';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
@@ -54,6 +55,10 @@ scatterScrap(world, 64, 5, 34);
 // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
 // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
 spawnWorkshop(world, 0, 8);
+// The Reclaimer, staged beside the workshop (Option C / PR2): the first articulated asset in the
+// game, rendered with its bucket head attached and its joints driven (an idle stow-and-scan). It's
+// a prop here — not yet a buildable/mountable part (PR3) and not yet wired to a pile (PR4).
+spawnReclaimer(world, 4, 8);
 // The player store: one singleton entity holding what the player OWNS across rebuilds — `Wallet`
 // (banked scrap) and `Inventory` (loose parts / assembled engines). Lives outside any rig/container
 // so both survive rig rebuilds and chassis swaps. The workshop drain feeds the wallet; the HUD
@@ -157,6 +162,7 @@ function frame(now: number): void {
   if (!paused) {
     view.animateWheels(world, dt);
     view.animateStorageFill(world, dt);
+    view.animateReclaimer(world, dt);
   }
   view.render();
 

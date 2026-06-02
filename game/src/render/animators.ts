@@ -3,6 +3,7 @@ import type { World } from '../core/world';
 import { Velocity } from '../components/velocity';
 import { Storage } from '../components/storage';
 import type { EntityViews } from './entity-views';
+import type { ReclaimerRig } from './articulation';
 
 /**
  * Sim-driven, per-object animations: each READS a sim component every frame and drives a
@@ -82,5 +83,22 @@ export function animateStorageFill(views: EntityViews, world: World, dt: number)
     fill.scale.y = Math.max(0.0001, shown);
     // Anchor the block's base at the container floor; its top climbs as it fills.
     fill.position.y = STORAGE_FLOOR_TOP + (STORAGE_FILL_MAX_H * shown) / 2;
+  }
+}
+
+/**
+ * Drive each Reclaimer's articulated arm. Like the others this owns no game truth — it advances a
+ * view-owned motion rig (built in EntityViews when the arm GLB loads, stored in userData) by the
+ * frame's dt. In PR2 every Reclaimer simply idles: it holds the stowed pose with a slow yaw scan,
+ * which is what proves the game DRIVES the joints each frame and not merely renders them. PR4 will
+ * read a work-state component here to swap idle → dig while the player works a pile.
+ */
+export function animateReclaimer(views: EntityViews, _world: World, dt: number): void {
+  for (const [, obj] of views.objects) {
+    const rig = obj.userData['reclaimer'] as ReclaimerRig | null | undefined;
+    if (!rig) continue;
+    const elapsed = ((obj.userData['reclaimerElapsed'] as number) ?? 0) + dt;
+    obj.userData['reclaimerElapsed'] = elapsed;
+    rig.idle(elapsed);
   }
 }
