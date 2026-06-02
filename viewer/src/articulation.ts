@@ -43,6 +43,7 @@ export function isArticulated(assetId: string): boolean {
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 export class ReclaimerRig {
+  private readonly root: THREE.Object3D;
   private readonly yaw: THREE.Object3D | null;
   private readonly joints: Array<{ obj: THREE.Object3D; axis: Axis; rest: number; dig: number }>;
 
@@ -52,6 +53,7 @@ export class ReclaimerRig {
    *               inherits the arm's yaw + boom + curl and moves as one unit.
    */
   constructor(arm: THREE.Object3D, bucket: THREE.Object3D) {
+    this.root = arm;
     const socket = arm.getObjectByName(SOCKET) ?? arm.getObjectByName(WRIST_FALLBACK);
     if (socket) socket.add(bucket);
     else arm.add(bucket); // last resort: still show the head even if the socket node is missing
@@ -76,5 +78,24 @@ export class ReclaimerRig {
   rest(): void {
     for (const j of this.joints) j.obj.rotation[j.axis] = j.rest;
     if (this.yaw) this.yaw.rotation.y = 0;
+  }
+
+  /**
+   * The most-negative world-Y the rig reaches across a full dig cycle, sampled — i.e. how far the
+   * scoop dips below the arm's base. The viewer uses this to size a pedestal so the dig clears the
+   * floor. Leaves the rig back in its rest pose. Assumes the arm root currently sits at Y=0.
+   */
+  measureDip(samples = 24): number {
+    let minY = Infinity;
+    const box = new THREE.Box3();
+    for (let i = 0; i < samples; i++) {
+      this.update((i / samples) * DIG_PERIOD);
+      this.root.updateMatrixWorld(true);
+      box.setFromObject(this.root);
+      minY = Math.min(minY, box.min.y);
+    }
+    this.rest();
+    this.root.updateMatrixWorld(true);
+    return minY;
   }
 }

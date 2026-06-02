@@ -73,8 +73,27 @@ let currentId: string | null = null;
 // ── Articulation playback (the Reclaimer dig demo) ──────────────────────────────────────
 const clock = new THREE.Clock();
 let rig: ReclaimerRig | null = null; // non-null while an articulated asset is shown
+let pedestal: THREE.Mesh | null = null; // the cube an articulated asset is raised onto
 let playing = true; // dig animation on/off
 let rigElapsed = 0; // seconds of dig cycle accrued while playing (paused time excluded)
+
+/** A plain stand the arm sits on so its dig swings into free space instead of through the floor
+ * (in-game the arm is mounted up on the rig; the pedestal stands in for that here). */
+function makePedestal(height: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, height, 0.85),
+    new THREE.MeshStandardMaterial({ color: 0x2f3133, roughness: 0.8 }), // dark_metal
+  );
+  mesh.position.y = height / 2; // bottom on the floor, top at y=height
+  return mesh;
+}
+
+/** Lift an object so its lowest point rests on the floor (y=0). A no-op for base-centre assets;
+ * fixes attach-pivot heads like the bucket, whose body hangs below their origin. */
+function restOnFloor(obj: THREE.Object3D): void {
+  const minY = new THREE.Box3().setFromObject(obj).min.y;
+  if (minY < -1e-4) obj.position.y -= minY;
+}
 
 // A small overlay control, shown only while an articulated asset is selected.
 const animBar = document.createElement('div');
@@ -97,6 +116,11 @@ playBtn.addEventListener('click', () => {
 /** Tear down any active rig and restore the default turntable-preview behaviour. */
 function clearRig(): void {
   rig = null;
+  if (pedestal) {
+    pedestal.geometry.dispose();
+    (pedestal.material as THREE.Material).dispose();
+    pedestal = null;
+  }
   animBar.hidden = true;
   controls.autoRotate = true;
 }
@@ -166,14 +190,26 @@ async function select(assetId: string): Promise<void> {
       const bucket = (await models.load('reclaimer-bucket')).clone(true);
       if (currentId !== assetId) return;
       rig = new ReclaimerRig(obj, bucket);
+      // Raise the arm onto a pedestal so the deepest scoop clears the floor (it's mounted up on
+      // the rig in-game). Measure the dig dip first, then lift the arm by exactly that much.
+      const dip = rig.measureDip();
+      const lift = dip < 0 ? -dip + 0.05 : 0;
+      if (lift > 0) {
+        obj.position.y += lift;
+        pedestal = makePedestal(lift);
+        holder.add(pedestal);
+      }
       controls.autoRotate = false; // hold the camera still so the motion reads
       rigElapsed = 0;
       clock.getDelta(); // drop any accrued dt so the cycle starts at rest
       refreshPlayBtn();
       animBar.hidden = false;
+    } else {
+      restOnFloor(obj); // attach-pivot heads (the bucket) hang below their origin — sit them down
     }
 
-    const { size } = frame(obj);
+    frame(holder); // frame the camera on the whole display (asset + any pedestal)
+    const size = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()); // asset dims only
     hud.innerHTML =
       `<b>${assetId}</b> &nbsp; ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m` +
       ` &nbsp; ${countTris(obj).toLocaleString()} tris` +
