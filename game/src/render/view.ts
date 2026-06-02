@@ -9,7 +9,7 @@ import { Picker } from './picker';
 import { BuildAffordances } from './build-affordances';
 import type { CellPose } from '../core/geometry';
 import { ZoneOverlays } from './zone-overlays';
-import { animateWheels, animateStorageFill } from './animators';
+import { animateWheels, animateStorageFill, animateReclaimer } from './animators';
 
 /**
  * The view layer's façade. It is a *projection* of the simulation: it reads state from the World
@@ -46,6 +46,7 @@ export class RenderView {
   follow(t: Transform, intent: CameraIntent, dt: number): void { this.orbit.follow(t, intent, dt); }
   animateWheels(world: World, dt: number): void { animateWheels(this.views, world, dt); }
   animateStorageFill(world: World, dt: number): void { animateStorageFill(this.views, world, dt); }
+  animateReclaimer(world: World, dt: number): void { animateReclaimer(this.views, world, dt); }
   render(): void { this.stage.render(this.orbit.camera); }
 
   // ── build interaction (queried/toggled by the build controller) ─────────────────────────────

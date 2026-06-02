@@ -4,6 +4,7 @@ import type { EntityId } from '../core/types';
 import { Transform } from '../components/transform';
 import { Renderable } from '../components/renderable';
 import { ModelLoader } from '../../../shared/model-loader';
+import { isArticulated, ReclaimerRig, BUCKET_ASSET } from './articulation';
 
 /**
  * The entity↔Object3D reconciler: the bridge from sim state to scene graph. Each frame `sync`
@@ -77,6 +78,7 @@ export class EntityViews {
     const group = new THREE.Group();
     group.userData['restY'] = 0;
     group.userData['wheels'] = []; // populated on load; animateWheels reads it (safe when empty)
+    group.userData['reclaimer'] = null; // set on load for an articulated arm; animateReclaimer reads it
     // Uniform resize of the authored asset (base-centre origin, so it stays grounded). Lets one GLB
     // serve at multiple sizes — e.g. the scrap-pile reused shrunk as a loose-scrap pickup.
     group.scale.setScalar(scale);
@@ -97,6 +99,23 @@ export class EntityViews {
           if (o.name.startsWith('wheel')) wheels.push(o);
         });
         group.userData['wheels'] = wheels;
+
+        // An articulated arm gets its head parented onto the wrist socket and a motion rig built
+        // over its joint_* nodes (the same node-name contract the viewer drives). The bucket is a
+        // second async load; it rides the socket, so it inherits the arm's pose and needs no entity
+        // of its own. The rig lands in userData for animateReclaimer to drive each frame.
+        if (isArticulated(assetId)) {
+          void this.models
+            .load(BUCKET_ASSET)
+            .then((bucketTemplate) => {
+              const rig = new ReclaimerRig(instance, bucketTemplate.clone(true));
+              rig.idle(0); // hold the resting idle pose until the first animator tick
+              group.userData['reclaimer'] = rig;
+            })
+            .catch((err: unknown) => {
+              console.warn(`[assets] could not load '${BUCKET_ASSET}' head for '${assetId}':`, err);
+            });
+        }
       })
       .catch((err: unknown) => {
         console.warn(`[assets] could not load model '${assetId}', showing placeholder:`, err);
