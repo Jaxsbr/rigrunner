@@ -8,8 +8,10 @@ import { MountGrid } from '../components/mount-grid';
 import { Renderable } from '../components/renderable';
 import { partDef, type PartSlot, type EnergyType } from '../content/parts-catalog';
 import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '../content/recipes';
+import { PART_SHOP_STOCK, shopItemForPartId, shopPartDef, type PartShopItem } from '../content/part-shop';
 import { productAssetId } from '../content/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '../components/inventory';
+import { getWallet } from '../components/wallet';
 import {
   getBench,
   benchSlots,
@@ -33,6 +35,7 @@ import {
   stageProduct,
   unstageProduct,
 } from '../systems/staging';
+import { buyPart, purchaseVerdict, resaleValue, sellPart } from '../systems/shop';
 import { closestFreeCellLocal } from '../systems/mounting';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
 import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from './deck-view';
@@ -49,6 +52,7 @@ import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from 
  *   - WORKSHOP DECK tab — a live 3D view of the workshop deck and the products staged on it. Drag a
  *     product from inventory onto the deck to STAGE it (it snaps to the nearest free cell); click a
  *     staged product to inspect it, then UNSTAGE or DISMANTLE it.
+ *   - PARTS SHOP tab — spend banked scrap from Wallet to buy stock parts into Inventory.
  *
  * The deck is the bridge between inventory and the drivable world: staging a product mounts it on
  * the workshop's own grid (gaining world presence), so once the overlay closes the player can grab
@@ -82,7 +86,7 @@ const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
 /** Which centre-workspace tab is showing. */
-type Tab = 'bench' | 'deck';
+type Tab = 'bench' | 'deck' | 'shop';
 
 /**
  * A uniform façade over an inventory/bench item, whether it's a loose part or a composed product.
@@ -126,8 +130,12 @@ export class WorkshopOverlay {
   private readonly invList: HTMLElement;
   private readonly tabBenchBtn: HTMLButtonElement;
   private readonly tabDeckBtn: HTMLButtonElement;
+  private readonly tabShopBtn: HTMLButtonElement;
   private readonly benchPanel: HTMLElement;
   private readonly deckPanel: HTMLElement;
+  private readonly shopPanel: HTMLElement;
+  private readonly shopWalletEl: HTMLElement;
+  private readonly shopListEl: HTMLElement;
   private readonly deckHost: HTMLElement;
   private readonly recipeTabsEl: HTMLElement;
   private readonly recipeEl: HTMLElement;
@@ -163,8 +171,12 @@ export class WorkshopOverlay {
     this.invList = panel.querySelector<HTMLElement>('#wk-inv-list')!;
     this.tabBenchBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-bench')!;
     this.tabDeckBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-deck')!;
+    this.tabShopBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-shop')!;
     this.benchPanel = panel.querySelector<HTMLElement>('#wk-bench-panel')!;
     this.deckPanel = panel.querySelector<HTMLElement>('#wk-deck-panel')!;
+    this.shopPanel = panel.querySelector<HTMLElement>('#wk-shop-panel')!;
+    this.shopWalletEl = panel.querySelector<HTMLElement>('#wk-shop-wallet')!;
+    this.shopListEl = panel.querySelector<HTMLElement>('#wk-shop-list')!;
     this.deckHost = panel.querySelector<HTMLElement>('#wk-deck-host')!;
     this.recipeTabsEl = panel.querySelector<HTMLElement>('#wk-recipe-tabs')!;
     this.recipeEl = panel.querySelector<HTMLElement>('#wk-recipe')!;
@@ -179,6 +191,7 @@ export class WorkshopOverlay {
     this.closeBtn.addEventListener('click', this.onCloseClick);
     this.tabBenchBtn.addEventListener('click', () => this.switchTab('bench'));
     this.tabDeckBtn.addEventListener('click', () => this.switchTab('deck'));
+    this.tabShopBtn.addEventListener('click', () => this.switchTab('shop'));
     this.assembleBtn.addEventListener('click', this.onAssembleClick);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('pointermove', this.onPointerMove);
@@ -238,13 +251,16 @@ export class WorkshopOverlay {
     } else {
       this.deck.stop();
     }
+    if (tab === 'shop') this.renderShop();
   }
 
   private syncTabButtons(): void {
     this.tabBenchBtn.classList.toggle('active', this.tab === 'bench');
     this.tabDeckBtn.classList.toggle('active', this.tab === 'deck');
+    this.tabShopBtn.classList.toggle('active', this.tab === 'shop');
     this.benchPanel.classList.toggle('hidden', this.tab !== 'bench');
     this.deckPanel.classList.toggle('hidden', this.tab !== 'deck');
+    this.shopPanel.classList.toggle('hidden', this.tab !== 'shop');
   }
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
@@ -381,6 +397,7 @@ export class WorkshopOverlay {
     this.recipeTabsEl.style.display = inspected ? 'none' : '';
     this.renderBenchPreview(recipe, inspected !== null);
     this.renderAssemble(recipe, inspected !== null);
+    this.renderShop();
     this.renderDetail();
     if (this.tab === 'deck') this.renderDeck();
   }
@@ -461,6 +478,122 @@ export class WorkshopOverlay {
     if (product === null) return; // refused (incomplete / hybrid) — no change
     this.setSelected(product);
     this.flashSnap(product);
+  }
+
+  // ── Parts Shop ─────────────────────────────────────────────────────────────────────────────
+
+  /** Render the current stock against the live Wallet total. */
+  private renderShop(): void {
+    const scrap = getWallet(this.world)?.scrap ?? 0;
+    this.shopWalletEl.textContent = `SCRAP ${scrap}`;
+    this.shopListEl.innerHTML = '';
+
+    this.appendShopSectionTitle('Buy Parts');
+    for (const item of PART_SHOP_STOCK) {
+      const def = shopPartDef(item);
+      if (!def) continue;
+
+      const key = def.type ?? def.category;
+      const verdict = purchaseVerdict(this.world, item);
+      const card = document.createElement('div');
+      card.className = `wk-shop-card ${key}`;
+      card.innerHTML =
+        `<div class="wk-shop-main">` +
+        `<div class="wk-shop-name-row">` +
+        `<span class="wk-shop-dot"></span>` +
+        `<span class="wk-shop-name">${def.displayName}</span>` +
+        `<span class="wk-shop-tag">${def.slot}</span>` +
+        `</div>` +
+        `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
+        `</div>` +
+        `<div class="wk-shop-side">` +
+        `<div class="wk-shop-cost">${item.cost} scrap</div>` +
+        `</div>`;
+
+      const side = card.querySelector<HTMLElement>('.wk-shop-side')!;
+      const buy = document.createElement('button');
+      buy.type = 'button';
+      buy.className = 'wk-buy';
+      buy.disabled = !verdict.ok;
+      buy.textContent = verdict.ok ? 'Buy' : verdict.reason;
+      buy.addEventListener('click', () => this.buyShopItem(item));
+      side.appendChild(buy);
+
+      this.shopListEl.appendChild(card);
+    }
+
+    this.appendShopSectionTitle('Sell Loose Parts');
+    const sellable = inventoryItems(this.world)
+      .map((entity) => ({ entity, part: this.world.get(entity, EnginePart) }))
+      .filter((row): row is { entity: EntityId; part: EnginePart } => {
+        return row.part != null && shopItemForPartId(row.part.id) != null;
+      });
+
+    if (sellable.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'wk-shop-empty';
+      empty.textContent = 'No loose parts in inventory.';
+      this.shopListEl.appendChild(empty);
+      return;
+    }
+
+    for (const { entity, part } of sellable) {
+      const item = shopItemForPartId(part.id)!;
+      const def = shopPartDef(item)!;
+      const key = def.type ?? def.category;
+      const value = resaleValue(item);
+      const card = document.createElement('div');
+      card.className = `wk-shop-card sell ${key}`;
+      card.innerHTML =
+        `<div class="wk-shop-main">` +
+        `<div class="wk-shop-name-row">` +
+        `<span class="wk-shop-dot"></span>` +
+        `<span class="wk-shop-name">${def.displayName}</span>` +
+        `<span class="wk-shop-tag">${def.slot}</span>` +
+        `</div>` +
+        `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
+        `</div>` +
+        `<div class="wk-shop-side">` +
+        `<div class="wk-shop-cost">${value} scrap</div>` +
+        `</div>`;
+
+      const side = card.querySelector<HTMLElement>('.wk-shop-side')!;
+      const sell = document.createElement('button');
+      sell.type = 'button';
+      sell.className = 'wk-sell';
+      sell.textContent = 'Sell';
+      sell.addEventListener('click', () => this.sellShopPart(entity));
+      side.appendChild(sell);
+
+      this.shopListEl.appendChild(card);
+    }
+  }
+
+  private appendShopSectionTitle(label: string): void {
+    const title = document.createElement('div');
+    title.className = 'wk-shop-section-title';
+    title.textContent = label;
+    this.shopListEl.appendChild(title);
+  }
+
+  /** Execute one shop transaction and select the newly owned part. */
+  private buyShopItem(item: PartShopItem): void {
+    const result = buyPart(this.world, item);
+    if (!result.ok) {
+      this.refresh();
+      return;
+    }
+
+    this.selected = result.item;
+    this.refresh();
+    this.flashSnap(result.item);
+  }
+
+  /** Sell one loose inventory part back to the shop and clear it from selection if needed. */
+  private sellShopPart(entity: EntityId): void {
+    const result = sellPart(this.world, entity);
+    if (result.ok && this.selected === entity) this.selected = null;
+    this.refresh();
   }
 
   /**

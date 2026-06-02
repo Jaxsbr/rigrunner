@@ -6,13 +6,12 @@ import { scatterScrap } from './content/scrap';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
-import { Inventory, addToInventory, inventoryItems } from './components/inventory';
+import { Inventory } from './components/inventory';
 import { Bench, emptyBenchSlots } from './components/bench';
 import { ENGINE_RECIPE } from './content/recipes';
 import { composeProduct, placeProductInWorld } from './systems/assembly';
 import { mountPart } from './systems/mounting';
 import { WorkshopZone } from './components/workshop-zone';
-import { PARTS_CATALOG, spawnEnginePart } from './content/parts-catalog';
 import { movementSystem } from './systems/movement';
 import { mountingSystem } from './systems/mounting';
 import { collisionSystem } from './systems/collision';
@@ -47,9 +46,10 @@ const player = spawnRig(world);
   placeProductInWorld(world, engine, rigT.x, rigT.z);
   mountPart(world, engine, player, 0, 1); // a deck cell; the mounting system rides it into place
 }
-// Loose scrap scattered in a ring around the rig — drive over a piece to sweep it into storage
-// (once the player has built and mounted a container).
-scatterScrap(world, 10);
+// Loose scrap scattered around the rig — drive over pieces to sweep them into mounted storage, bank
+// them at the workshop, then spend the wallet total in the Parts Shop. The larger field makes the
+// first spend loop worth playing: one starter container can bootstrap enough scrap for more storage.
+scatterScrap(world, 64, 5, 34);
 
 // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
 // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
@@ -59,7 +59,7 @@ spawnWorkshop(world, 0, 8);
 // so both survive rig rebuilds and chassis swaps. The workshop drain feeds the wallet; the HUD
 // reads it; the workshop interface (P3+) browses the inventory.
 const playerStore = world.createEntity();
-world.add(playerStore, Wallet, { scrap: 0 });
+world.add(playerStore, Wallet, { scrap: 5 });
 world.add(playerStore, Inventory, { items: [] });
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
@@ -72,20 +72,10 @@ world.add(bench, Bench, {
   slots: emptyBenchSlots(ENGINE_RECIPE.slots.map((s) => s.slot)),
 });
 
-// DEV GRANT — stand-in for the real production chain (deferred: the smelter/caster fixtures that
-// will MAKE parts). Seed the FULL catalog: the two container parts (shell + rim) to build a storage
-// container and start the cargo loop, AND both engine part sets (4 electric + 4 mechanical). The rig
-// already ships with an electric engine, but the engine sub-parts are back now (P5 had trimmed them
-// to just the container) so P6's type-lock is testable: build a MECHANICAL engine to confirm the
-// cross-type mount is refused, and a second ELECTRIC engine to confirm same-type mounting is allowed.
-// Remove this grant once parts are produced in-game.
-for (const def of PARTS_CATALOG) {
-  addToInventory(world, spawnEnginePart(world, def));
-}
-console.info(
-  `[dev grant] inventory seeded with ${inventoryItems(world).length} parts ` +
-    `(container shell + rim, plus the 8 engine sub-parts) — stand-in for the real production chain (deferred).`,
-);
+// No loose-part dev grant: every build sub-part now comes from the Parts Shop. The rig still starts
+// with a complete mounted electric engine so the player can drive immediately, and the wallet starts
+// with exactly enough scrap to buy the first storage-container shell + rim.
+console.info('[starter] wallet seeded with 5 scrap; all loose build parts are bought from the Parts Shop.');
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);

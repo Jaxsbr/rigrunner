@@ -158,6 +158,130 @@
       }
       .wk-deck-host.drop-hover { border-color: #59ff9f; }
       .wk-deck-host.drop-reject { border-color: #8a4b2f; }
+      /* Parts shop — the first spend sink: banked scrap buys stock parts into Inventory. */
+      .wk-shop-panel {
+        gap: 10px;
+      }
+      .wk-shop-wallet {
+        flex: none;
+        padding: 8px 10px;
+        border: 1px solid #2c343a;
+        border-radius: 7px;
+        background: #1b2125;
+        color: #59ff9f;
+        font: 600 12px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+      }
+      .wk-shop-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .wk-shop-section-title {
+        margin-top: 4px;
+        color: #8b97a0;
+        font: 600 10px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .wk-shop-empty {
+        padding: 8px 2px;
+        color: #5a646b;
+        font-size: 12px;
+      }
+      .wk-shop-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid #2c343a;
+        border-radius: 8px;
+        background: #1b2125;
+      }
+      .wk-shop-card.sell { background: #181e21; }
+      .wk-shop-card.storage { border-left: 3px solid #2f6f9f; }
+      .wk-shop-card.electric { border-left: 3px solid #59ff9f; }
+      .wk-shop-card.mechanical { border-left: 3px solid #8a4b2f; }
+      .wk-shop-main { min-width: 0; }
+      .wk-shop-name-row {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 8px;
+      }
+      .wk-shop-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .wk-shop-card.storage .wk-shop-dot { background: #2f6f9f; }
+      .wk-shop-card.electric .wk-shop-dot { background: #59ff9f; }
+      .wk-shop-card.mechanical .wk-shop-dot { background: #8a4b2f; }
+      .wk-shop-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #e6ebee;
+        font-size: 12px;
+      }
+      .wk-shop-tag {
+        flex: none;
+        color: #8b97a0;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+      }
+      .wk-shop-meta {
+        margin-top: 4px;
+        color: #6b757c;
+        font-size: 11px;
+      }
+      .wk-shop-side {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .wk-shop-cost {
+        color: #c7ced3;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .wk-buy {
+        min-width: 58px;
+        padding: 7px 10px;
+        border: 1px solid #59ff9f;
+        border-radius: 7px;
+        background: rgba(89, 255, 159, 0.1);
+        color: #59ff9f;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .wk-buy:hover:not(:disabled) { background: rgba(89, 255, 159, 0.18); }
+      .wk-buy:disabled {
+        min-width: 94px;
+        border-color: #2c343a;
+        background: #161b1e;
+        color: #5a646b;
+        cursor: not-allowed;
+      }
+      .wk-sell {
+        min-width: 58px;
+        padding: 7px 10px;
+        border: 1px solid #8a4b2f;
+        border-radius: 7px;
+        background: rgba(138, 75, 47, 0.12);
+        color: #d98a63;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .wk-sell:hover { background: rgba(138, 75, 47, 0.22); }
       .wk-col-title {
         margin: 0 0 8px;
         font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -395,6 +519,7 @@
          nudges the text sideways. */
       #workshop-overlay .wk-inv-list,
       #workshop-overlay .wk-bench-slots,
+      #workshop-overlay .wk-shop-list,
       #workshop-overlay .wk-detail {
         scrollbar-width: thin;                  /* Firefox */
         scrollbar-color: #3a444b transparent;   /* thumb / track */
@@ -402,6 +527,7 @@
       #workshop-overlay .wk-detail { scrollbar-gutter: stable; }
       #workshop-overlay .wk-inv-list::-webkit-scrollbar,
       #workshop-overlay .wk-bench-slots::-webkit-scrollbar,
+      #workshop-overlay .wk-shop-list::-webkit-scrollbar,
       #workshop-overlay .wk-detail::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -449,6 +575,7 @@
             <div class="wk-tabs">
               <button id="wk-tab-bench" class="wk-tab active" type="button">⚒ Bench</button>
               <button id="wk-tab-deck" class="wk-tab" type="button">▦ Workshop Deck</button>
+              <button id="wk-tab-shop" class="wk-tab" type="button">Parts Shop</button>
             </div>
             <div id="wk-bench-panel" class="wk-tab-panel">
               <div id="wk-recipe-tabs" class="wk-recipe-tabs"></div>
@@ -459,6 +586,10 @@
             </div>
             <div id="wk-deck-panel" class="wk-tab-panel hidden">
               <div id="wk-deck-host" class="wk-deck-host" data-drop="deck"></div>
+            </div>
+            <div id="wk-shop-panel" class="wk-tab-panel wk-shop-panel hidden">
+              <div id="wk-shop-wallet" class="wk-shop-wallet"></div>
+              <div id="wk-shop-list" class="wk-shop-list"></div>
             </div>
           </section>
           <section class="wk-col wk-inspect">
