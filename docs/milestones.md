@@ -69,9 +69,10 @@ all **fuel/charge consumption** — a completed engine runs on **unlimited** ene
 shapes behaviour. The boost/overdrive special-ability *activation*, casing materials, and the
 production chain (smelter/caster) are also deferred. (All captured in `ideas.md`, 2026-06-01.)
 
-**Done when (verify in-game):** with the 8 parts granted to inventory, build **both** a complete
-electric and a complete mechanical engine on the bench, store them, **mount one and drive** with
-type-correct feel, and confirm the **cross-type mount is blocked** until the first engine is removed.
+**Done when (verify in-game):** with the 8 engine parts acquired into inventory, build **both** a
+complete electric and a complete mechanical engine on the bench, store them, **mount one and drive**
+with type-correct feel, and confirm the **cross-type mount is blocked** until the first engine is
+removed.
 
 **Spans many PRs** (deliberately — see the spec). Ship Phase 1 first, feel it, then build Phase 2.
 
@@ -141,7 +142,7 @@ on that whole tension.
 
 ---
 
-## Option B — Spend Sink (scrap buys something) · `pending`
+## Option B — Spend Sink (scrap buys something) · `done`
 
 *(Promoted from M1's deferred "spend sink" item.)*
 
@@ -167,6 +168,15 @@ the progression model (§4), distinct from durable structural gains.
 
 **Deliberately NOT in scope:** the smelter/caster production chain, alloy processing, workshop tiers,
 recipe rarity. Just one scrap→part transaction and the seam.
+
+**Status (2026-06-02):** Delivered as a **Parts Shop** tab in the workshop overlay. A thin
+`buy(partId, cost)` transaction spends `Wallet.scrap`, spawns the catalog part, and grants it to
+`Inventory`; loose inventory parts can be sold back for 50% of their stock price, rounded to the
+nearest whole scrap. A dedicated part-cost list drives the shop stock: it sells the storage shell/rim
+plus all electric and mechanical engine sub-parts, with engine parts priced above storage parts. The
+loose-part dev grant is removed, the player starts with only a complete mounted electric engine and 5
+scrap for the first storage container, and the world scatters enough loose scrap to buy additional
+storage.
 
 ---
 
