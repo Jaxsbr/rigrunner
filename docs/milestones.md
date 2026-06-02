@@ -34,12 +34,12 @@ once, it's a continuous little target while exploring. Spends on upgrades/parts.
 **Why first:** It's the economy everything else spends against, and it's the simplest standalone
 loop ("drive, collect, see the number grow").
 
-**Status (PR #2, `cc356d6`):** The *collection* half is in — scrap scatters in a ring, driving the
+**Status:** The *collection* half is in (PR #2, `cc356d6`) — scrap scatters in a ring, driving the
 rig (chassis or any mounted part) over a piece sweeps it into mounted `Storage`, atomic per-piece and
-gated on having a tank bolted on, with a HUD readout and a visible fill fraction. **Still open before
-M1 is `done`:** the two felt-tradeoff/economy pieces have been **promoted to their own minimum
-milestones below** — **Option A (Laden & Weighted)** and **Option B (Spend Sink)** — plus minor
-deferred polish (collect FX, a run lifecycle/reset frame).
+gated on having a tank bolted on, with a HUD readout and a visible fill fraction. The economy
+destination is now also in via **Option B (Spend Sink)** / the Parts Shop. **Still open before M1 is
+`done`:** **Option A (Laden & Weighted)** plus minor deferred polish (collect FX, a run lifecycle/reset
+frame).
 
 ---
 
@@ -76,14 +76,13 @@ removed.
 
 **Spans many PRs** (deliberately — see the spec). Ship Phase 1 first, feel it, then build Phase 2.
 
-**Status (PR #5):** Phase 1 / **PR P1 delivered** — the openable workshop tab + game-freezing
-overlay shell. The tab tracks zone proximity, the overlay freezes the sim cleanly (and resumes with
-no stuck input), and the empty panel is ready for content. **Still open in Phase 1:** P2 (generic
-parts inventory + 8-part catalog + dev grant) and P3 (inventory browser + portrait + bench drag).
-Phase 2 (P4–P6: assembly + type-locked mounting) follows.
+**Status:** Phase 1's shell, inventory browser, portrait, bench, deck staging, assembly, and
+type-locked mounting are in across the MW PR series. The earlier P2 dev grant has been removed:
+loose storage and engine sub-parts now come from **Option B's Parts Shop**, while the rig still starts
+with one complete mounted electric engine so the player can drive immediately.
 
-**Depends on:** the existing workshop zone + mounting (done). Acquiring parts could become M1's
-still-open **spend sink** (a future production chain spends scrap to make parts).
+**Depends on:** the existing workshop zone + mounting (done). Basic part acquisition now uses the
+Parts Shop spend sink; a future production chain can supersede that same cost/grant seam.
 
 **Full spec:** [`workshop-interface-spec.md`](workshop-interface-spec.md) — known-parts list, engine
 types, the type-lock rule, per-PR scope/files, and manual-test checklists.

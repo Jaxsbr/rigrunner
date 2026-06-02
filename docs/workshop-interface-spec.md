@@ -10,10 +10,10 @@ The spec for milestone **MW**. It delivers, end to end:
    (electric / mechanical). You build a complete engine on the bench, store it, and **mount it on a
    chassis**, where a **no-hybrid type-lock** is enforced.
 
-> ✅ **Done when (verify in the running game):** with the 8 parts granted to inventory, you can build
-> **both** a complete **electric** engine and a complete **mechanical** engine on the bench, move
-> them to inventory, **mount one on the rig and drive** with type-correct behaviour, and confirm the
-> **cross-type mount is blocked** until you remove the first engine. (Full checklist at the end.)
+> ✅ **Done when (verify in the running game):** with the 8 engine parts acquired into inventory, you
+> can build **both** a complete **electric** engine and a complete **mechanical** engine on the bench,
+> move them to inventory, **mount one on the rig and drive** with type-correct behaviour, and confirm
+> the **cross-type mount is blocked** until you remove the first engine. (Full checklist at the end.)
 
 > 📦 **Two phases, many PRs — deliberately.** Phase 1 stands up the interface + inventory + bench
 > (you can move parts around and inspect them). Phase 2 adds assembly + type-locked mounting. Ship
@@ -187,11 +187,11 @@ systems block, expose open/close).
 
 ---
 
-### PR P2 — Generic parts inventory + part catalog + dev grant — ✅ DELIVERED (PR #6)
+### PR P2 — Generic parts inventory + part catalog — ✅ DELIVERED (PR #6)
 
 **Goal:** Introduce a **generic inventory** of owned parts on the player ("wallet") entity, define
-the **8-part catalog**, and **grant the 8 parts** for testing. No UI yet beyond a console/HUD count
-— this is the data foundation.
+the **8-part catalog**, and provide the data foundation for acquired parts. No UI yet beyond a
+console/HUD count — this was the inventory foundation.
 
 > ✅ **Delivered.** The 8-part catalog (`content/parts-catalog.ts`) defines casing/core/coupling/
 > regulator × electric/mechanical, each with attr contributions distributed so a full electric set
@@ -200,9 +200,11 @@ the **8-part catalog**, and **grant the 8 parts** for testing. No UI yet beyond 
 > vessel (`components/engine-part.ts`), description resolved through `partDef()`. `Inventory {items}`
 > (`components/inventory.ts`) lives on the **same singleton as `Wallet`**, with conserved helpers
 > (`addToInventory` idempotent, `removeFromInventory` drops-not-destroys, `inventoryItems` snapshot,
-> `getInventory`). A **dev grant** in `main.ts` seeds the 8 parts and logs a one-line count, flagged
-> as a stand-in for the deferred production chain. Purely additive — no system queries `EnginePart`,
-> so driving/collecting/draining are unchanged; `EngineSpec` untouched. 86 tests pass (13 new).
+> `getInventory`). Initially, a **dev grant** in `main.ts` seeded the 8 parts and logged a one-line
+> count as a stand-in for the deferred production chain. That grant is now superseded by the Parts
+> Shop spend sink (Option B): loose storage and engine parts are bought into inventory with scrap.
+> Purely additive — no system queries `EnginePart`, so driving/collecting/draining are unchanged;
+> `EngineSpec` untouched. 86 tests passed when P2 landed (13 new).
 
 **In:**
 - New `game/src/content/parts-catalog.ts`: the 8 part definitions (table above) — `id`, `slot`,
@@ -213,21 +215,21 @@ the **8-part catalog**, and **grant the 8 parts** for testing. No UI yet beyond 
   (`observations.md` #6–7). Lives on the **same singleton entity as `Wallet`** (the player store);
   `Wallet` stays scrap-only, `Inventory` holds parts — together "what the player owns."
 - Helpers: `addToInventory`, `removeFromInventory`, `inventoryItems(world)`.
-- A **dev grant** (debug action or startup allotment) that creates the 8 part entities and puts them
-  in inventory. **`log`/comment that this is a stand-in for the real production chain** (deferred).
+- A temporary **dev grant** originally created the 8 part entities and put them in inventory. Current
+  state: that grant is removed, and part acquisition uses the Parts Shop's scrap transaction seam.
 
 **Out:** Inventory UI panel (P3), assembly (Phase 2).
 
 **Files:** new `parts-catalog.ts`, `components/inventory.ts`, maybe `systems/inventory.ts`; edit
-`main.ts` (create inventory on the player entity; dev grant).
+`main.ts` (create inventory on the player entity; historical dev grant now superseded by the Parts Shop).
 
 **Manual test:**
-1. Start a session → a HUD/console line shows inventory holds **8 parts** (4 electric, 4 mechanical).
+1. Start a session → inventory exists on the player store; loose parts enter it through the Parts Shop.
 2. (If a quick test/assert is added) the catalog has exactly the 8 ids with correct slot/type.
 3. No effect on driving, collecting, or draining — purely additive data.
 
-**Done when:** the player owns the 8 catalog parts in a generic inventory, with conserved
-add/remove helpers, and nothing else changes.
+**Done when:** the player has a generic inventory with conserved add/remove helpers; the 8 catalog
+parts can be acquired into it through the current part-acquisition path.
 
 ---
 
@@ -587,8 +589,8 @@ Out of MW by Jaco's call; pulled forward only when play asks.
 - **Casing materials** — steel/cobalt/aluminium/titanium + invented alloys as a casing attribute
   axis (the original casing-swap idea). MW uses one casing per type; materials are a later depth axis.
 - **The production chain** — smelter (metals → alloys) and caster (materials → casings) as workshop
-  fixtures that *make* parts, replacing MW's dev grant. Overlaps the workshop-drain upgrade seams in
-  `ideas.md` (2026-05-31).
+  fixtures that *make* parts, superseding the current Parts Shop / part-cost list. Overlaps the
+  workshop-drain upgrade seams in `ideas.md` (2026-05-31).
 - **Footprint reclaim / tiers** — higher-tier parts doing the same job in fewer cells (`ideas.md`,
   2026-05-30).
 
