@@ -11,6 +11,52 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-02 — World/progression/restoration/tech: how it all fits (+ greenery, carry-over, fuel-as-signal)
+
+**Mode:** brainstorm + synthesis, sparked by researching *Machine Mind* (Targem Games) and its
+world/map approach. The connective overview that came out of it lives in its own doc —
+[`world-progression-guidance.md`](world-progression-guidance.md) — this entry logs the **raw threads**
+behind it. **Not committed.**
+
+### Carry-over (meta-progression) candidates that feel prized
+- **Workshop upgrades** — *hard* to acquire/unlock; a better workshop = **advanced alloy processing**
+  + **more complex part manufacturing**. A prime thing to carry across sessions.
+- **Rare/unique recipes** — basics via normal progression, **rares scavenged** across the phases and
+  kept. (Same spirit as the 2026-06-01 recipe-rarity thread below.)
+
+### Greenery trail — leave life behind you *(unsure: texture or mechanic?)*
+The more you traverse, the more **greenery/plant life** you leave; more greenery → more **animal life
+appears and moves**; greenery **lures life, including hostile life**. You can **ruin your own trail**
+by driving back over it — *unless* you have a **gentle/preventive drivetrain** (upgradeable part).
+- Worry: as a real mechanic this means *lots* of driving/reversing → fights fuel/distance balance →
+  pushes toward a **huge map** → huge area to restore → very hard to balance.
+- Alt: keep it **mostly cosmetic** (special hardware upgrade), still **lures animal life**, great
+  visually, **decoupled from the progression gate**.
+
+### Regeneration vs restoration — the thing I'm most unsure about
+How does a roguelite **map regeneration** loop coexist with **permanent world-healing**? Undecided.
+Leaning toward a **two-layer world** (persistent healed places + regenerating expedition ground), but
+whether healing is truly permanent or can be **reclaimed if unprotected** is open.
+
+### Fuel — a great teacher, maybe a poor gate
+"Far travel + fuel management" as the **primary progression gate** feels **unexciting**. BUT fuel is a
+great **mechanical-progression signal**: repeatedly running dry tells the player to invest in their
+**energy system first** (before load / offense / defense). So: **fuel = signal, not gate.**
+
+### Ancient-tree reclamation — the gate I'm leaning toward
+A focal **ancient tree** + beautiful area, restored via **multiple quest steps**: restore **water** →
+make **fertilizer** → erect **protection** (restoration *lures* malicious characters who attack the
+tree). A run does **some** steps; the arc **survives across sessions**; **quest items are kept and
+re-appliable** (if an area is ruined, re-apply rather than re-scavenge; finishing one quest reveals
+the next requirement). Could be **one grand tree** or **multiple areas where reclaiming X unlocks
+progression**. This (area reclamation) is the *exciting* gate vs. far-travel.
+
+### Difficulty has three sources, all present
+Rig progression (player gets stronger), world/environment **escalation**, and a **scaling enemy** that
+forces **defensive** upgrading (not just offense). Getting stronger shouldn't trivialize the game.
+
+---
+
 ## 2026-06-01 — Recipe rarity: basic (known/progression) vs special (loot-drop) recipes
 
 **Mode:** brainstorm while building the recipe-driven bench (MW / PR P3 — engine + storage-container
