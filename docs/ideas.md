@@ -98,6 +98,30 @@ in [`world-progression-guidance.md`](world-progression-guidance.md).)*
 This supersedes-leaning the earlier "drive over your trail and ruin it unless gentle drivetrain" idea
 (trails now persist); that destructible variant is **parked, not deleted**.
 
+## 2026-06-02 (cont. 2) — Energy identity: electric vs mechanical, both restorative
+
+Layering on the existing engine duality (MW: electric vs mechanical, no-hybrid type-lock). Candidate.
+*(Threaded into [`world-progression-guidance.md`](world-progression-guidance.md) §5.)*
+
+### Both should be restorative — no "dirty" option
+- I want **both** energy systems considered **restorative**.
+- **Electric** = clean, environmentally safe.
+- **Mechanical** = keep **high torque / more power**, but **avoid** fossil-fuel / air-pollution
+  connotations. Think **steam power**, not petrol/exhaust. (Matches the "abstract reaction charge, not
+  petrol" note from 2026-06-01.)
+- The choice could be a bit **stigmatised**, but it shouldn't be moralised into good-vs-evil.
+
+### Energy type as a class / build identity
+- It's a **good option to let the player have multiple rigs** so he can experience both — players may
+  enjoy **different rigs for different purposes**. But **acquiring multiple rigs should be very hard**
+  vs. a single one.
+- Alternatively, make it a **choice from the start**: mechanical (steam) vs electrical, which affects
+  everything afterwards — **every unlock / progression and the rewards in the heart system** would be
+  **specific to that energy type**. Like a **class / build type**: the player decides a direction.
+- Once completed, they can **retry with a new build** → a clean **replayability** mechanism.
+
+Not deciding multiple-rigs vs start-choice yet; they're not mutually exclusive.
+
 ---
 
 ## 2026-06-01 — Recipe rarity: basic (known/progression) vs special (loot-drop) recipes

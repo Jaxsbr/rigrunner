@@ -201,6 +201,49 @@ to meet you — and the answer is always a *specific* upgrade the player can nam
 
 ---
 
+## 5) Energy identity: electric vs. mechanical — both restorative *(candidate)*
+
+Builds on the **already-decided** engine duality (MW milestone: two energy types under a **no-hybrid
+type-lock** — electric = snappy/scout/combat, mechanical = heavy hauler). New thinking layered on top
+(candidate, not committed):
+
+### Both energy types are restorative — neither is "the dirty one"
+The two paths should **both heal the world**; the choice is identity/feel, **not** good-vs-evil.
+
+- **Electric** — clean and **environmentally safe**.
+- **Mechanical** — keeps **high torque / more power**, but must **avoid modern fossil-fuel / air-
+  pollution / exhaust connotations**. Lean **steam power** (water vapour, clean) rather than petrol or
+  exhaust. *(Aligns with the captured "fuel is an abstract reaction charge, **not** petrol" —
+  `ideas.md` 2026-06-01. Caveat to reconcile: the current **future-look** for mechanical leans
+  "grimy / fumes" in `workshop-interface-spec.md`; this reframe nudges that toward **steam, not
+  exhaust** — a thread to reconcile, not a decision.)*
+- Keep the felt tradeoff (electric snappy & clean vs. mechanical heavy & torquey) **without moral
+  stigma**.
+
+### Energy type as a build identity (a "class")
+The energy choice could define a whole playthrough's identity — like a **class / build type**. Two
+ways to express it, **and they're not mutually exclusive** *(open fork)*:
+
+- **(A) Multiple rigs.** The player can own both and **swap rigs for different purposes** — a genuinely
+  good experience. **But a second rig should be *very hard* to acquire** vs. the first (a major, late,
+  expensive unlock), so for most of the game you're committed to one.
+- **(B) Start-of-game class choice.** Pick **mechanical (steam)** *or* **electric** up front; that
+  choice **gates everything after** — every unlock/progression *and* the rewards in the
+  restoration / "heart" system (the Sanctuary, §3b) are **specific to that energy type**. A true
+  build commitment.
+
+### Replayability
+- Under **(B)**: finishing a playthrough on one energy type lets you **retry with the other** — a clean
+  replayability engine (new unlocks, new energy-specific Sanctuary rewards).
+- Under **(A)**: replayability comes from **chasing the hard-won second rig** within a playthrough.
+
+### How it threads restoration
+Energy-type-specific rewards in the Sanctuary mean the **restoration sub-game itself could look and
+feel different per path** — a distinct restorative flavour for electric vs. steam — reinforcing the
+class identity and giving each replay its own texture.
+
+---
+
 ## How it all fits (one paragraph)
 
 You drive a **rig** out into a **hostile world**, scavenging scrap, **rare recipes**, special
@@ -247,6 +290,14 @@ the world layer does. The rig is always the tool; the world coming back to life 
   processing and complex part manufacturing; a prime carry-over.
 - **Rare recipe scavenging & carry-over** · `pending` — rare/unique recipes found across phases and
   kept across sessions (extends the basic-vs-special recipe thread).
+- **Both energy types restorative (steam, not exhaust)** · `pending` — reframe mechanical away from
+  fossil-fuel connotations while keeping high torque; both paths heal the world.
+- **Energy type as build identity / class** · `pending` — energy choice defines a playthrough; gates
+  unlocks + energy-specific Sanctuary rewards.
+- **Multiple rigs (hard-won)** · `pending` — own/swap both energy types; a second rig is a major, late
+  unlock.
+- **Energy class choice + retry replayability** · `pending` — commit to one energy path; retry with
+  the other for a fresh playthrough.
 
 ---
 
@@ -260,5 +311,9 @@ the world layer does. The rig is always the tool; the world coming back to life 
 - **One ancient tree vs. many** — single grand focal sanctuary vs. several (reclaim-X-of-many).
 - **How deep the ecosystem sub-game goes** — from a few balance levers to genuinely "complex ecosystem
   solving" (high intent here; scope risk to watch).
+- **Energy identity model** — multiple rigs (A) vs. start-of-game class choice (B); not mutually
+  exclusive (could start with a class choice *and* allow a hard-won second rig later).
+- **Steam vs. exhaust aesthetic** for mechanical — reconcile the future "grimy / fumes" look with the
+  "both restorative / steam-not-exhaust" reframe.
 - **Parked, not deleted** — the *destructible* life-trail + **gentle/preventive drivetrain** idea
   (trails now lean persistent); revisit if a tension/upkeep mechanic is ever wanted.
