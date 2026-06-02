@@ -74,8 +74,9 @@ let currentId: string | null = null;
 const clock = new THREE.Clock();
 let rig: ReclaimerRig | null = null; // non-null while an articulated asset is shown
 let pedestal: THREE.Mesh | null = null; // the cube an articulated asset is raised onto
-let playing = true; // dig animation on/off
-let rigElapsed = 0; // seconds of dig cycle accrued while playing (paused time excluded)
+type ArmState = 'dig' | 'stow';
+let armState: ArmState = 'dig'; // 'dig' = the looping animation, 'stow' = static raised pose
+let rigElapsed = 0; // seconds of dig cycle accrued (only advances while digging)
 
 /** A plain stand the arm sits on so its dig swings into free space instead of through the floor
  * (in-game the arm is mounted up on the rig; the pedestal stands in for that here). */
@@ -95,23 +96,35 @@ function restOnFloor(obj: THREE.Object3D): void {
   if (minY < -1e-4) obj.position.y -= minY;
 }
 
-// A small overlay control, shown only while an articulated asset is selected.
+// A small overlay control, shown only while an articulated asset is selected: the arm's two
+// states — Dig (the looping animation) and Stow (the static "not in operation" raised pose).
 const animBar = document.createElement('div');
 animBar.id = 'animbar';
 animBar.hidden = true;
-const playBtn = document.createElement('button');
-playBtn.className = 'animbtn';
-animBar.appendChild(playBtn);
+const digBtn = document.createElement('button');
+digBtn.className = 'animbtn';
+digBtn.textContent = '⛏ Dig';
+const stowBtn = document.createElement('button');
+stowBtn.className = 'animbtn';
+stowBtn.textContent = '↗ Stow';
+animBar.append(digBtn, stowBtn);
 stage.appendChild(animBar);
 
-function refreshPlayBtn(): void {
-  playBtn.textContent = playing ? '⏸ Pause dig' : '▶ Play dig';
+/** Switch the arm between digging (animated) and stowed (static raised). */
+function setArmState(state: ArmState): void {
+  armState = state;
+  digBtn.classList.toggle('on', state === 'dig');
+  stowBtn.classList.toggle('on', state === 'stow');
+  if (!rig) return;
+  if (state === 'stow') {
+    rig.stow();
+  } else {
+    rigElapsed = 0; // restart the dig cycle from rest
+    clock.getDelta(); // drop accrued dt so the first frame starts clean
+  }
 }
-playBtn.addEventListener('click', () => {
-  playing = !playing;
-  if (!playing) rig?.rest();
-  refreshPlayBtn();
-});
+digBtn.addEventListener('click', () => setArmState('dig'));
+stowBtn.addEventListener('click', () => setArmState('stow'));
 
 /** Tear down any active rig and restore the default turntable-preview behaviour. */
 function clearRig(): void {
@@ -200,10 +213,8 @@ async function select(assetId: string): Promise<void> {
         holder.add(pedestal);
       }
       controls.autoRotate = false; // hold the camera still so the motion reads
-      rigElapsed = 0;
-      clock.getDelta(); // drop any accrued dt so the cycle starts at rest
-      refreshPlayBtn();
       animBar.hidden = false;
+      setArmState('dig'); // open in the operating state (also resets the cycle clock)
     } else {
       restOnFloor(obj); // attach-pivot heads (the bucket) hang below their origin — sit them down
     }
@@ -265,8 +276,8 @@ document.querySelectorAll<HTMLButtonElement>('.tab').forEach((tab) => {
 // ── Render loop ─────────────────────────────────────────────────────────────────────────
 function tick(): void {
   const dt = clock.getDelta();
-  if (rig && playing) {
-    rigElapsed += dt; // accrue only while playing, so pause/resume is seamless
+  if (rig && armState === 'dig') {
+    rigElapsed += dt; // advances only while digging; the stow pose is set once and held
     rig.update(rigElapsed);
   }
   controls.update();

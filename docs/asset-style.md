@@ -92,9 +92,11 @@ Build with the `rr_style` articulation helpers: `empty(name, location)` for join
 nodes while preserving the authored rest pose. Reference build: `tools/blender/assets/reclaimer_arm.py`.
 
 **Verify in the viewer** (`npm run dev:viewer`, or deep-link `#<assetId>`): an articulated asset is
-flagged `articulated` in the HUD, attaches its head, and plays a looped demo with a **Pause/Play dig**
-control. The driver that knows the Reclaimer's joints/socket is `viewer/src/articulation.ts` — the
-same node-name contract the game will drive later.
+flagged `articulated` in the HUD, attaches its head, sits on a pedestal, and offers its named **poses**
+as a state toggle — for the Reclaimer, **Dig** (the looping animation) and **Stow** (the static,
+not-in-operation raised pose). The driver that knows the Reclaimer's joints/socket/poses is
+`viewer/src/articulation.ts` — the same node-name contract the game will drive later (e.g. stow while
+driving, deploy to dig).
 
 ## How an asset reaches the screen (the seam)
 

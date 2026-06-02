@@ -28,8 +28,9 @@ inventing it inline. Assets → game-runtime → real part → interaction → l
 - `reclaimer-bucket.glb` — the unearthing-bucket head, origin at its attach pivot.
 - Pipeline: `rr_style` articulation helpers (`empty` / `set_origin` / `parent_keep`), an
   `ARTICULATED` export path in `build_asset.py`, and the convention in `asset-style.md`.
-- Viewer: loads the arm, parents the bucket on `socket_wrist`, and plays a looped **dig** animation
-  (yaw sweep + boom dip + wrist curl) with a Pause/Play control; `#<assetId>` deep-links.
+- Viewer: loads the arm onto a pedestal, parents the bucket on `socket_wrist`, and offers the arm's
+  two **poses** as a toggle — **Dig** (looping yaw sweep + boom dip + wrist curl) and **Stow** (static
+  diagonal-up, not-in-operation); `#<assetId>` deep-links.
 
 **Seam left for the game:** the node-name contract (`joint_*` to rotate, `socket_*` to attach) and a
 reference driver (`viewer/src/articulation.ts`) the game re-implements against the same names.
@@ -71,7 +72,8 @@ reference driver (`viewer/src/articulation.ts`) the game re-implements against t
 - A **pile entity** in the world; a **capability-gate** (`requires` the Reclaimer) — no Reclaimer →
   the interaction is **visibly locked**.
 - **Hold-to-work:** press-and-hold (facing the pile) **visibly depletes** the pile in waves
-  (pillar 4) and **drives the dig animation** (PR2's joint driver) while you work.
+  (pillar 4) and **drives the dig animation** (PR2's joint driver) while you work — the arm **deploys
+  from its stowed pose** to dig and **returns to stowed** when idle/driving (poses authored in PR1).
 - **Scrap burst:** scrap scatters out around the rig and is **drive-over-collected reusing M1**,
   **gated on storage space**.
 

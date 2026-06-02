@@ -16,19 +16,26 @@ const WRIST_FALLBACK = 'joint_wrist';
 
 type Axis = 'x' | 'y' | 'z';
 
-/** A joint that interpolates between an idle `rest` pose and the deepest `dig` pose (radians). */
+/**
+ * A driven joint with its key poses (radians):
+ *  - `rest` idle pose at the top of the dig cycle,
+ *  - `dig`  deepest scoop (the cycle swings between rest and dig),
+ *  - `stow` the static "not in operation" pose — boom raised diagonally up, bucket tucked.
+ */
 interface DigJoint {
   node: string;
   axis: Axis;
   rest: number;
   dig: number;
+  stow: number;
 }
 
 // Eyeball-tuned in the viewer — generous amplitudes so the articulation reads clearly.
 // joint_boom +x raises the tip, −x dips it down to the ground; joint_wrist curls the scoop.
+// stow raises the boom to ~57° (more vertical than horizontal) with the bucket folded back.
 const DIG_JOINTS: DigJoint[] = [
-  { node: 'joint_boom', axis: 'x', rest: 0.12, dig: -0.62 },
-  { node: 'joint_wrist', axis: 'x', rest: 0.0, dig: 0.85 },
+  { node: 'joint_boom', axis: 'x', rest: 0.12, dig: -0.62, stow: 1.0 },
+  { node: 'joint_wrist', axis: 'x', rest: 0.0, dig: 0.85, stow: -0.45 },
 ];
 
 const YAW_NODE = 'joint_yaw';
@@ -45,7 +52,7 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 export class ReclaimerRig {
   private readonly root: THREE.Object3D;
   private readonly yaw: THREE.Object3D | null;
-  private readonly joints: Array<{ obj: THREE.Object3D; axis: Axis; rest: number; dig: number }>;
+  private readonly joints: Array<{ obj: THREE.Object3D; axis: Axis; rest: number; dig: number; stow: number }>;
 
   /**
    * @param arm    the cloned `reclaimer-arm` scene (already added to the view).
@@ -62,7 +69,7 @@ export class ReclaimerRig {
     this.joints = DIG_JOINTS.map((j) => {
       const obj = arm.getObjectByName(j.node);
       if (!obj) console.warn(`ReclaimerRig: joint '${j.node}' not found in the GLB`);
-      return { obj: obj ?? new THREE.Object3D(), axis: j.axis, rest: j.rest, dig: j.dig };
+      return { obj: obj ?? new THREE.Object3D(), axis: j.axis, rest: j.rest, dig: j.dig, stow: j.stow };
     });
   }
 
@@ -74,9 +81,15 @@ export class ReclaimerRig {
     if (this.yaw) this.yaw.rotation.y = Math.sin(elapsed * 0.9) * YAW_SWEEP;
   }
 
-  /** Reset every joint to its idle rest pose (used when pausing). */
+  /** Reset every joint to its idle rest pose (used when measuring/pausing). */
   rest(): void {
     for (const j of this.joints) j.obj.rotation[j.axis] = j.rest;
+    if (this.yaw) this.yaw.rotation.y = 0;
+  }
+
+  /** The static "not in operation" pose: boom raised diagonally up, bucket folded back. */
+  stow(): void {
+    for (const j of this.joints) j.obj.rotation[j.axis] = j.stow;
     if (this.yaw) this.yaw.rotation.y = 0;
   }
 
