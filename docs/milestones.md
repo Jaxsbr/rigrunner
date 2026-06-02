@@ -189,8 +189,8 @@ revealing hidden non-scrap loot from a data-driven loot table.
 
 ### The gating tool — the Reclaimer
 
-A **mounted, directional manipulator arm with a swappable digging head** (a salvage claw, for now).
-It is the capability that unlocks pile interaction.
+A **mounted, directional manipulator arm with a swappable digging head** (the **unearthing bucket**,
+for now). It is the capability that unlocks pile interaction.
 
 - **Why this part.** A pile bursts scrap *outward* (you then drive-over-collect it, reusing M1), so the
   tool's job is to **break/disturb**, not gather inward — which rules out a "scrap magnet." An arm is
@@ -215,6 +215,43 @@ when the UI is closed.**
 **Loot tiers (data-driven):** ordinary **scrap** (100%, the scattered burst), **sub-parts** (common),
 **full parts** (rare), **unique recipes** (epic — *future*, the slot exists in the table now but the
 recipe system isn't built).
+
+### The Reclaimer is three "firsts" (the real build cost lives here)
+
+The concept above is cheap; the Reclaimer is the **first part that breaks several single-static-GLB
+assumptions** at once. Naming these now so the work isn't a surprise:
+
+- **First *articulated* asset (animation).** Every shipped part is one static GLB through the
+  `Renderable {shape:'model'}` seam. The arm is a **hierarchy of separately-moving pieces**
+  (base/yaw → boom → bucket). **Decided: procedural, game-driven joints** — the GLB ships a **rigged
+  hierarchy of named nodes with correctly-placed pivots**, and the **game rotates the joints each frame**
+  to run a **hold-to-work dig loop that aims at the actual pile** (no baked Blender clips). This needs:
+  a joint **naming/pivot convention in `asset-style.md`**, articulated-GLB support in the `blender-asset`
+  skill / `rr_style.py` kit (which build static GLBs today), a **loader path that exposes named sub-nodes**
+  (the current loader returns one opaque model), and ideally **viewer** support to watch it move.
+- **First *attached* asset (the socket).** The unearthing bucket is **not part of the arm mesh** — it
+  **attaches at a named wrist socket and inherits the wrist transform** during animation. That socket
+  **is** the restoration upgrade axis: the future tiller/seeder head is *the same attach, a different
+  head.* Build the socket correctly now and the swappable-head future is essentially free.
+- **First *composed non-engine* part (assembly).** **Decided: the Reclaimer is assembled from two
+  parts** — the **arm** (articulated frame + wrist socket) and the **unearthing bucket** (head) —
+  **on MW's existing assembly bench**, then **mounted on the chassis** (directional). Reuses MW's
+  assembly + mounting; the new work is a small **non-engine socket grammar** (a head-socket alongside
+  the engine's four-slot grammar).
+
+### Parts & costs (the two line items)
+
+Both parts go in **Option B's part-cost list** (the Parts Shop), so the Reclaimer is **acquired by
+buying the arm and the bucket**:
+
+- **Reclaimer arm** — the durable structural part (articulated frame + wrist socket). Higher cost.
+- **Unearthing bucket** — the digging head that slots into the wrist socket. Lower cost.
+
+**The hard economy constraint — bootstrapping.** Piles are gated behind *owning* the Reclaimer, so its
+total cost must be **affordable from loose scrap alone (M1)** — you can't rummage your way to the tool
+that lets you rummage. It's a **save-up goal funded by drive-over loose scrap**, priced above storage.
+Exact numbers are build-time tuning. Future heads (tiller/seeder) are just **more entries on the same
+socket** in that cost list, later.
 
 ### Stands alone
 
@@ -241,12 +278,19 @@ shared currency of every drop in the game.
 system, **multiple tool types**, and any **energy-type flavour** of the Reclaimer. One gated pile + one
 Reclaimer + one data table.
 
+**Decided this session (2026-06-02):** the unearthing-bucket head (over "salvage claw"); **procedural
+game-driven joints** for the arm; **assembled from arm + slottable bucket** on MW's bench; and
+**acquired by buying both parts** in Option B's Parts Shop.
+
 **Open sub-questions (decide at build time):**
 - **Loot-roll shape** — independent per-tier rolls (multiple finds possible) vs. one weighted roll
   (a single tier per pile).
 - **Inventory-full handling** — what happens to a granted part when `Inventory` has no room (drop?
   block? overflow to ground?).
-- **Reclaimer acquisition** — bought via **Option B's** Parts Shop, or granted/found another way.
+- **Reclaimer cost numbers** — exact arm/bucket prices, tuned so the total is reachable from loose
+  scrap (the bootstrapping constraint above) without being trivial.
+- **Articulation detail** — joint count (2 vs 3 segments) and the exact dig-loop motion; a feel call
+  best made against a real asset in the viewer.
 
 **Depends on:** the parts/inventory system (shipped) to own the Reclaimer and receive loot; M1's
 scatter-collect (shipped) for the scrap burst; pairs naturally with **Option B** (a way to acquire the
