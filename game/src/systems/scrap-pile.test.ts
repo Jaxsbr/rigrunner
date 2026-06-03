@@ -9,6 +9,8 @@ import { MountGrid } from '../components/mount-grid';
 import { ScrapPile } from '../components/scrap-pile';
 import { Digging } from '../components/digging';
 import { Collectible } from '../components/collectible';
+import { LootDrop } from '../components/loot-drop';
+import { ClearedGround } from '../components/cleared-ground';
 import { scrapPileSystem, scrapRummageSystem, facingWithinFov } from './scrap-pile';
 
 const FOV = (120 * Math.PI) / 180;
@@ -148,5 +150,30 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     scrapRummageSystem(world, r, true, 1.0);
     expect(world.isAlive(p)).toBe(false);
     expect(world.has(rec, Digging)).toBe(false);
+  });
+
+  it('leaves a ClearedGround marker at the pile position when it empties', () => {
+    const { world, r, p } = workableWorld(2);
+    const pt = world.get(p, Transform)!;
+    scrapRummageSystem(world, r, true, 1.0, () => 0.99); // emptied; rng fails the loot roll
+    const markers = world.query(ClearedGround);
+    expect(markers).toHaveLength(1);
+    const m = world.get(markers[0]!, ClearedGround)!;
+    expect(m.x).toBe(pt.x);
+    expect(m.z).toBe(pt.z);
+  });
+
+  it('queues a LootDrop when the empty-roll yields finds, none when it does not', () => {
+    // rng = 0 forces the 25% sub-part tier to drop → a LootDrop with at least one find.
+    const win = workableWorld(2);
+    scrapRummageSystem(win.world, win.r, true, 1.0, () => 0);
+    const drops = win.world.query(LootDrop);
+    expect(drops).toHaveLength(1);
+    expect(win.world.get(drops[0]!, LootDrop)!.finds.length).toBeGreaterThan(0);
+
+    // rng ≥ 0.25 → the roll fails → no LootDrop (the burst was the only yield).
+    const miss = workableWorld(2);
+    scrapRummageSystem(miss.world, miss.r, true, 1.0, () => 0.99);
+    expect(miss.world.query(LootDrop)).toHaveLength(0);
   });
 });
