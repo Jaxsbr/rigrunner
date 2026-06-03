@@ -312,6 +312,33 @@ Reclaimer).
 
 ---
 
+## MP — Part identity: tiers, specials & engine vocabulary · `pending`
+
+**What:** A unified part-identity model on three orthogonal axes — **slot** (the display noun), **type**
+(electric/steam, engines only), and **tier** (rusty → iron → …, every part) — plus rare **"gold" part**
+variants. Strips the confusing flavour names to slot nouns; **diverges** the two engine vocabularies so
+no noun is shared (electric: Casing/Core/Coupling/Regulator · steam: Boiler/Piston/Driveshaft/Throttle);
+makes tiers **per-sub-part + additive on a steep curve with a matched-set bonus**; and reworks "specials"
+from rare *recipes* into rare *parts* (a proportional, carried-forward buff).
+
+**Why:** Directly pays down `observations.md` #10 (the workshop is text-heavy / confusing) and #9
+(recipe selector won't scale) — shape and colour carry identity instead of overloaded text — and lays
+the rarity/material language the loot table (Option C), the shop, and the future production chain all
+share. Tiers give the deferred smelter/caster its reason to exist.
+
+**Decided (2026-06-03):** the engine vocabulary split + flavour-name strip (Phase 0); the additive
+per-part tier model with set bonus; specials as gold parts, not recipes. Phases 1–4 (tiers, set bonus,
+specials, more tiers) are planned but **earn-their-place gated** — built in order, felt before the next.
+
+**Full spec + phased plan:** [`part-identity-spec.md`](part-identity-spec.md) — the three-axis model,
+data-model changes against the current seams, the PR-by-PR phases, and the open forks.
+
+**Depends on:** the parts/recipe/assembly system (shipped — and friendlier than expected: `sumPartStats`
+is already additive, recipes are data-driven on arbitrary slots, `dismantle` already powers the
+upgrade/swap loop). Pairs with the workshop-UX pass (`observations.md` #10) and Option C's loot table.
+
+---
+
 ## Option D — Looter Camps: enemies around a structure · `pending`
 
 *(Formerly **M3** — same intent, framed minimum-first.)*
