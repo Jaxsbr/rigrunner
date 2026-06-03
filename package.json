@@ -8,8 +8,8 @@
     "dev:game": "vite game",
     "build:game": "vite build game",
     "typecheck:game": "tsc --noEmit -p game/tsconfig.json",
-    "test:game": "vitest run game",
-    "test:game:watch": "vitest game",
+    "test:game": "vitest run --root game",
+    "test:game:watch": "vitest --root game",
     "dev:viewer": "vite viewer",
     "build:viewer": "vite build viewer",
     "typecheck:viewer": "tsc --noEmit -p viewer/tsconfig.json"

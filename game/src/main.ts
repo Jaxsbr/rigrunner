@@ -1,39 +1,52 @@
-import { World } from './core/world';
-import { spawnRig } from './content/rig';
-import { engineParts } from './content/engines';
-import { spawnWorkshop } from './content/workshop';
-import { scatterScrap, spawnScrapPile } from './content/scrap';
-import { Transform } from './components/transform';
-import { DriveControl } from './components/drive-control';
-import { Wallet } from './components/wallet';
-import { Inventory } from './components/inventory';
-import { Bench, emptyBenchSlots } from './components/bench';
-import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from './content/recipes';
-import { partDef } from './content/parts-catalog';
-import { composeProduct, placeProductInWorld } from './systems/assembly';
-import { mountPart, resolveLocalYaw } from './systems/mounting';
-import { MountGrid } from './components/mount-grid';
-import { MountFacing } from './components/mount-facing';
-import { WorkshopZone } from './components/workshop-zone';
-import { movementSystem } from './systems/movement';
-import { mountingSystem } from './systems/mounting';
-import { collisionSystem } from './systems/collision';
-import { scrapCollectionSystem } from './systems/scrap-collection';
-import { scrapPileSystem, scrapRummageSystem } from './systems/scrap-pile';
-import { workshopZoneSystem } from './systems/workshop-zone';
-import { workshopDrainSystem } from './systems/workshop-drain';
-import { createDriveInput } from './input/drive-input';
-import { createCameraInput } from './input/camera-input';
-import { createBuildController } from './build/build-controller';
-import { RenderView } from './render/view';
-import { StatsHud } from './ui/stats-hud';
-import { WalletHud } from './ui/wallet-hud';
-import { WorkshopOverlay } from './ui/workshop-overlay';
-import { LootOverlay } from './ui/loot-overlay';
+import { World } from '@core/world';
+import { spawnRig } from '@features/mounting/rig';
+import { engineParts } from '@features/engine/engines';
+import { spawnWorkshop } from '@features/workshop/workshop';
+import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
+import { Transform } from '@common/components/transform';
+import { DriveControl } from '@features/drive/drive-control';
+import { Wallet } from '@features/economy/wallet';
+import { Inventory } from '@features/economy/inventory';
+import { Bench, emptyBenchSlots } from '@features/workshop/bench';
+import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
+import { partDef } from '@common/parts/parts-catalog';
+import { composeProduct } from '@common/sim/assembly';
+import { placeProductInWorld } from '@features/workshop/assembly';
+import { mountPart, resolveLocalYaw, mountingSystem } from '@features/mounting/mounting';
+import { MountGrid } from '@common/components/mount-grid';
+import { MountFacing } from '@common/components/mount-facing';
+import { WorkshopZone } from '@features/workshop/workshop-zone';
+import { movementSystem } from '@features/drive/movement';
+import { collisionSystem } from '@features/scrap/collision';
+import { scrapCollectionSystem } from '@features/scrap/scrap-collection';
+import { scrapPileSystem, scrapRummageSystem } from '@features/scrap/scrap-pile-system';
+import { workshopZoneSystem } from '@features/workshop/workshop-zone-system';
+import { workshopDrainSystem } from '@features/workshop/workshop-drain-system';
+import { createDriveInput } from '@common/input/drive-input';
+import { createCameraInput } from '@common/input/camera-input';
+import { createBuildController } from '@features/mounting/build-controller';
+import { activeStagingTargets } from '@features/workshop/staging';
+import { RenderView } from '@common/render/view';
+import { ZoneOverlays } from '@common/render/zone-overlays';
+import { InteractionHints } from '@common/render/interaction-hints';
+import { ScrapStains } from '@features/scrap/scrap-stains';
+import { workshopZoneDiscs, workshopHints } from '@features/workshop/overlays';
+import { scrapPileDiscs, scrapPileHints } from '@features/scrap/overlays';
+import { animateWheels } from '@features/drive/wheel-spin';
+import { animateStorageFill } from '@features/storage/storage-fill';
+import { animateReclaimer } from '@features/scrap/reclaimer-animator';
+import { animateScrapPile } from '@features/scrap/scrap-pile-animator';
+import { StatsHud } from '@features/hud/stats-hud';
+import { WalletHud } from '@features/economy/wallet-hud';
+import { WorkshopOverlay } from '@features/workshop/workshop-overlay';
+import { LootOverlay } from '@features/scrap/loot-overlay';
 
 /**
- * Composition root. The ONLY place that knows about all three layers at once: it wires
- * input → simulation → render together. Each layer stays ignorant of the others.
+ * Composition root. The ONLY place that knows about all three tiers and every feature at once: it
+ * wires input → simulation → render together (ADR-003). Each tier/feature stays ignorant of the
+ * others; the feature render (sim-driven animators + proximity overlays/hints/stains) is dispatched
+ * from HERE against the `scene` / `entityViews` the view façade exposes, so the shared render tier
+ * never imports a feature.
  */
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
@@ -120,9 +133,20 @@ console.info('[starter] DEV SEED: wallet seeded with 60 scrap so the Reclaimer c
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
 const view = new RenderView(canvas);
-const build = createBuildController(world, view, canvas, player);
+// The build controller is given the workshop's active staging decks (rather than importing the
+// workshop's WorkshopZone itself) so mounting never imports workshop — the edge points downhill
+// (workshop → mounting), keeping the cross-feature DAG acyclic (ADR-003).
+const build = createBuildController(world, view, canvas, player, () => activeStagingTargets(world));
 const stats = new StatsHud(document.querySelector<HTMLElement>('#stats')!);
 const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!);
+
+// Feature render dispatched from the composition root (ADR-003 §4): the proximity discs, the "Press
+// E"/"Hold E" hints, and the seepage stains are constructed against the view's scene here, so the
+// shared render tier (`@common/render/view`) imports no feature. The sim-driven animators are plain
+// functions called below against `view.entityViews`.
+const zones = new ZoneOverlays(view.scene);
+const hints = new InteractionHints(view.scene);
+const stains = new ScrapStains(view.scene);
 
 // Two overlays can each freeze the simulation: the workshop interface and the loot popup. Main owns
 // one `paused` flag that is the OR of both, so whichever is up holds the sim still and resuming needs
@@ -221,18 +245,19 @@ function frame(now: number): void {
   // its Velocity survives the freeze and the wheels would otherwise keep spinning.
   view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
-  view.syncWorkshopZones(world);
-  // proximity "Press E" / "Hold E" bubbles fade in/out with each interaction's lit disc; runs always
-  // (even paused) so the prompt stays put behind the overlay rather than popping on resume.
-  view.syncInteractionHints(world, dt);
+  // proximity discs + "Press E"/"Hold E" bubbles: each feature contributes its gated entries and
+  // main concatenates them for the shared render-tier overlays. Runs always (even paused) so the
+  // disc/prompt stay put behind the overlay rather than popping on resume.
+  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)]);
+  hints.sync([...workshopHints(world), ...scrapPileHints(world)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
-  view.syncScrapStains(world, dt);
+  stains.sync(world, dt);
   if (!paused) {
-    view.animateWheels(world, dt);
-    view.animateStorageFill(world, dt);
-    view.animateReclaimer(world, dt);
-    view.animateScrapPile(world, dt);
+    animateWheels(view.entityViews, world, dt);
+    animateStorageFill(view.entityViews, world, dt);
+    animateReclaimer(view.entityViews, world, dt);
+    animateScrapPile(view.entityViews, world, dt);
   }
   view.render();
 

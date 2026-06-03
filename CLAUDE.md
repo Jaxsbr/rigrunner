@@ -90,6 +90,14 @@ rigrunner/
   tools/blender/          # asset pipeline: rr_style.py kit + build_asset.py + assets/ generators
   game/                   # the game (the active build)                          -> npm run dev:game
     public/assets/        # committed runtime GLBs (served at /assets/*.glb, by game AND viewer)
+    vite.config.ts        # path aliases (@core/@common/@features/@shared) — shared by dev/build/test
+    src/                  # FEATURE-FIRST (ADR-003): three tiers + features; main.ts the comp root
+      core/               #   ECS engine, ZERO game knowledge — world · types · component · geometry
+      common/             #   strict domain kernel (shared by ≥2 features): components/ parts/ sim/
+                          #     render/ input/ — see the admission rule below
+      features/           #   vertical slices, ONE folder per mechanic — open one, see the whole thing:
+                          #     drive engine mounting scrap storage workshop economy hud (tests co-located)
+      main.ts             #   composition root — the ONLY file that imports across features
   viewer/                 # asset viewer — inspect any GLB in isolation           -> npm run dev:viewer
   shared/                 # modules promoted for use by both apps (explicit, never implicit)
     palette.json          # SINGLE source of the colour palette (read by rr_style.py + TS)
@@ -107,6 +115,30 @@ both serve one set of asset files).
 |---|---|
 | `npm run dev:game` | Launch the game (the active build) |
 | `npm run dev:viewer` | Launch the asset viewer (inspect any GLB + the palette, outside the game) |
+
+### Where new code goes (feature-first — [ADR-003](docs/architecture/adr-003-feature-first-src-structure.md))
+
+`game/src/` is organized by **feature**, not by architectural role. When you write new code, place it
+by the mechanic it serves, not by what kind of file it is:
+
+- **Default: it belongs to a feature.** New code goes in `features/<mechanic>/` — the slice it serves
+  (e.g. a scrap behaviour → `features/scrap/`). A component, system, content table, render bit, and UI
+  for one mechanic all live **together** in that folder. A brand-new mechanic (combat, restoration)
+  earns a **new** `features/<x>/` folder **when its code is written** — never a speculative empty one.
+- **`common/` is the strict, shared kernel — earn your way in.** A module moves to `common/` only when
+  it has **≥2 distinct *feature* consumers** *and* carries **no feature-specific semantics**; otherwise
+  it stays in its feature (duplication is cheaper than a wrong promotion — Rule of Three). Sub-tiers:
+  `common/components` (shared ECS data), `common/parts` (the parts/recipes registry), `common/sim`
+  (generic sim primitives), `common/render` (render infrastructure), `common/input`.
+- **`core/` is the ECS engine with ZERO game knowledge** (`world`/`types`/`component`/`geometry`).
+- **Inward-only invariant (load-bearing):** `core/` and `common/` must **never** import from
+  `features/`. Per-frame feature work (animators, overlays) is dispatched from **`main.ts`**, the only
+  cross-feature importer — never from a `common/` façade.
+- **Imports use path aliases:** `@core` · `@common` · `@features` · `@shared`. Cross-tier/cross-feature
+  imports use an alias; same-feature siblings use `./`. **`@common` (in-game kernel) ≠ `@shared`
+  (repo-root code shared by the game AND the viewer)** — don't confuse the two.
+- Per-feature `CLAUDE.md` files (e.g. `features/scrap/`, `features/mounting/`) restate single-owner
+  rules at the point of edit — read one if it's there.
 
 ---
 

@@ -84,7 +84,8 @@ game and the viewer):
 
 ### 4. Reference it
 
-Give an entity a model Renderable (in `content/` or wherever it's spawned):
+Give an entity a model Renderable, in the feature that spawns it — `game/src/features/<feature>/`
+(e.g. a storage container in `features/storage/`, a workshop fixture in `features/workshop/`):
 ```ts
 world.add(e, Renderable, { shape: 'model', assetId: '<asset-name>' });
 ```
