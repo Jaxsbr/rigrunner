@@ -79,6 +79,7 @@ const COLOR_BY_KEY: Record<string, number> = {
   electric: 0x59ff9f, // glow_green
   mechanical: 0x8a4b2f, // rust
   storage: 0x2f6f9f, // rig_blue
+  reclaimer: 0xd9a521, // hazard_yellow — the rummage tool's signature
 };
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

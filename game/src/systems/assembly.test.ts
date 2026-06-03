@@ -13,7 +13,7 @@ import { Collider } from '../components/collider';
 import { MountFacing } from '../components/mount-facing';
 import { partDef, spawnEnginePart } from '../content/parts-catalog';
 import { engineParts } from '../content/engines';
-import { ENGINE_RECIPE, STORAGE_RECIPE } from '../content/recipes';
+import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '../content/recipes';
 import { CONTAINER_CAPACITY } from '../content/containers';
 import {
   sumPartStats,
@@ -32,6 +32,7 @@ import {
 const ELECTRIC = ['e-casing', 'e-core', 'e-coupling', 'e-regulator'];
 const MECHANICAL = ['m-casing', 'm-core', 'm-coupling', 'm-regulator'];
 const STORAGE = ['container-shell', 'container-rim'];
+const RECLAIMER = ['reclaimer-arm', 'reclaimer-bucket'];
 
 /** A world wired like main.ts: an inventory singleton and a bench loaded with the engine recipe. */
 function setup() {
@@ -167,6 +168,37 @@ describe('assembly — assembling a non-engine product (storage container)', () 
     expect(w.get(product, Weight)).toEqual({ value: 4 }); // shell 3 + rim 1
     expect(w.get(product, Assembly)!.type).toBeUndefined(); // untyped product
     expect(inventoryItems(w)).toEqual([product]);
+  });
+});
+
+describe('assembly — assembling the Reclaimer (the non-engine socket grammar)', () => {
+  it('assembles arm + head into a reclaimer product: weight only, no EngineSpec/Storage, untyped', () => {
+    const w = setup();
+    loadRecipe(w, RECLAIMER_RECIPE.id, RECLAIMER_RECIPE.slots.map((s) => s.slot));
+    const parts = RECLAIMER.map((id) => placeOnSlot(w, id));
+
+    const product = assemble(w, RECLAIMER_RECIPE)!;
+    expect(w.get(product, Part)).toEqual({ kind: 'reclaimer' });
+    expect(w.get(product, Weight)).toEqual({ value: 8 }); // arm 5 + bucket 3
+    expect(w.get(product, EngineSpec)).toBeUndefined(); // it does no engine work
+    expect(w.get(product, Storage)).toBeUndefined(); // it is not a container
+    expect(w.get(product, Assembly)).toEqual({ recipeId: 'reclaimer', parts }); // untyped — no `type`
+    expect(inventoryItems(w)).toEqual([product]);
+  });
+
+  it('mounts directionally — placeProductInWorld gives it outward facing and the arm GLB', () => {
+    const w = setup();
+    loadRecipe(w, RECLAIMER_RECIPE.id, RECLAIMER_RECIPE.slots.map((s) => s.slot));
+    RECLAIMER.forEach((id) => placeOnSlot(w, id));
+    const reclaimer = assemble(w, RECLAIMER_RECIPE)!;
+
+    placeProductInWorld(w, reclaimer, 2, 4);
+
+    // The Reclaimer renders its articulated arm GLB (render layer attaches the bucket on the wrist).
+    expect(w.get(reclaimer, Renderable)).toMatchObject({ shape: 'model', assetId: 'reclaimer-arm' });
+    // Directional like an engine: its front (the arm) points off the rig.
+    expect(w.get(reclaimer, MountFacing)).toMatchObject({ kind: 'specific', rule: 'outward' });
+    expect(w.get(reclaimer, Collider)).toBeDefined();
   });
 });
 

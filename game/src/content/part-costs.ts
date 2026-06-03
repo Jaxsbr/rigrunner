@@ -25,4 +25,11 @@ export const PART_COSTS: readonly PartCost[] = [
   { partId: 'm-core', buyCost: 12 },
   { partId: 'm-coupling', buyCost: 7 },
   { partId: 'm-regulator', buyCost: 9 },
+
+  // Reclaimer (Option C) — the rummage tool. Bootstrapping constraint: piles are gated behind OWNING
+  // it, so it must be affordable from loose scrap ALONE (no pile needed to earn it). It's also the
+  // priciest single goal — arm + bucket ≈ 36, about a whole engine and well above a storage container
+  // (5) — a deliberate save-up. Tune here against feel (this is the single price surface).
+  { partId: 'reclaimer-arm', buyCost: 24 },
+  { partId: 'reclaimer-bucket', buyCost: 12 },
 ];

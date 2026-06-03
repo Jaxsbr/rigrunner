@@ -139,6 +139,11 @@ function attachCapability(world: World, product: EntityId, recipe: Recipe, stats
     case 'storage':
       world.add(product, Storage, { amount: 0, capacity: CONTAINER_CAPACITY });
       break;
+    case 'reclaimer':
+      // The Reclaimer's capability is intrinsic to BEING MOUNTED — there's nothing to compute at
+      // assembly. PR4's pile gate reads `Part.kind === 'reclaimer'` + a `Mount` on the rig directly,
+      // so no capability component is attached here yet. (Weight is added by the shared path above.)
+      break;
   }
 }
 
@@ -200,9 +205,10 @@ export function assemble(world: World, recipe: Recipe): EntityId | null {
 
 /**
  * Give a composed product world PRESENCE so it can be carried and mounted: a Transform at (x, z) on
- * the ground, the GLB that draws its kind, a collider, and — for an engine — the outward MountFacing
- * a directly-spawned engine had. Taking a product into the world means it leaves the inventory
- * (conservation: a product is in exactly one place), so it's dropped from there here.
+ * the ground, the GLB that draws its kind, a collider, and — for a DIRECTIONAL product (an engine or
+ * the Reclaimer) — the outward MountFacing so its front (the intake / the arm) points off the rig.
+ * Taking a product into the world means it leaves the inventory (conservation: a product is in
+ * exactly one place), so it's dropped from there here.
  *
  * The bridge the workshop's "Move to World" action and the startup pre-assembled engine both use to
  * get a product out of the abstract inventory and into the drivable world. (A loose sub-part stays
@@ -215,7 +221,9 @@ export function placeProductInWorld(world: World, product: EntityId, x: number, 
   world.add(product, Transform, { x, z, y: 0, rotationY: 0 });
   world.add(product, Renderable, { shape: 'model', assetId: productAssetId(part.kind, asm?.recipeId ?? '', asm?.type) });
   world.add(product, Collider, { radius: 0.5 });
-  if (part.kind === 'engine') world.add(product, MountFacing, { kind: 'specific', rule: 'outward' });
+  if (part.kind === 'engine' || part.kind === 'reclaimer') {
+    world.add(product, MountFacing, { kind: 'specific', rule: 'outward' });
+  }
   removeFromInventory(world, product);
 }
 

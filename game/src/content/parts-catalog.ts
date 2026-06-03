@@ -31,12 +31,15 @@ import { EnginePart } from '../components/engine-part';
 export type EnginePartSlot = 'casing' | 'core' | 'coupling' | 'regulator';
 /** A storage-container part role (a second recipe — see `content/recipes.ts`). */
 export type StoragePartSlot = 'shell' | 'rim';
+/** A Reclaimer part role (Option C) — the first NON-engine socket grammar: a base `arm` plus the
+ * `head` socket the bucket slots into (mirrors the articulation contract's `socket_wrist`). */
+export type ReclaimerPartSlot = 'arm' | 'head';
 /** Any part role, across all recipes — the role a bench slot matches a part against. */
-export type PartSlot = EnginePartSlot | StoragePartSlot;
+export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot;
 export type EnergyType = 'electric' | 'mechanical';
 /** What a part is for — groups the catalog and drives the chip/portrait tint when there's no
- * energy type (storage parts aren't electric/mechanical). */
-export type PartCategory = 'engine' | 'storage';
+ * energy type (storage and reclaimer parts aren't electric/mechanical). */
+export type PartCategory = 'engine' | 'storage' | 'reclaimer';
 
 /**
  * A part's contribution to the engine it's assembled into. `power`/`torque`/`weight` feed the
@@ -157,6 +160,30 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     displayName: 'Container Rim',
     attributes: { power: 0, torque: 0, weight: 1, durability: 3, burst: 0 },
     assetId: 'container-rim',
+  },
+
+  // 🦾 Reclaimer — the rummage tool (Option C / PR3): a THIRD recipe (`RECLAIMER_RECIPE`) and the
+  // first non-engine socket grammar — a base `arm` plus a `head` socket the bucket slots into. No
+  // energy type (it does no engine work, so it never enters the no-hybrid rule); it contributes only
+  // WEIGHT — a heavy tool the drive must haul, the felt tradeoff of mounting it. The arm GLB is the
+  // articulated `reclaimer-arm` whose wrist socket the render layer parents the bucket onto, so the
+  // assembled product renders the arm and the head rides along (see render/articulation.ts). power/
+  // torque/durability/burst stay 0 — the Reclaimer's only stat in PR3 is the weight it adds.
+  {
+    id: 'reclaimer-arm',
+    slot: 'arm',
+    category: 'reclaimer',
+    displayName: 'Reclaimer Arm',
+    attributes: { power: 0, torque: 0, weight: 5, durability: 0, burst: 0 },
+    assetId: 'reclaimer-arm',
+  },
+  {
+    id: 'reclaimer-bucket',
+    slot: 'head',
+    category: 'reclaimer',
+    displayName: 'Unearthing Bucket',
+    attributes: { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
+    assetId: 'reclaimer-bucket',
   },
 ];
 

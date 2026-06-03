@@ -56,6 +56,24 @@ describe('parts catalog', () => {
     expect(sum('weight')).toBe(8);
   });
 
+  // The Reclaimer (Option C) — two untyped parts in the arm + head socket grammar, contributing only
+  // weight (no engine work). Guard the role coverage and the total weight a built Reclaimer hauls.
+  it('has the 2 reclaimer parts (arm + head), untyped, weighing 8 together', () => {
+    const reclaimer = PARTS_CATALOG.filter((p) => p.category === 'reclaimer');
+    expect(reclaimer).toHaveLength(2);
+    expect(reclaimer.every((p) => p.type === undefined)).toBe(true);
+    expect(reclaimer.map((p) => p.slot).sort()).toEqual(['arm', 'head']);
+    const weight = reclaimer.reduce((n, p) => n + p.attributes.weight, 0);
+    expect(weight).toBe(8);
+    // It does no engine work — power/torque are zero.
+    expect(reclaimer.every((p) => p.attributes.power === 0 && p.attributes.torque === 0)).toBe(true);
+  });
+
+  it('the reclaimer arm renders the articulated arm GLB and the bucket renders its head GLB', () => {
+    expect(partDef('reclaimer-arm')?.assetId).toBe('reclaimer-arm');
+    expect(partDef('reclaimer-bucket')?.assetId).toBe('reclaimer-bucket');
+  });
+
   it('resolves a known id and returns undefined for an unknown one', () => {
     expect(partDef('e-core')?.displayName).toBe('Motor Coil');
     expect(partDef('nope')).toBeUndefined();
