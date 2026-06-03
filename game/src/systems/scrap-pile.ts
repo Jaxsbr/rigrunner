@@ -151,7 +151,7 @@ export function scrapRummageSystem(
       const pt = world.get(p, Transform)!;
       // Empty-roll the loot table and queue a LootDrop for the loot UI. ALWAYS created: a pile always
       // gave scrap (the burst), so the popup always reports the haul; `finds` carries any non-scrap
-      // bonus (often empty at the 25% sub-part chance) for the UI to reveal + grant on collect.
+      // bonus (empty about half the time at the 50% sub-part chance) for the UI to reveal + grant.
       const drop = world.createEntity();
       world.add(drop, LootDrop, { scrap: pile.scrapScattered, finds: rollLoot(rng) });
       // The ground-cleared signal: a marker where the pile stood, for the future restoration seam.

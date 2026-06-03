@@ -10,7 +10,7 @@ import type { LootFind } from '../content/loot-table';
  *   - `finds`  — the rolled non-scrap finds as DATA, not yet granted. The loot overlay reads them,
  *     shows the reward, and on close turns each find into an owned part in `Inventory`, then destroys
  *     this entity. Holding the finds (not pre-created part entities) keeps the not-yet-granted reward
- *     off the world until the player actually collects it. Often empty (the common 25%-miss case).
+ *     off the world until the player actually collects it. Empty about half the time (50% miss).
  *
  * It lives on its own throwaway entity (no Transform/Renderable — it isn't in the scene), queried by
  * the UI; this keeps the sim the source of truth (a drop exists ⇒ there's loot to show) with no

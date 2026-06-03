@@ -60,7 +60,7 @@ spawnWorkshop(world, 0, 8);
 // the rig parks in reach with a MOUNTED RECLAIMER aimed at it (the capability + facing gate); then
 // hold E to dig — the arm deploys, the heap slumps in waves, and loose scrap bursts out around the
 // rig for the usual drive-over collection to sweep into storage. When a pile empties it rolls the
-// loot table (PR5) — a 25% chance of 1–3 bonus sub-parts, revealed in the loot popup. Several piles
+// loot table (PR5) — a 50% chance of 1–3 bonus sub-parts, revealed in the loot popup. Several piles
 // spread across the field so the loot roll is worth driving between and easy to exercise in testing.
 for (const [x, z] of [[-10, 2], [13, 6], [-15, -11], [9, -15], [17, -3], [-4, -16]] as const) {
   spawnScrapPile(world, x, z);

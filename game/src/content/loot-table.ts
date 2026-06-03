@@ -72,13 +72,14 @@ export const LOOT_TABLE: { readonly tiers: readonly LootTier[] } = {
       enabled: true,
     },
     {
-      // The hidden reward: a 25% chance at 1–3 random loose sub-parts (an engine/storage building
-      // block) — the "ooh, a find" beat the loot UI reveals when the pile clears.
+      // The hidden reward: a 50% chance at 1–3 random loose sub-parts (an engine/storage building
+      // block) — the "ooh, a find" beat the loot UI reveals when the pile clears. Held high (0.5)
+      // while we're testing the loot loop; tune down once it's tuned for feel.
       id: 'sub-part',
       label: 'Sub-part',
       rarity: 'common',
       source: 'empty-roll',
-      chance: 0.25,
+      chance: 0.5,
       count: { min: 1, max: 3 },
       pool: SUB_PART_POOL,
       enabled: true,
@@ -143,7 +144,7 @@ export function rollScrapBurst(rng: () => number = Math.random): number {
  * Burst tiers (scrap) are skipped — they're scattered during the dig, not granted on empty.
  *
  * `rng` defaults to `Math.random`; tests pass a seeded sequence for determinism. Returns the flat
- * find list (empty when nothing rolled — the common case at 25%).
+ * find list (empty when nothing rolled — at the 50% sub-part chance, about half the piles).
  */
 export function rollLoot(rng: () => number = Math.random): LootFind[] {
   const finds: LootFind[] = [];

@@ -35,12 +35,12 @@ describe('LOOT_TABLE shape', () => {
 
 describe('rollLoot', () => {
   it('yields nothing when the sub-part chance roll fails', () => {
-    // first rng ≥ 0.25 → the (only enabled) sub-part tier doesn't drop; stubs are skipped.
+    // first rng ≥ 0.5 → the (only enabled) sub-part tier doesn't drop; stubs are skipped.
     expect(rollLoot(seq([0.9]))).toEqual([]);
   });
 
   it('drops a deterministic count of sub-parts from the pool on success', () => {
-    // 0.1 < 0.25 → drops; 0.5 → count = 1 + floor(0.5*3) = 2; then two pool picks (first + last).
+    // 0.1 < 0.5 → drops; 0.5 → count = 1 + floor(0.5*3) = 2; then two pool picks (first + last).
     const lastIdx = SUB_PART_POOL.length - 1;
     const finds = rollLoot(seq([0.1, 0.5, 0, 0.999]));
     expect(finds).toHaveLength(2);

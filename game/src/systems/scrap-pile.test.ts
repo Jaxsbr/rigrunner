@@ -166,7 +166,7 @@ describe('scrapRummageSystem (hold-to-work)', () => {
   });
 
   it('always queues a LootDrop on empty: finds on a winning roll, scrap-only on a miss', () => {
-    // rng = 0 forces the 25% sub-part tier to drop → a LootDrop with finds AND scrap reported.
+    // rng = 0 forces the 50% sub-part tier to drop → a LootDrop with finds AND scrap reported.
     const win = workableWorld(2);
     scrapRummageSystem(win.world, win.r, true, 1.0, () => 0);
     const wd = win.world.query(LootDrop);
@@ -175,7 +175,7 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     expect(wdrop.finds.length).toBeGreaterThan(0);
     expect(wdrop.scrap).toBeGreaterThan(0);
 
-    // rng ≥ 0.25 → the sub-part roll fails → still a LootDrop, finds empty but scrap reported.
+    // rng ≥ 0.5 → the sub-part roll fails → still a LootDrop, finds empty but scrap reported.
     const miss = workableWorld(2);
     scrapRummageSystem(miss.world, miss.r, true, 1.0, () => 0.99);
     const md = miss.world.query(LootDrop);
