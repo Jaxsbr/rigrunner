@@ -174,6 +174,9 @@ function frame(now: number): void {
   view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
   view.syncWorkshopZones(world);
+  // proximity "Press E" / "Hold E" bubbles fade in/out with each interaction's lit disc; runs always
+  // (even paused) so the prompt stays put behind the overlay rather than popping on resume.
+  view.syncInteractionHints(world, dt);
   if (!paused) {
     view.animateWheels(world, dt);
     view.animateStorageFill(world, dt);

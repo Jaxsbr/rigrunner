@@ -44,8 +44,9 @@ import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from 
 
 /**
  * The workshop interface: a bottom-centre "🔧 Open Workshop" tab that appears while the rig is
- * parked in a workshop zone, and a full-screen overlay that opens when it's clicked. Opening the
- * overlay freezes the simulation; closing it resumes.
+ * parked in a workshop zone, and a full-screen overlay that opens when it's clicked — or by pressing
+ * E in the zone (the in-world "Press E" hint). Opening the overlay freezes the simulation; closing
+ * it (the close button or Escape) resumes.
  *
  * Layout (P7): a persistent INVENTORY rail (left) and INSPECT pane (right, a rotatable portrait +
  * stats of the selection), around a tabbed centre WORKSPACE:
@@ -156,7 +157,13 @@ export class WorkshopOverlay {
   private readonly onTabClick = (): void => this.openOverlay();
   private readonly onAssembleClick = (): void => this.assembleActive();
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (this.open && e.key === 'Escape') this.closeOverlay();
+    if (this.open) {
+      if (e.key === 'Escape') this.closeOverlay();
+      return;
+    }
+    // Press E while parked in a workshop zone to open the interface — the keyboard equivalent of
+    // clicking the tab, matching the in-world "Press E" hint. `!e.repeat` so a held key fires once.
+    if (this.zoneActive && !e.repeat && e.key.toLowerCase() === 'e') this.openOverlay();
   };
   private readonly onPointerMove = (e: PointerEvent): void => this.handlePointerMove(e);
   private readonly onPointerUp = (e: PointerEvent): void => this.handlePointerUp(e);

@@ -100,6 +100,21 @@ table / loot UI (PR5).
 
 ---
 
+## PR4.5 — Proximity "E" interaction hint · `done`
+
+**Standalone UX polish landed between PR4 and PR5.** When a gated interaction's proximity disc lights
+up, a small speech bubble fades in above the object telling the player which key acts — and fades out
+when they leave the circle:
+
+- **Workshop** → "Press E" (a tap opens the interface). E in the zone now opens the workshop, the
+  keyboard equivalent of clicking the tab, so the hint is truthful.
+- **Scrap pile** → "Hold E" (press-and-hold rummages, from PR4).
+
+The bubble is a camera-facing sprite in the render layer (`InteractionHints`) that READS the same
+`active` flag the disc does (sim-owned) and eases its own opacity — view polish, no new sim truth.
+
+---
+
 ## PR5 — Loot: table · UI · grant · the "cleared" seam · `pending`
 
 **Goal:** the hidden reward and the future-restoration hook.

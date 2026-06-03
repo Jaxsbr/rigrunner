@@ -9,6 +9,7 @@ import { Picker } from './picker';
 import { BuildAffordances } from './build-affordances';
 import type { CellPose } from '../core/geometry';
 import { ZoneOverlays } from './zone-overlays';
+import { InteractionHints } from './interaction-hints';
 import { animateWheels, animateStorageFill, animateReclaimer, animateScrapPile } from './animators';
 
 /**
@@ -25,6 +26,7 @@ export class RenderView {
   private readonly picker: Picker;
   private readonly affordances: BuildAffordances;
   private readonly zones: ZoneOverlays;
+  private readonly hints: InteractionHints;
 
   constructor(canvas: HTMLCanvasElement) {
     this.stage = new Stage(canvas);
@@ -33,6 +35,7 @@ export class RenderView {
     this.picker = new Picker(this.orbit.camera, canvas, this.views);
     this.affordances = new BuildAffordances(this.stage.scene);
     this.zones = new ZoneOverlays(this.stage.scene);
+    this.hints = new InteractionHints(this.stage.scene);
 
     window.addEventListener('resize', () => {
       this.stage.resize();
@@ -43,6 +46,7 @@ export class RenderView {
   // ── per-frame projection ────────────────────────────────────────────────────────────────────
   sync(world: World): void { this.views.sync(world); }
   syncWorkshopZones(world: World): void { this.zones.sync(world); }
+  syncInteractionHints(world: World, dt: number): void { this.hints.sync(world, dt); }
   follow(t: Transform, intent: CameraIntent, dt: number): void { this.orbit.follow(t, intent, dt); }
   animateWheels(world: World, dt: number): void { animateWheels(this.views, world, dt); }
   animateStorageFill(world: World, dt: number): void { animateStorageFill(this.views, world, dt); }
