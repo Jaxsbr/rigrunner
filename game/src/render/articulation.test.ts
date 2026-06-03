@@ -96,6 +96,35 @@ describe('ReclaimerRig', () => {
     }
   });
 
+  it('drive at deploy 0 matches the stowed idle pose', () => {
+    const arm = makeArm();
+    const rig = new ReclaimerRig(arm, makeBucket());
+    const boom = arm.getObjectByName('joint_boom')!;
+    const wrist = arm.getObjectByName('joint_wrist')!;
+    rig.drive(0, 0); // fully stowed
+    expect(boom.rotation.x).toBeCloseTo(1.0, 5);   // stow boom
+    expect(wrist.rotation.x).toBeCloseTo(-0.45, 5); // stow wrist
+  });
+
+  it('drive at deploy 1 matches the live dig cycle', () => {
+    const arm = makeArm();
+    const rig = new ReclaimerRig(arm, makeBucket());
+    const boom = arm.getObjectByName('joint_boom')!;
+    rig.drive(0, 1); // fully deployed, top of the cycle
+    expect(boom.rotation.x).toBeCloseTo(0.12, 5);   // rest boom
+    rig.drive(2.6 / 2, 1); // half a period → deepest scoop
+    expect(boom.rotation.x).toBeCloseTo(-0.62, 5);  // dig boom
+  });
+
+  it('drive mid-deploy sits between stow and the dig cycle', () => {
+    const arm = makeArm();
+    const rig = new ReclaimerRig(arm, makeBucket());
+    const boom = arm.getObjectByName('joint_boom')!;
+    rig.drive(0, 0.5); // halfway out of stow toward the rest pose
+    // boom blends stow(1.0) → rest(0.12) at t=0 → midpoint 0.56.
+    expect(boom.rotation.x).toBeCloseTo((1.0 + 0.12) / 2, 5);
+  });
+
   it('stow snaps to the static pose with no yaw offset', () => {
     const arm = makeArm();
     const rig = new ReclaimerRig(arm, makeBucket());

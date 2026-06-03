@@ -12,6 +12,7 @@
 export const MODEL_ASSETS: Record<string, string> = {
   'rig': '/assets/rig.glb',
   'scrap-pile': '/assets/scrap-pile.glb',
+  'loose-scrap': '/assets/loose-scrap.glb',
   'storage': '/assets/storage.glb',
   'engine-mk1': '/assets/engine-mk1.glb',
   'engine-mk2': '/assets/engine-mk2.glb',

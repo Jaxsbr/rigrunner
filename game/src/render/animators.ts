@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { World } from '../core/world';
 import { Velocity } from '../components/velocity';
 import { Storage } from '../components/storage';
+import { Digging } from '../components/digging';
+import { ScrapPile } from '../components/scrap-pile';
 import type { EntityViews } from './entity-views';
 import type { ReclaimerRig } from './articulation';
 
@@ -86,19 +88,57 @@ export function animateStorageFill(views: EntityViews, world: World, dt: number)
   }
 }
 
+/** How fast the arm deploys / retracts, in deploy-units per second (≈0.4 s for the full travel). */
+const DEPLOY_RATE = 2.5;
+
 /**
  * Drive each Reclaimer's articulated arm. Like the others this owns no game truth — it advances a
  * view-owned motion rig (built in EntityViews when the arm GLB loads, stored in userData) by the
- * frame's dt. In PR2 every Reclaimer simply idles: it holds the stowed pose with a slow yaw scan,
- * which is what proves the game DRIVES the joints each frame and not merely renders them. PR4 will
- * read a work-state component here to swap idle → dig while the player works a pile.
+ * frame's dt. It READS the sim's `Digging` marker (set on a Reclaimer by scrapRummageSystem while
+ * the player works a pile) and ramps a view-side `deploy` factor toward 1 while digging, 0 while
+ * idle — so the arm smoothly DEPLOYS out of its stowed scan to dig and RETRACTS back when work
+ * stops. The blend lives in ReclaimerRig.drive; the ramp is the only view state here.
  */
-export function animateReclaimer(views: EntityViews, _world: World, dt: number): void {
-  for (const [, obj] of views.objects) {
+export function animateReclaimer(views: EntityViews, world: World, dt: number): void {
+  for (const [id, obj] of views.objects) {
     const rig = obj.userData['reclaimer'] as ReclaimerRig | null | undefined;
     if (!rig) continue;
     const elapsed = ((obj.userData['reclaimerElapsed'] as number) ?? 0) + dt;
     obj.userData['reclaimerElapsed'] = elapsed;
-    rig.idle(elapsed);
+
+    const target = world.isAlive(id) && world.has(id, Digging) ? 1 : 0;
+    let deploy = (obj.userData['reclaimerDeploy'] as number) ?? 0;
+    const step = dt * DEPLOY_RATE;
+    deploy += Math.sign(target - deploy) * Math.min(step, Math.abs(target - deploy)); // linear ramp
+    obj.userData['reclaimerDeploy'] = deploy;
+
+    rig.drive(elapsed, deploy);
+  }
+}
+
+// A rummaged pile visibly shrinks as it empties. It never quite vanishes before the sim destroys it
+// on empty, so it bottoms out at a floor fraction rather than at zero.
+const PILE_SHRINK_FLOOR = 0.35;  // an emptying heap shrinks to this fraction of its full size
+const PILE_SHRINK_EASE = 5;      // how fast the shown size glides to the real fraction (per second)
+
+/**
+ * Shrink each scrap pile toward its `remaining / total` depth: as hold-to-work drains waves off the
+ * heap, it visibly slumps — the depletion is watched, not a counter (pillar 4). Like the storage
+ * fill this READS a sim component (ScrapPile) each frame and eases a view-owned scale, so a wave's
+ * whole-unit drop reads as a graceful settle. Uniform scale about the base-centre origin keeps the
+ * heap grounded as it shrinks.
+ */
+export function animateScrapPile(views: EntityViews, world: World, dt: number): void {
+  for (const [id, obj] of views.objects) {
+    const pile = world.isAlive(id) ? world.get(id, ScrapPile) : undefined;
+    if (!pile) continue;
+
+    const frac = pile.total > 0 ? Math.max(0, Math.min(1, pile.remaining / pile.total)) : 0;
+    const target = PILE_SHRINK_FLOOR + (1 - PILE_SHRINK_FLOOR) * frac;
+
+    let shown = (obj.userData['pileScale'] as number) ?? target; // start AT the current depth on spawn
+    shown += (target - shown) * Math.min(1, dt * PILE_SHRINK_EASE);
+    obj.userData['pileScale'] = shown;
+    obj.scale.setScalar(shown);
   }
 }

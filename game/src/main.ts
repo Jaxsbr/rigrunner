@@ -2,7 +2,7 @@ import { World } from './core/world';
 import { spawnRig } from './content/rig';
 import { engineParts } from './content/engines';
 import { spawnWorkshop } from './content/workshop';
-import { scatterScrap } from './content/scrap';
+import { scatterScrap, spawnScrapPile } from './content/scrap';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
@@ -16,6 +16,7 @@ import { movementSystem } from './systems/movement';
 import { mountingSystem } from './systems/mounting';
 import { collisionSystem } from './systems/collision';
 import { scrapCollectionSystem } from './systems/scrap-collection';
+import { scrapPileSystem, scrapRummageSystem } from './systems/scrap-pile';
 import { workshopZoneSystem } from './systems/workshop-zone';
 import { workshopDrainSystem } from './systems/workshop-drain';
 import { createDriveInput } from './input/drive-input';
@@ -54,6 +55,11 @@ scatterScrap(world, 64, 5, 34);
 // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
 // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
 spawnWorkshop(world, 0, 8);
+// A rummageable scrap pile (Option C / PR4), off to one side of the field. It only lights up once
+// the rig parks in reach with a MOUNTED RECLAIMER aimed at it (the capability + facing gate); then
+// hold E to dig — the arm deploys, the heap slumps in waves, and loose scrap bursts out around the
+// rig for the usual drive-over collection to sweep into storage.
+spawnScrapPile(world, -10, 2);
 // The Reclaimer is no longer a staged prop (Option C / PR3): it's now a real buildable, mountable,
 // purchasable part. Buy the Arm + Bucket in the Parts Shop, assemble them on the bench (the
 // Reclaimer recipe), stage the product on the workshop deck, then grab it off the deck and mount it
@@ -120,6 +126,7 @@ function frame(now: number): void {
   // the sim is frozen: drive input is ignored and the control is zeroed, so no held-then-released
   // key survives the pause to lurch the rig on resume.
   const ctl = world.get(player, DriveControl)!;
+  let work = false; // E held this frame (only while the sim runs) — the hold-to-work rummage intent
   if (paused) {
     ctl.throttle = 0;
     ctl.steer = 0;
@@ -127,6 +134,7 @@ function frame(now: number): void {
     const intent = input.poll();
     ctl.throttle = intent.throttle;
     ctl.steer = intent.steer;
+    work = intent.work;
   }
 
   // simulation (the source of truth): drive the rigs, then ride mounted parts to their cells,
@@ -140,6 +148,12 @@ function frame(now: number): void {
     // it, so a part dropped this frame snaps onto the workshop only when it's lit.
     workshopZoneSystem(world, player);
     build.update(dt);
+
+    // scrap piles: recompute each pile's capability+facing gate (after mounting has ridden the
+    // Reclaimer to its cell, so its aim is current), then turn a held work key over an active pile
+    // into the rummage — the arm digs and the heap bursts loose scrap around the rig.
+    scrapPileSystem(world, player);
+    scrapRummageSystem(world, player, work, dt);
 
     // collision → collection: with parts now placed at their cells, find overlaps and let any
     // scrap the rig (or a part on it) touched be swept into storage. Pure pair list in, mutations
@@ -164,6 +178,7 @@ function frame(now: number): void {
     view.animateWheels(world, dt);
     view.animateStorageFill(world, dt);
     view.animateReclaimer(world, dt);
+    view.animateScrapPile(world, dt);
   }
   view.render();
 
