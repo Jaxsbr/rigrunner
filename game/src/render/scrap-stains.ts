@@ -46,10 +46,10 @@ const STAIN_MAX_OPACITY = 0.85;
 const TEXTURE_VARIANTS = 6;
 
 // Eased fades (exp-lerp per second, the same easing animateStorageFill / animateScrapPile use), kept
-// slow on purpose: the pollution takes its time seeping IN (~4 s), and the land takes even longer to
-// clean OUT (~7 s) — an unhurried heal you notice happening, not a quick pop.
-const FADE_IN_EASE = 0.7;
-const FADE_OUT_EASE = 0.4;
+// very slow on purpose: the pollution takes its time seeping IN (~8 s), and the land takes even
+// longer to clean OUT (~14 s) — a gradual creep you barely catch happening, never a pop.
+const FADE_IN_EASE = 0.35;
+const FADE_OUT_EASE = 0.2;
 
 interface Stain {
   mesh: THREE.Mesh;

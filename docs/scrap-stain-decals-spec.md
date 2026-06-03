@@ -129,8 +129,8 @@ logic untouched):
 
 | Transition | Feel | Shipped rate (`*_EASE` /s) |
 |---|---|---|
-| Fade-**in** (pollution) | gradual seep, not a pop — "spreading" | slow, `FADE_IN_EASE = 0.7` ⇒ ~**4 s** to full (well below the UI `FADE_RATE` of 6/s) |
-| Fade-**out** (cleaning) | unhurried healing of the land | slower still, `FADE_OUT_EASE = 0.4` ⇒ ~**7 s** to clear |
+| Fade-**in** (pollution) | gradual seep, not a pop — "spreading" | very slow, `FADE_IN_EASE = 0.35` ⇒ ~**8 s** to full (well below the UI `FADE_RATE` of 6/s) |
+| Fade-**out** (cleaning) | unhurried healing of the land | slower still, `FADE_OUT_EASE = 0.2` ⇒ ~**14 s** to clear |
 
 Reuse the **exp-lerp** easing from `animators.ts` (`shown += (target - shown) * min(1, dt * EASE)`,
 snap within ~0.001) with small `EASE` constants, or the linear sign/min from `interaction-hints.ts`.
