@@ -75,9 +75,12 @@ Keep it dead simple first; only reach for a shader if flat decals look wrong.
   is overkill for a flat smudge.
 - **Material:** transparent, `depthWrite: false`, slight `polygonOffset` or the small `y` lift so it
   composites cleanly over the ground without fighting the grid helper.
-- **Size:** a touch larger than the scrap's `SCRAP_RADIUS` (0.4) footprint — strawman **radius ≈
-  0.6–0.9 m** — so the stain haloes out *past* the junk. Randomise size/rotation per piece (like the
-  random yaw scatter already does) so the field doesn't read as stamped copies.
+- **Per-piece variety (shipped):** the field must NOT read as stamped copies, so every stain randomises
+  independently — **size** (half-extent **0.45–1.3 m**, from a faint mark to a big puddle past the
+  scrap's 0.4 m footprint), **ovalness** (minor axis 0.55–1.0 of the major) at a **random ground-plane
+  orientation**, **darkness** (per-stain max opacity 0.28–0.6 — some deep oily pools, some light
+  seepage), and **pattern** (each picks one of a small pool of distinct blotch textures, whose core
+  darkness, falloff, and scatter of darker pools all differ).
 - **One decal per loose-scrap entity**, owned by a small render-side registry keyed by `EntityId`
   (mirrors `EntityViews.objects`), NOT a component on the entity — gameplay never needs to know.
 
@@ -119,10 +122,10 @@ logic untouched):
 
 **Timescales (strawmen, tune to feel):**
 
-| Transition | Feel | Starting rate |
+| Transition | Feel | Shipped rate (`*_EASE` /s) |
 |---|---|---|
-| Fade-**in** (pollution) | gradual seep, not a pop — "spreading" | slow-ish, ~**1.5–2.5 s** to full (slower than the UI `FADE_RATE` of 6/s) |
-| Fade-**out** (cleaning) | unhurried healing of the land | slow, ~**2–4 s** to clear |
+| Fade-**in** (pollution) | gradual seep, not a pop — "spreading" | slow, `FADE_IN_EASE = 0.7` ⇒ ~**4 s** to full (well below the UI `FADE_RATE` of 6/s) |
+| Fade-**out** (cleaning) | unhurried healing of the land | slower still, `FADE_OUT_EASE = 0.4` ⇒ ~**7 s** to clear |
 
 Reuse the **exp-lerp** easing from `animators.ts` (`shown += (target - shown) * min(1, dt * EASE)`,
 snap within ~0.001) with small `EASE` constants, or the linear sign/min from `interaction-hints.ts`.
