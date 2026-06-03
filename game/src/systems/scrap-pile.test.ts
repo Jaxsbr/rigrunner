@@ -36,7 +36,7 @@ function reclaimer(world: World, rigId: EntityId, x: number, z: number, rotation
 function pile(world: World, x: number, z: number, waves = 8): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY: 0 });
-  world.add(e, ScrapPile, { radius: 4, fov: FOV, total: waves, remaining: waves, worked: 0, active: false });
+  world.add(e, ScrapPile, { radius: 4, fov: FOV, total: waves, remaining: waves, worked: 0, scrapScattered: 0, active: false });
   return e;
 }
 
@@ -129,10 +129,12 @@ describe('scrapRummageSystem (hold-to-work)', () => {
 
   it('drains one wave per interval and bursts scrap around the rig', () => {
     const { world, r, p } = workableWorld();
-    // 0.45 s = one WAVE_INTERVAL → exactly one wave drained.
-    const spawned = scrapRummageSystem(world, r, true, 0.45);
+    // 0.45 s = one WAVE_INTERVAL → exactly one wave drained. rng 0.5 → a deterministic 2-piece burst
+    // (scrap tier range 1–3) and the pile tracks what it scattered.
+    const spawned = scrapRummageSystem(world, r, true, 0.45, () => 0.5);
     expect(world.get(p, ScrapPile)!.remaining).toBe(7);
-    expect(spawned.length).toBe(2); // SCRAP_PER_WAVE
+    expect(spawned.length).toBe(2);
+    expect(world.get(p, ScrapPile)!.scrapScattered).toBe(2);
     for (const s of spawned) expect(world.has(s, Collectible)).toBe(true);
   });
 
@@ -163,17 +165,23 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     expect(m.z).toBe(pt.z);
   });
 
-  it('queues a LootDrop when the empty-roll yields finds, none when it does not', () => {
-    // rng = 0 forces the 25% sub-part tier to drop → a LootDrop with at least one find.
+  it('always queues a LootDrop on empty: finds on a winning roll, scrap-only on a miss', () => {
+    // rng = 0 forces the 25% sub-part tier to drop → a LootDrop with finds AND scrap reported.
     const win = workableWorld(2);
     scrapRummageSystem(win.world, win.r, true, 1.0, () => 0);
-    const drops = win.world.query(LootDrop);
-    expect(drops).toHaveLength(1);
-    expect(win.world.get(drops[0]!, LootDrop)!.finds.length).toBeGreaterThan(0);
+    const wd = win.world.query(LootDrop);
+    expect(wd).toHaveLength(1);
+    const wdrop = win.world.get(wd[0]!, LootDrop)!;
+    expect(wdrop.finds.length).toBeGreaterThan(0);
+    expect(wdrop.scrap).toBeGreaterThan(0);
 
-    // rng ≥ 0.25 → the roll fails → no LootDrop (the burst was the only yield).
+    // rng ≥ 0.25 → the sub-part roll fails → still a LootDrop, finds empty but scrap reported.
     const miss = workableWorld(2);
     scrapRummageSystem(miss.world, miss.r, true, 1.0, () => 0.99);
-    expect(miss.world.query(LootDrop)).toHaveLength(0);
+    const md = miss.world.query(LootDrop);
+    expect(md).toHaveLength(1);
+    const mdrop = miss.world.get(md[0]!, LootDrop)!;
+    expect(mdrop.finds).toHaveLength(0);
+    expect(mdrop.scrap).toBeGreaterThan(0);
   });
 });

@@ -60,12 +60,14 @@ export const LOOT_TABLE: { readonly tiers: readonly LootTier[] } = {
   tiers: [
     {
       // The heap itself — 100% scrap, realised as the rummage burst (see scrap.ts), not rolled here.
+      // `count` is the per-wave scatter range: each dig wave flings a random 1–3 loose-scrap pieces,
+      // so a pile's total scrap is random (≈ waves × 1–3). Tune the scrap a pile gives here.
       id: 'scrap',
       label: 'Scrap',
       rarity: 'guaranteed',
       source: 'burst',
       chance: 1,
-      count: { min: 1, max: 1 },
+      count: { min: 1, max: 3 },
       pool: ['loose-scrap'],
       enabled: true,
     },
@@ -117,6 +119,23 @@ export interface LootFind {
   itemId: string;
 }
 
+/** A uniform integer in `[range.min, range.max]` inclusive — the shared count roller for all tiers. */
+function rollCount(range: { min: number; max: number }, rng: () => number): number {
+  return range.min + Math.floor(rng() * (range.max - range.min + 1));
+}
+
+/** The scrap (burst) tier — the per-wave scatter config, looked up once. */
+const SCRAP_TIER = LOOT_TABLE.tiers.find((t) => t.id === 'scrap')!;
+
+/**
+ * Roll how many loose-scrap pieces ONE rummage wave scatters — a random count in the scrap tier's
+ * range (config above). Summed across a pile's waves, this is the pile's (random) total scrap.
+ * `rng` defaults to `Math.random`; tests inject a sequence for determinism.
+ */
+export function rollScrapBurst(rng: () => number = Math.random): number {
+  return rollCount(SCRAP_TIER.count, rng);
+}
+
 /**
  * Roll the empty-roll loot for one cleared pile. PURE given its rng: for every enabled `empty-roll`
  * tier with a non-empty pool, roll its `chance`; on success draw a random count in the tier's range,
@@ -131,8 +150,7 @@ export function rollLoot(rng: () => number = Math.random): LootFind[] {
   for (const tier of LOOT_TABLE.tiers) {
     if (tier.source !== 'empty-roll' || !tier.enabled || tier.pool.length === 0) continue;
     if (rng() >= tier.chance) continue; // tier didn't drop this roll
-    const span = tier.count.max - tier.count.min;
-    const n = tier.count.min + Math.floor(rng() * (span + 1));
+    const n = rollCount(tier.count, rng);
     for (let i = 0; i < n; i++) {
       const itemId = tier.pool[Math.floor(rng() * tier.pool.length)]!;
       finds.push({ tierId: tier.id, rarity: tier.rarity, itemId });

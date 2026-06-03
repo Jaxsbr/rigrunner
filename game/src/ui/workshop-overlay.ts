@@ -151,6 +151,7 @@ export class WorkshopOverlay {
   private readonly deck: DeckView;
   private readonly slotEls = new Map<string, HTMLElement>();
   private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
+  private decorateHead = false; // gate: attach the bucket head only for the assembled Reclaimer product
   private readonly headLoader = new ModelLoader(); // loads the Reclaimer bucket for the inspect portrait
 
   private readonly onCloseClick = (): void => this.closeOverlay();
@@ -196,9 +197,12 @@ export class WorkshopOverlay {
     this.assembleBtn = panel.querySelector<HTMLButtonElement>('#wk-assemble')!;
     this.detailEl = panel.querySelector<HTMLElement>('#wk-detail')!;
     this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!, {
-      // Compose the Reclaimer's bucket head onto the arm in the inspect portrait (a no-op for any
-      // other part), so a selected Reclaimer reads as the whole tool — matching the live world.
-      decorate: (assetId, model) => attachStaticHead(assetId, model, this.headLoader),
+      // Compose the Reclaimer's bucket head onto the arm ONLY when previewing the assembled Reclaimer
+      // PRODUCT (arm + bucket as one tool), matching the live world. The loose `reclaimer-arm`
+      // sub-part shares the same arm GLB but must show bare — `decorateHead` (set per selection in
+      // renderDetail) distinguishes the two, since the decorate hook only sees the asset id.
+      decorate: (assetId, model) =>
+        this.decorateHead ? attachStaticHead(assetId, model, this.headLoader) : undefined,
     });
     this.deck = createDeckView(this.deckHost, { onSelect: (e) => this.onDeckSelect(e) });
 
@@ -642,12 +646,16 @@ export class WorkshopOverlay {
   private renderDetail(): void {
     const view = this.selected !== null ? this.viewOf(this.selected) : null;
     if (!view) {
+      this.decorateHead = false;
       this.detailEl.innerHTML =
         `<div class="wk-detail-empty">Select a part or product to inspect it. Build on the ` +
         `Bench; drag finished products onto the Workshop Deck to stage them.</div>`;
       this.portrait.show(null);
       return;
     }
+    // Only the assembled Reclaimer PRODUCT gets the bucket composed onto its arm in the portrait; the
+    // loose arm sub-part shares the GLB but shows bare. Set before show() — the decorate hook reads it.
+    this.decorateHead = view.isProduct && this.world.get(view.entity, Part)?.kind === 'reclaimer';
     const a = view.attrs;
     const staged = view.isProduct && this.isStaged(view.entity);
     this.detailEl.innerHTML =

@@ -93,16 +93,43 @@ export class LootOverlay {
     this.syncPanel();
   }
 
-  /** Build the find list from every pending LootDrop, collapsing duplicates into ×N rows. */
+  /**
+   * Build the popup body from every pending LootDrop: a scrap line (always — the guaranteed haul,
+   * already scattered for drive-over collection, shown for information) followed by the non-scrap
+   * finds, collapsing duplicate finds into ×N rows. When nothing but scrap dropped, the scrap line
+   * is the whole popup — so the UI always shows what the pile gave.
+   */
   private render(): void {
+    let scrap = 0;
     const rows = new Map<string, FindRow>();
     for (const d of this.world.query(LootDrop)) {
-      for (const find of this.world.get(d, LootDrop)!.finds) {
-        this.tally(rows, find);
-      }
+      const drop = this.world.get(d, LootDrop)!;
+      scrap += drop.scrap;
+      for (const find of drop.finds) this.tally(rows, find);
     }
 
     this.listEl.innerHTML = '';
+
+    // The guaranteed scrap haul — always shown. Scrap is collected by driving over the burst, so
+    // this reports the amount unearthed, it is not granted again here.
+    const scrapColor = RARITY_COLOR.guaranteed;
+    const scrapCard = document.createElement('div');
+    scrapCard.className = 'loot-card';
+    scrapCard.style.borderLeftColor = scrapColor;
+    scrapCard.innerHTML =
+      `<span class="loot-dot" style="background:${scrapColor}"></span>` +
+      `<span class="loot-name">Scrap unearthed</span>` +
+      `<span class="loot-count">×${scrap}</span>` +
+      `<span class="loot-tier" style="color:${scrapColor}">scattered</span>`;
+    this.listEl.appendChild(scrapCard);
+
+    if (rows.size === 0) {
+      const none = document.createElement('div');
+      none.className = 'loot-none';
+      none.textContent = 'No parts in this one — just scrap.';
+      this.listEl.appendChild(none);
+    }
+
     for (const row of rows.values()) {
       const def = partDef(row.itemId);
       const name = def?.displayName ?? row.itemId;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rollLoot, LOOT_TABLE, SUB_PART_POOL } from './loot-table';
+import { rollLoot, rollScrapBurst, LOOT_TABLE, SUB_PART_POOL } from './loot-table';
 import { partDef } from './parts-catalog';
 
 /** A deterministic rng that yields the given values in order (then repeats the last). */
@@ -60,5 +60,14 @@ describe('rollLoot', () => {
     // even with an all-success rng, only the sub-part tier can drop.
     const finds = rollLoot(() => 0);
     expect(finds.every((f) => f.tierId === 'sub-part')).toBe(true);
+  });
+});
+
+describe('rollScrapBurst', () => {
+  const scrap = LOOT_TABLE.tiers.find((t) => t.id === 'scrap')!;
+
+  it('returns a per-wave count inside the scrap tier range', () => {
+    expect(rollScrapBurst(() => 0)).toBe(scrap.count.min); // rng 0 → min
+    expect(rollScrapBurst(() => 0.999)).toBe(scrap.count.max); // rng → max
   });
 });
