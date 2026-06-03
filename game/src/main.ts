@@ -63,7 +63,10 @@ spawnWorkshop(world, 0, 8);
 // so both survive rig rebuilds and chassis swaps. The workshop drain feeds the wallet; the HUD
 // reads it; the workshop interface (P3+) browses the inventory.
 const playerStore = world.createEntity();
-world.add(playerStore, Wallet, { scrap: 5 });
+// DEV/TEST SEED: temporarily inflated so the Reclaimer (arm 24 + bucket 12 = 36) can be bought and
+// tested without grinding the loose-scrap field first. Revert to 5 before merge — the intended cold
+// start is exactly enough for the first storage-container shell + rim.
+world.add(playerStore, Wallet, { scrap: 60 });
 world.add(playerStore, Inventory, { items: [] });
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
@@ -77,9 +80,8 @@ world.add(bench, Bench, {
 });
 
 // No loose-part dev grant: every build sub-part now comes from the Parts Shop. The rig still starts
-// with a complete mounted electric engine so the player can drive immediately, and the wallet starts
-// with exactly enough scrap to buy the first storage-container shell + rim.
-console.info('[starter] wallet seeded with 5 scrap; all loose build parts are bought from the Parts Shop.');
+// with a complete mounted electric engine so the player can drive immediately.
+console.info('[starter] DEV SEED: wallet seeded with 60 scrap so the Reclaimer can be bought to test (revert to 5 before merge).');
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
