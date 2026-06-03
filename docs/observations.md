@@ -220,3 +220,39 @@ growth. Naming the limit now means we replace it deliberately rather than discov
 
 **Status:** ACCEPTED FOR NOW — ships as a tab strip. Flagged to replace with a scalable recipe
 selector once recipe count grows past a handful. Not built yet.
+
+---
+
+## 10. The workshop interface is dense and clunky — usable, but text-heavy and confusing in places
+
+**Context:** The workshop overlay after Option C shipped (inventory rail + Bench / Workshop Deck /
+Parts Shop tabs + inspect pane). Reflecting on actually *using* it across a few build/buy/assemble
+sessions.
+
+**Observation:** It works, and once you've learned it it's fine — but the learning curve is steeper
+than it should be, and several things grate:
+
+- **Too much to read to know what you're looking at.** There's a lot of text and not enough visual
+  signal for *what is a part vs a recipe vs the current selection*, and *where* each thing lives. You
+  parse labels instead of recognising shapes.
+- **The Bench is the weakest spot.** Specifically **recipe selection** and the fact that the bench
+  **shares its preview with the selected inventory item** — selecting an inventory part vs. picking a
+  recipe to build both drive the same area, and it's confusing which mode you're in.
+- **Sub-parts have no assets**, so their chip/portrait is a tinted placeholder and **text is the only
+  way to tell them apart** — which compounds the density. Real (even grey-box) sub-part GLBs would do
+  a lot of the disambiguating work the text is currently forced to do.
+- **The UI truncates names to fit**, so the one channel we *do* lean on (text) is itself clipped —
+  e.g. "Unearthing …" — making it even harder to read at a glance.
+- The **Parts Shop** needs a little work; the **Workshop Deck** is fine; the **inspect pane** is okay.
+
+**Why it matters:** the workshop is half the game (the "build" of build→run) and a load-bearing
+**physical composition** surface. If reading it is work, the tight cause-and-effect beat the whole
+game runs on gets muddied at the exact moment the player is forming their "I know what to change"
+thought. This is the kind of clunk that (per observation #5) is often a *leak* of an internal model
+issue, not just surface polish — worth a deliberate pass, not a quick re-skin.
+
+**Status:** NOTED — not yet a committed work item. Threads to pull when we do a workshop-UX pass:
+clearer part/recipe/selection affordances, separating "pick a recipe to build" from "inspect a
+selected part", a no-truncation layout, and **real sub-part assets** so shape (not text) carries
+identity. The recipe-selector limit in #9 is part of the same pass. Pairs with the part-naming /
+rarity-visual-cues rebrand idea (see `ideas.md` 2026-06-03).

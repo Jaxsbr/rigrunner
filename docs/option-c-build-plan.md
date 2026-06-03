@@ -3,6 +3,9 @@
 The PR-by-PR path to deliver **Option C** (`milestones.md` → "Scrap Piles: the Reclaimer rummage").
 Each PR is sized to **stand on its own** and land independently; together they complete the option.
 
+> ✅ **COMPLETE (2026-06-03).** All of PR1–PR5 are merged — Option C is delivered. This plan is now a
+> historical record of the staircase; the option's summary lives in `milestones.md`.
+
 > ⚠️ Same status as `milestones.md` — **candidate & movable**. Scope/order can shift as we build by
 > discovery. This plan exists so we can see the whole staircase while shipping one step at a time.
 
@@ -115,18 +118,35 @@ The bubble is a camera-facing sprite in the render layer (`InteractionHints`) th
 
 ---
 
-## PR5 — Loot: table · UI · grant · the "cleared" seam · `pending`
+## PR5 — Loot: table · UI · grant · the "cleared" seam · `done`
 
 **Goal:** the hidden reward and the future-restoration hook.
 
-- A **data-driven loot table** rolled when a pile is **emptied**: scrap (100%, the burst) +
-  sub-parts (common) + full parts (rare) + unique recipes (epic — *future* slot, recipe system not built).
-- A **loot UI** shows the non-scrap finds; on close they're **granted to `Inventory`**.
-- The pile emits a **"ground-cleared" signal** on empty — the seam **restoration**
-  (camp-to-restored-ground) subscribes to later; **nothing restoration-aware is built here.**
+**Delivered (this PR, #21).**
 
-**Resolves:** **loot-roll shape** (per-tier vs weighted) and **inventory-full handling** open
-sub-questions. **Reuses:** the loot-table seam Option D + rare-recipe scavenging later share.
+- A **data-driven loot table** (`content/loot-table.ts`) — the single tuning home for what a pile
+  gives. Tiers carry `rarity` / drop-`chance` / `count`-range / `pool` and name **both** yield
+  moments: `scrap` (`source: 'burst'`, scattered wave-by-wave during the dig — *not* re-rolled on
+  empty) and the `empty-roll` tiers. A pure `rollLoot(rng)` processes the empty-roll tiers (rng
+  injected so it's testable). Live tier: **sub-parts** (`common`, drawn from the engine/storage
+  building blocks). **Full parts** (`rare`) and **unique recipes** (`epic`) ship as committed-but-
+  dormant **stubs** (`enabled: false`, empty pool) awaiting their systems.
+- **Random scrap.** The burst count per wave rolls from the scrap tier's range (1–3), so a pile's
+  total scrap is random (≈ waves × 1–3); the pile tracks what it scattered and reports it.
+- A **loot UI** (`ui/loot-overlay.ts`) that **always shows on empty** — it reports the scrap haul
+  ("Scrap unearthed ×N", informational; the scrap was already scattered for drive-over collection)
+  plus any non-scrap finds, and on **Collect** grants the finds to `Inventory` (freezes the sim while
+  open, like the workshop). Today every find is a sub-part ⇒ grant is `spawnEnginePart` +
+  `addToInventory`; the future tiers grant differently (the seam to extend is in the overlay).
+- The pile emits a **"ground-cleared" signal** on empty — a `ClearedGround { x, z }` marker entity
+  left where it stood. **Restoration** subscribes to it later; **nothing restoration-aware is built
+  here** (the markers just accumulate as honest record).
+
+**Resolved sub-questions:** **loot-roll shape** → **independent per-tier rolls** (a pile can yield
+from several tiers, or none). **Inventory-full handling** → **n/a for now** — `Inventory` is an
+uncapped list today, so the grant is unconditional; revisit when inventory gains a capacity. The
+sub-part drop chance is held at **50%** while we test the loot loop (was 25% at first ship), tunable
+in one value. **Reuses:** the loot-table seam Option D + rare-recipe scavenging later share.
 
 **Depends on:** PR4 (a pile to empty), the parts/inventory system (shipped).
 

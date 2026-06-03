@@ -11,6 +11,39 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-03 — Part naming & lore: rarity-as-material tiers (rebrand the sub-parts)
+
+**Mode:** raw idea, sparked by the workshop-UI density observation (`observations.md` #10) — the
+sub-part names are confusing and text is doing all the work. **Not committed — needs a proper
+brainstorm.**
+
+**The itch:** the current sub-part names (Coilframe Casing, Motor Coil, Power Terminal, Discharge
+Regulator, Drumframe Casing, Drive Block, Fuel Feed, Governor, Container Shell/Rim…) are a mouthful
+and hard to parse at a glance. They describe *function* in flavour-text terms, but they don't tell
+you **what tier / how good** a part is, and there's no visual hook to lean on.
+
+**The idea:** do some **lore work and rebrand the parts around material tiers**, so a part's **name is
+simple** and its **rarity is legible from the material** — and crucially that material maps to a
+**visual cue** (colour / finish / sheen) so you read quality by *looking*, not reading.
+
+- **Rough tier ladder (placeholder names):** **scrap parts → pure metal parts → alloy parts → infused
+  metal parts.** Ascending rarity/quality. (Exact names/count TBD — this is the riff, not the spec.)
+- **Why it helps:** ties directly into the loot table (Option C) and the future recipe-rarity work —
+  a "scrap-tier core" vs an "alloy-tier core" reads instantly, and the loot UI / shop / bench all get
+  a shared rarity language. It also gives the **asset pipeline a reason and a palette**: each tier is
+  a finish, so even grey-box GLBs can carry tier by colour, which is exactly the disambiguation
+  observation #10 says the text is currently forced to do alone.
+- **Open threads for the brainstorm:** does the tier attach to the **material** (a casing comes in
+  scrap/alloy/infused) or to **distinct part names per tier**? How many tiers? How does it interact
+  with the **electric vs mechanical** type axis (orthogonal? or do tiers read differently per type?)?
+  How does tier map to **stats** (flat better, or trade-offs)? And the **visual-cue system** — one
+  palette of tier finishes shared across every part, defined once (like `rr_style`).
+
+**Status:** RAW. A naming/lore + visual-rarity brainstorm to run on its own; pairs with the
+workshop-UX pass in `observations.md` #10. Nothing here is decided.
+
+---
+
 ## 2026-06-02 — World/progression/restoration/tech: how it all fits (+ greenery, carry-over, fuel-as-signal)
 
 **Mode:** brainstorm + synthesis, sparked by researching *Machine Mind* (Targem Games) and its
