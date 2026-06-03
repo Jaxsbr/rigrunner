@@ -5,9 +5,6 @@
   "type": "module",
   "description": "A vehicle-building scavenger game. Build a modular rig, run it across a hostile landscape, re-fit, repeat.",
   "scripts": {
-    "dev:prototype": "vite prototype",
-    "build:prototype": "vite build prototype",
-    "preview:prototype": "vite preview prototype",
     "dev:game": "vite game",
     "build:game": "vite build game",
     "typecheck:game": "tsc --noEmit -p game/tsconfig.json",

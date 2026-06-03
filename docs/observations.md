@@ -1,8 +1,8 @@
 # RIGRUNNER — Observations
 
-A running log of things we *notice* while building the prototype — what makes the
+A running log of things we *notice* while building the game — what makes the
 loop feel good, what feels wrong, and the small details that turned out to matter
-more than expected. The prototype exists to answer "is the loop fun?"; this file is
+more than expected. The whole project asks "is the loop fun?"; this file is
 where the answers accumulate.
 
 Each entry: what we observed, why it matters, and (if acted on) what we did.
@@ -74,7 +74,7 @@ cabling, or circuitry that bridges the gap; greebles that span the seam.
 **Why it matters:** Directly serves the "physical composition" pillar — the rig should
 feel like a coherent body you're assembling, not a tray of loose objects.
 
-**Status:** FUTURE — real art/styling, out of prototype scope. Logged now so we design
+**Status:** FUTURE — real art/styling, not near-term scope. Logged now so we design
 toward it (slot adjacency data, seam-bridging hooks) rather than against it.
 
 ---
@@ -121,7 +121,7 @@ in range. Release stops it. The harvest beam only shows while actually engaged.
 
 ---
 
-## 6. "Any number of containers" is a real subsystem — so the prototype fakes it with one number
+## 6. "Any number of containers" is a real subsystem — so we first faked it with one number
 
 **Context:** Harvesting with a variable number of containers. Symptom: "harvesting
 doesn't work with one container." Root cause was NOT container-count logic (that was
@@ -132,12 +132,12 @@ re-slotted container could be silently full next to already-drained nodes.
 **Observation (the meta-point):** Supporting "any number of containers, connected,
 filling correctly" *properly* is genuine systems work — an inventory/capacity
 subsystem with its own state, persistence, and lifecycle. Trying to grow that
-incrementally inside throwaway prototype code is painful and bug-prone, and the pain
-is a signal: the prototype is being asked to carry weight it isn't architected for.
+incrementally inside a throwaway early sketch is painful and bug-prone, and the pain
+is a signal: that sketch is being asked to carry weight it isn't architected for.
 
-**Why it matters:** This is the central tension of prototyping. The fix is almost never
+**Why it matters:** This is the central tension of early exploration. The fix is almost never
 "add the missing architecture" — it's to find the *dumbest model that still proves the
-loop* and use that, explicitly deferring the real subsystem to Phase 2.
+loop* and use that, explicitly deferring the real subsystem until it earns its place.
 
 **Action taken — simplify, don't architect:**
 - **Cargo is a single shared scalar pool** (`scrapHeld`) vs a capacity that's just
@@ -148,9 +148,9 @@ loop* and use that, explicitly deferring the real subsystem to Phase 2.
   (the missing "run lifecycle", faked).
 - **A cargo readout in the HUD**, so world state is never an invisible mystery again.
 
-**Takeaway for Phase 2:** the real game DOES need a cargo/inventory subsystem and an
-explicit run lifecycle (start / spend / return / reset). The prototype proves we want
-them; it does not pretend to be them.
+**Takeaway:** the game DOES need a cargo/inventory subsystem and an
+explicit run lifecycle (start / spend / return / reset). The early sketch proved we want
+them; it did not pretend to be them. (Per-vessel storage is now implemented — see #7.)
 
 ---
 
@@ -166,15 +166,15 @@ appears to "absorb" the scrap (the pool just re-renders across fewer containers)
 a container off the rig entirely and it reads as empty (its share returns to the pool /
 is dropped when capacity shrinks). Nothing is *preserved per container*.
 
-**Why it matters:** This is the precise cost of the prototype shortcut. The *real* game
+**Why it matters:** This is the precise cost of that early shortcut. The *real* game
 clearly wants each container to be a vessel that holds and preserves its own scrap
 whether it's on the rig, on the floor, or being carried — which means per-container
 state, transfer rules, and capacity bookkeeping that survive slot/unslot. That is
 exactly the inventory subsystem #6 deferred.
 
-**Decision:** Not worth fixing in the prototype — it doesn't change whether the *loop*
-is fun, which is all Phase 1 is testing. Banked as a Phase-2 requirement: **containers
-are stateful vessels that preserve contents on and off the machine.**
+**Decision:** Not worth fixing in the early sketch — it didn't change whether the *loop*
+is fun, which was all that mattered to prove first. Banked as a requirement (now
+implemented): **containers are stateful vessels that preserve contents on and off the machine.**
 
 ---
 

@@ -39,28 +39,18 @@ These are the load-bearing mechanics. Everything else is decoration on top of th
 
 ## Complexity earns its place
 
-The prototype proved the loop on **a single tradeoff axis: weight.** Richer axes (power draw, heat,
+We've proven the loop on **a single tradeoff axis: weight.** Richer axes (power draw, heat,
 center-of-mass/balance, part tiers/levels) remain **captured ideas, not committed mechanics**. As we
 build by discovery, an extra axis or system goes in only when play tells us it earns its complexity —
 we add mechanics because they make the game better, not because they were once listed.
 
 ---
 
-## Project phases
+## The build
 
-### Phase 1 — Prototype (proof of concept) — ✅ COMPLETE
-
-The prototype proved the core loop is fun using primitive shapes and placeholder assets. It lived in
-`prototype/` (throwaway-acceptable, no architectural standards) and is now **done** — see
-[`docs/prototype-spec.md`](docs/prototype-spec.md) for what it validated and
-[`docs/observations.md`](docs/observations.md) for what we learned. It remains a **design reference
-only**, not a foundation to build on.
-
-### Phase 2 — The official game — **CURRENT**
-
-We are now building the real game in `game/`, to a high standard: testable, maintainable, upgradeable.
-The prototype is the reference and starting point; production code is written fresh. Reusable pieces
-are promoted into `shared/` explicitly.
+We build the game in `game/`, to a high standard: testable, maintainable, upgradeable. Reusable
+pieces are promoted into `shared/` explicitly. The hard-won findings we accumulate as we build live
+in [`docs/observations.md`](docs/observations.md).
 
 **We build by discovery.** There is no fixed design document or committed roadmap yet — we don't have
 one concrete goal, and that's deliberate. We find the game by exploring: capturing ideas
@@ -73,8 +63,8 @@ none is committed until it has earned a place here or on the milestone list.
 
 ## Technology
 
-- **Three.js** — rendering (the game is 3D; primitive geometry was fine for the prototype, the game
-  grows real assets over time).
+- **Three.js** — rendering (the game is 3D; it began on primitive geometry and grows real assets
+  over time).
 - **Blender MCP** — agent-driven 3D asset generation. Grey-box / "rough but not garbage" quality is
   the explicit early target; the goal is to validate an agent-driven asset pipeline, not polished art
   up front. Setup: [`docs/blender-mcp-setup.md`](docs/blender-mcp-setup.md). Style consistency comes
@@ -90,8 +80,7 @@ rigrunner/
   CLAUDE.md            # this file — source of truth
   AGENTS.md            # pointer to this file
   docs/
-    prototype-spec.md     # the 28-check acceptance criteria (prototype, complete)
-    observations.md       # concrete findings from building the prototype (what's fun / wrong)
+    observations.md       # concrete findings accumulated while building (what's fun / wrong)
     ideas.md              # raw brainstorm sessions — forward-looking, NOT committed direction
     milestones.md         # candidate "pending" milestones discovered while building by exploration
     asset-style.md        # the 3D asset visual + technical contract (palette/scale/orient/export)
@@ -99,8 +88,7 @@ rigrunner/
     references.md         # visual-reference scrapbook (index for docs/references/ images)
     references/           # drop inspiration images here (the visual companion to ideas.md)
   tools/blender/          # asset pipeline: rr_style.py kit + build_asset.py + assets/ generators
-  prototype/              # Phase 1 prototype — COMPLETE, design reference only -> npm run dev:prototype
-  game/                   # Phase 2 — the official game (the active build)       -> npm run dev:game
+  game/                   # the game (the active build)                          -> npm run dev:game
     public/assets/        # committed runtime GLBs (served at /assets/*.glb, by game AND viewer)
   viewer/                 # asset viewer — inspect any GLB in isolation           -> npm run dev:viewer
   shared/                 # modules promoted for use by both apps (explicit, never implicit)
@@ -117,8 +105,7 @@ both serve one set of asset files).
 
 | Command | What it does |
 |---|---|
-| `npm run dev:prototype` | Launch the prototype (design reference; complete) |
-| `npm run dev:game` | Launch the official game (the active build) |
+| `npm run dev:game` | Launch the game (the active build) |
 | `npm run dev:viewer` | Launch the asset viewer (inspect any GLB + the palette, outside the game) |
 
 ---
@@ -130,10 +117,10 @@ writing anything down, classify the intent. When unsure, ask — and default to 
 
 ### Brainstorm / idea / observation (the default for thinking-out-loud)
 Signals: "I was thinking…", "what if…", "this could be cool", riffing on inspiration (e.g. "in
-Minecraft…"), reacting to the prototype, no firm commitment — often a brain dump of several loose
+Minecraft…"), reacting to the game, no firm commitment — often a brain dump of several loose
 threads. Jaco intends to capture *many* of these over time as raw material.
 - **Forward-looking ideas / inspiration** → `docs/ideas.md`, under a dated brainstorm session.
-- **Concrete findings from building the prototype** ("this feels wrong", "X turned out to matter")
+- **Concrete findings from building / playing** ("this feels wrong", "X turned out to matter")
   → `docs/observations.md`.
 - Either way, also capture a memory `note` tagged `brainstorm` + `status:raw`.
 - **Do NOT** phrase any of it as committed, and **do NOT** edit the decided parts of this file
