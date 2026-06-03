@@ -11,10 +11,9 @@ style preferences, they are how we keep the system from fusing into a coupled me
 
 ## Where we are
 
-- This is a **fresh build**, not an extension of `prototype/`. The prototype proved the
-  core loop is fun; it is **reference only** and nothing is promoted as-is. Its hard-won
-  lessons live in [`../../docs/observations.md`](../../docs/observations.md) and are
-  baked into the principles below.
+- This is a **to-standard build**. The hard-won lessons we accumulate live in
+  [`../../docs/observations.md`](../../docs/observations.md) and are baked into the
+  principles below.
 - We **do not have a full MVP, theme, or target yet.** We build by **discovery through
   implementation**: make a small mechanism we enjoy → flesh it out → let a concept
   emerge from the mechanisms. Architecture's job is therefore to make change cheap and
@@ -112,7 +111,7 @@ for free:
 
 ## 3. Simulation vs rendering vs input — a hard boundary
 
-The prototype's worst bugs came from **state living in the view** (see observations #6
+A whole class of bugs comes from **state living in the view** (see observations #6
 and #7 — cargo stuck in container meshes). We do not repeat that.
 
 - **The simulation/game state is the single source of truth.** Systems mutate it.
@@ -201,8 +200,7 @@ capabilities with their parameters — not as a class. New parts are new data.
 ## Settled foundations
 
 1. **Language: TypeScript.** Types *are* part of this architecture — they're how we
-   express the contracts that ISP/DIP rely on. (The prototype was plain JS deliberately;
-   the official build is TS.)
+   express the contracts that ISP/DIP rely on.
 2. **Component model: lightweight, hand-rolled ECS-flavoured.** Entities + data
    components + systems, kept as small as possible and validated by building the *first*
    mechanism — **no ECS framework dependency** up front. We adopt a library only if a

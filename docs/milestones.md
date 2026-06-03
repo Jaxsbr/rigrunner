@@ -179,18 +179,24 @@ storage.
 
 ---
 
-## Option C — Scrap Piles: the Reclaimer rummage · `pending`
+## Option C — Scrap Piles: the Reclaimer rummage · `done`
 
-*(Formerly **M2** — same intent, framed minimum-first. Reclaimer concept firmed 2026-06-02.)*
+*(Formerly **M2** — same intent, framed minimum-first. Reclaimer concept firmed 2026-06-02.
+**Delivered 2026-06-03.**)*
 
 **Essence:** A distinct world object you press-and-hold to *excavate* — gated behind owning the
 **Reclaimer** — that visibly depletes as you work, bursting collectible scrap out around the rig and
 revealing hidden non-scrap loot from a data-driven loot table.
 
-**Build plan:** the PR-by-PR path to deliver this option lives in
-[`option-c-build-plan.md`](option-c-build-plan.md). **PR1 (articulated arm + bucket assets + viewer
-animation) is `done`**; PR2–PR5 (game-side articulation runtime → the Reclaimer as a mountable,
-purchasable part → gated hold-to-work rummage → loot table + UI) remain.
+**Status (2026-06-03):** **DONE.** All five PRs in the build plan are merged: the articulated
+arm+bucket assets (PR1), the game-side articulation runtime (PR2), the Reclaimer as an assembled /
+mountable / purchasable part (PR3), the capability-gated hold-to-work rummage (PR4, + a proximity
+"Hold E" hint in PR4.5), and the data-driven loot table with its reveal-and-grant UI and the
+ground-cleared seam (PR5). The build→run gate it set out to prove ("locked until you build the right
+tool, then point it") is in and playable.
+
+**Build plan:** the full PR-by-PR record lives in
+[`option-c-build-plan.md`](option-c-build-plan.md) — now a historical staircase, all steps `done`.
 
 ### The gating tool — the Reclaimer
 
@@ -287,15 +293,18 @@ Reclaimer + one data table.
 game-driven joints** for the arm; **assembled from arm + slottable bucket** on MW's bench; and
 **acquired by buying both parts** in Option B's Parts Shop.
 
-**Open sub-questions (decide at build time):**
-- **Loot-roll shape** — independent per-tier rolls (multiple finds possible) vs. one weighted roll
-  (a single tier per pile).
-- **Inventory-full handling** — what happens to a granted part when `Inventory` has no room (drop?
-  block? overflow to ground?).
-- **Reclaimer cost numbers** — exact arm/bucket prices, tuned so the total is reachable from loose
-  scrap (the bootstrapping constraint above) without being trivial.
-- **Articulation detail** — joint count (2 vs 3 segments) and the exact dig-loop motion; a feel call
-  best made against a real asset in the viewer.
+**Resolved sub-questions (decided at build time):**
+- **Loot-roll shape** — ✅ **independent per-tier rolls** (a pile can yield from several tiers, or
+  none), in `content/loot-table.ts`.
+- **Inventory-full handling** — ✅ **n/a for now**: `Inventory` is an uncapped list, so the grant is
+  unconditional. Revisit (drop / block / overflow) only when inventory gains a capacity.
+- **Reclaimer cost numbers** — ✅ arm **24** + bucket **12** = **36** scrap (above a container's 5,
+  ≈ a whole engine), reachable from loose scrap alone; weight 8. Tunable in `content/part-costs.ts`.
+- **Articulation detail** — ✅ a 3-joint arm (yaw → boom → wrist) driving a procedural dig loop that
+  blends stow↔dig, with the bucket on the wrist socket (tuned against the viewer).
+
+**Held for tuning, not blocking:** the sub-part drop **chance is 50%** (raised from 25% while we test
+the loot loop) — one value in the loot table, easy to bring down for feel later.
 
 **Depends on:** the parts/inventory system (shipped) to own the Reclaimer and receive loot; M1's
 scatter-collect (shipped) for the scrap burst; pairs naturally with **Option B** (a way to acquire the

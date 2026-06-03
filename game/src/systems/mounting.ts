@@ -136,8 +136,8 @@ export function canMountPartOn(world: World, target: EntityId, part: EntityId): 
  * The single grid-snap scan: the nearest FREE cell on `platform` to a point in the platform's LOCAL
  * frame (lx across, lz along — the frame `cellLocalOffset` returns), with its distance, within
  * `maxDist` local metres, or null if none is free in reach. `platform` is any entity carrying a
- * MountGrid (a rig OR a workshop): mounting is grid-agnostic, so one snap serves every deck. Mirrors
- * the prototype's forgiving snap: pick the closest empty cell the cursor hovers near, not pixel-precise.
+ * MountGrid (a rig OR a workshop): mounting is grid-agnostic, so one snap serves every deck. A
+ * forgiving snap: pick the closest empty cell the cursor hovers near, not pixel-precise.
  *
  * This is the canonical owner of "closest empty cell" — do not re-implement the scan elsewhere.
  * World-space callers convert their point with `worldToRigLocal` first (see `nearestFreeCellOn`); a

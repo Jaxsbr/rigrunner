@@ -8,7 +8,7 @@ import { defineComponent } from '../core/component';
  * that carries its own contents wherever it goes. Mounting/unmounting only rewrites the Mount
  * component, never this one — so taking a half-full container off the rig and dropping it in the
  * world preserves its exact contents, and re-mounting it brings them back. (This is the per-vessel
- * model the prototype deferred — see observations #6/#7.)
+ * model — see observations #6/#7.)
  *
  * The render layer reads `amount/capacity` to draw the fill rising inside the container; it owns no
  * truth, this component is the source of truth for how full the vessel is.

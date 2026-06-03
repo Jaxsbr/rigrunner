@@ -21,8 +21,8 @@ import {
 } from '../systems/mounting';
 
 /**
- * The build interaction: grab → preview → drop → connect, ported from the prototype but driving
- * ECS state instead of a scene graph. Left-drag a part to lift it; while held it follows the
+ * The build interaction: grab → preview → drop → connect, driving ECS state rather than a scene
+ * graph directly. Left-drag a part to lift it; while held it follows the
  * cursor and the nearest free deck cell highlights; release over that cell to mount it, or over
  * open ground to drop it loose. Re-grabbing a mounted part unmounts it — so parts move freely
  * between cells (and, later, between rigs).

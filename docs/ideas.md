@@ -5,9 +5,42 @@ A running log of **raw idea sessions** — thinking out loud, riffs, inspiration
 > ⚠️ **This is not committed direction.** Nothing here is decided. It's brain-dump material,
 > captured so it isn't lost. Promote a thread to `CLAUDE.md` (the source of truth) only once it
 > hardens into an actual decision. Compare with `observations.md`, which logs concrete findings
-> from *building the prototype*; this file logs forward-looking ideas that may or may not happen.
+> from *building the game*; this file logs forward-looking ideas that may or may not happen.
 
 Each session: dated, in Jaco's voice as faithfully as possible, organized into the threads that came up.
+
+---
+
+## 2026-06-03 — Part naming & lore: rarity-as-material tiers (rebrand the sub-parts)
+
+**Mode:** raw idea, sparked by the workshop-UI density observation (`observations.md` #10) — the
+sub-part names are confusing and text is doing all the work. **Not committed — needs a proper
+brainstorm.**
+
+**The itch:** the current sub-part names (Coilframe Casing, Motor Coil, Power Terminal, Discharge
+Regulator, Drumframe Casing, Drive Block, Fuel Feed, Governor, Container Shell/Rim…) are a mouthful
+and hard to parse at a glance. They describe *function* in flavour-text terms, but they don't tell
+you **what tier / how good** a part is, and there's no visual hook to lean on.
+
+**The idea:** do some **lore work and rebrand the parts around material tiers**, so a part's **name is
+simple** and its **rarity is legible from the material** — and crucially that material maps to a
+**visual cue** (colour / finish / sheen) so you read quality by *looking*, not reading.
+
+- **Rough tier ladder (placeholder names):** **scrap parts → pure metal parts → alloy parts → infused
+  metal parts.** Ascending rarity/quality. (Exact names/count TBD — this is the riff, not the spec.)
+- **Why it helps:** ties directly into the loot table (Option C) and the future recipe-rarity work —
+  a "scrap-tier core" vs an "alloy-tier core" reads instantly, and the loot UI / shop / bench all get
+  a shared rarity language. It also gives the **asset pipeline a reason and a palette**: each tier is
+  a finish, so even grey-box GLBs can carry tier by colour, which is exactly the disambiguation
+  observation #10 says the text is currently forced to do alone.
+- **Open threads for the brainstorm:** does the tier attach to the **material** (a casing comes in
+  scrap/alloy/infused) or to **distinct part names per tier**? How many tiers? How does it interact
+  with the **electric vs mechanical** type axis (orthogonal? or do tiers read differently per type?)?
+  How does tier map to **stats** (flat better, or trade-offs)? And the **visual-cue system** — one
+  palette of tier finishes shared across every part, defined once (like `rr_style`).
+
+**Status:** RAW. A naming/lore + visual-rarity brainstorm to run on its own; pairs with the
+workshop-UX pass in `observations.md` #10. Nothing here is decided.
 
 ---
 
@@ -200,7 +233,7 @@ enum), **not** Phaser-style scenes. Until then, ship as-is and let P2–P6 show 
 
 ## 2026-05-30 — Tiered components, footprint reclaim, chassis builds
 
-**Mode:** brainstorm / brain dump while staring at the prototype. Several loose threads, none committed.
+**Mode:** brainstorm / brain dump while staring at an early build. Several loose threads, none committed.
 
 **Note on where this sits:** `CLAUDE.md` deliberately *defers* "part tiers/levels" as a richer
 tradeoff axis until the base loop proves fun. This session is texture for that parked axis — raw
@@ -244,10 +277,10 @@ tissue that bridges to neighbours — one art system, not two separate problems.
   core loop, detach/reattach happens constantly — per-part state stops being optional.
 
 ### Session context (status)
-Ran `npm run dev:game`. The `game/` build now shows a **flat floor (larger than the prototype's)**
-and a **vehicle ~2×3 tiles** that looks really nice — it has **steering**, drives around freely, and
-the **camera follows well**. A solid starting base. ("Starting base, yeah!")
-*(Resolved 2026-05-30: prototype declared complete; `game/` is now the official active build — CLAUDE.md updated.)*
+Ran `npm run dev:game`. The `game/` build now shows a **flat floor** and a **vehicle ~2×3 tiles**
+that looks really nice — it has **steering**, drives around freely, and the **camera follows well**.
+A solid starting base. ("Starting base, yeah!")
+*(Resolved 2026-05-30: `game/` is the official active build — CLAUDE.md updated.)*
 
 ---
 

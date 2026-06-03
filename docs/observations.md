@@ -1,8 +1,8 @@
 # RIGRUNNER — Observations
 
-A running log of things we *notice* while building the prototype — what makes the
+A running log of things we *notice* while building the game — what makes the
 loop feel good, what feels wrong, and the small details that turned out to matter
-more than expected. The prototype exists to answer "is the loop fun?"; this file is
+more than expected. The whole project asks "is the loop fun?"; this file is
 where the answers accumulate.
 
 Each entry: what we observed, why it matters, and (if acted on) what we did.
@@ -74,7 +74,7 @@ cabling, or circuitry that bridges the gap; greebles that span the seam.
 **Why it matters:** Directly serves the "physical composition" pillar — the rig should
 feel like a coherent body you're assembling, not a tray of loose objects.
 
-**Status:** FUTURE — real art/styling, out of prototype scope. Logged now so we design
+**Status:** FUTURE — real art/styling, not near-term scope. Logged now so we design
 toward it (slot adjacency data, seam-bridging hooks) rather than against it.
 
 ---
@@ -121,7 +121,7 @@ in range. Release stops it. The harvest beam only shows while actually engaged.
 
 ---
 
-## 6. "Any number of containers" is a real subsystem — so the prototype fakes it with one number
+## 6. "Any number of containers" is a real subsystem — so we first faked it with one number
 
 **Context:** Harvesting with a variable number of containers. Symptom: "harvesting
 doesn't work with one container." Root cause was NOT container-count logic (that was
@@ -132,12 +132,12 @@ re-slotted container could be silently full next to already-drained nodes.
 **Observation (the meta-point):** Supporting "any number of containers, connected,
 filling correctly" *properly* is genuine systems work — an inventory/capacity
 subsystem with its own state, persistence, and lifecycle. Trying to grow that
-incrementally inside throwaway prototype code is painful and bug-prone, and the pain
-is a signal: the prototype is being asked to carry weight it isn't architected for.
+incrementally inside a throwaway early sketch is painful and bug-prone, and the pain
+is a signal: that sketch is being asked to carry weight it isn't architected for.
 
-**Why it matters:** This is the central tension of prototyping. The fix is almost never
+**Why it matters:** This is the central tension of early exploration. The fix is almost never
 "add the missing architecture" — it's to find the *dumbest model that still proves the
-loop* and use that, explicitly deferring the real subsystem to Phase 2.
+loop* and use that, explicitly deferring the real subsystem until it earns its place.
 
 **Action taken — simplify, don't architect:**
 - **Cargo is a single shared scalar pool** (`scrapHeld`) vs a capacity that's just
@@ -148,9 +148,9 @@ loop* and use that, explicitly deferring the real subsystem to Phase 2.
   (the missing "run lifecycle", faked).
 - **A cargo readout in the HUD**, so world state is never an invisible mystery again.
 
-**Takeaway for Phase 2:** the real game DOES need a cargo/inventory subsystem and an
-explicit run lifecycle (start / spend / return / reset). The prototype proves we want
-them; it does not pretend to be them.
+**Takeaway:** the game DOES need a cargo/inventory subsystem and an
+explicit run lifecycle (start / spend / return / reset). The early sketch proved we want
+them; it did not pretend to be them. (Per-vessel storage is now implemented — see #7.)
 
 ---
 
@@ -166,15 +166,15 @@ appears to "absorb" the scrap (the pool just re-renders across fewer containers)
 a container off the rig entirely and it reads as empty (its share returns to the pool /
 is dropped when capacity shrinks). Nothing is *preserved per container*.
 
-**Why it matters:** This is the precise cost of the prototype shortcut. The *real* game
+**Why it matters:** This is the precise cost of that early shortcut. The *real* game
 clearly wants each container to be a vessel that holds and preserves its own scrap
 whether it's on the rig, on the floor, or being carried — which means per-container
 state, transfer rules, and capacity bookkeeping that survive slot/unslot. That is
 exactly the inventory subsystem #6 deferred.
 
-**Decision:** Not worth fixing in the prototype — it doesn't change whether the *loop*
-is fun, which is all Phase 1 is testing. Banked as a Phase-2 requirement: **containers
-are stateful vessels that preserve contents on and off the machine.**
+**Decision:** Not worth fixing in the early sketch — it didn't change whether the *loop*
+is fun, which was all that mattered to prove first. Banked as a requirement (now
+implemented): **containers are stateful vessels that preserve contents on and off the machine.**
 
 ---
 
@@ -220,3 +220,39 @@ growth. Naming the limit now means we replace it deliberately rather than discov
 
 **Status:** ACCEPTED FOR NOW — ships as a tab strip. Flagged to replace with a scalable recipe
 selector once recipe count grows past a handful. Not built yet.
+
+---
+
+## 10. The workshop interface is dense and clunky — usable, but text-heavy and confusing in places
+
+**Context:** The workshop overlay after Option C shipped (inventory rail + Bench / Workshop Deck /
+Parts Shop tabs + inspect pane). Reflecting on actually *using* it across a few build/buy/assemble
+sessions.
+
+**Observation:** It works, and once you've learned it it's fine — but the learning curve is steeper
+than it should be, and several things grate:
+
+- **Too much to read to know what you're looking at.** There's a lot of text and not enough visual
+  signal for *what is a part vs a recipe vs the current selection*, and *where* each thing lives. You
+  parse labels instead of recognising shapes.
+- **The Bench is the weakest spot.** Specifically **recipe selection** and the fact that the bench
+  **shares its preview with the selected inventory item** — selecting an inventory part vs. picking a
+  recipe to build both drive the same area, and it's confusing which mode you're in.
+- **Sub-parts have no assets**, so their chip/portrait is a tinted placeholder and **text is the only
+  way to tell them apart** — which compounds the density. Real (even grey-box) sub-part GLBs would do
+  a lot of the disambiguating work the text is currently forced to do.
+- **The UI truncates names to fit**, so the one channel we *do* lean on (text) is itself clipped —
+  e.g. "Unearthing …" — making it even harder to read at a glance.
+- The **Parts Shop** needs a little work; the **Workshop Deck** is fine; the **inspect pane** is okay.
+
+**Why it matters:** the workshop is half the game (the "build" of build→run) and a load-bearing
+**physical composition** surface. If reading it is work, the tight cause-and-effect beat the whole
+game runs on gets muddied at the exact moment the player is forming their "I know what to change"
+thought. This is the kind of clunk that (per observation #5) is often a *leak* of an internal model
+issue, not just surface polish — worth a deliberate pass, not a quick re-skin.
+
+**Status:** NOTED — not yet a committed work item. Threads to pull when we do a workshop-UX pass:
+clearer part/recipe/selection affordances, separating "pick a recipe to build" from "inspect a
+selected part", a no-truncation layout, and **real sub-part assets** so shape (not text) carries
+identity. The recipe-selector limit in #9 is part of the same pass. Pairs with the part-naming /
+rarity-visual-cues rebrand idea (see `ideas.md` 2026-06-03).
