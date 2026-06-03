@@ -109,12 +109,28 @@ export class ReclaimerRig {
     if (this.yaw) this.yaw.rotation.y = Math.sin(elapsed * IDLE_YAW_SPEED) * IDLE_YAW_SWEEP;
   }
 
-  /** The looping dig cycle: boom/wrist swing between rest and deepest scoop. Reserved for PR4. */
+  /** The looping dig cycle: boom/wrist swing between rest and deepest scoop. */
   dig(elapsed: number): void {
     // dig: 0 (up) → 1 (deepest scoop) → 0, smoothly, once per DIG_PERIOD.
     const t = (1 - Math.cos((elapsed / DIG_PERIOD) * Math.PI * 2)) / 2;
     for (const j of this.joints) j.obj.rotation[j.axis] = lerp(j.rest, j.dig, t);
     if (this.yaw) this.yaw.rotation.y = 0;
+  }
+
+  /**
+   * The unified work pose (PR4's hold-to-work): a smooth blend from the stowed idle (`deploy` 0)
+   * to the live dig cycle (`deploy` 1). The rummage animator ramps `deploy` up while the arm is
+   * digging and down when it stops, so the arm visibly DEPLOYS out of stow to dig and RETRACTS
+   * back to stow — no snap between poses. `elapsed` advances the dig cycle; the idle yaw sway
+   * fades out as the arm deploys. At the extremes this is exactly `idle`/`dig` (the named poses).
+   */
+  drive(elapsed: number, deploy: number): void {
+    const t = (1 - Math.cos((elapsed / DIG_PERIOD) * Math.PI * 2)) / 2; // 0..1 dig cycle
+    for (const j of this.joints) {
+      const active = lerp(j.rest, j.dig, t);          // where the joint sits this instant of the dig
+      j.obj.rotation[j.axis] = lerp(j.stow, active, deploy); // …blended out of stow by `deploy`
+    }
+    if (this.yaw) this.yaw.rotation.y = Math.sin(elapsed * IDLE_YAW_SPEED) * IDLE_YAW_SWEEP * (1 - deploy);
   }
 
   /** Snap every joint to the static stow pose with no yaw offset (no per-frame drive). */

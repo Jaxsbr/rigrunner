@@ -143,6 +143,29 @@ def beveled_box(
     return obj
 
 
+def beveled_cylinder(
+    name: str,
+    radius: float,
+    depth: float,
+    mat: str,
+    location: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    verts: int = 16,
+):
+    """A cylinder in the RIGRUNNER finish: palette material, chunky bevel + smooth, low-poly.
+
+    The axle runs along Z by default; set the returned object's `rotation_euler` to lean/lay it,
+    then `join` bakes that rotation in (same pattern as `beveled_box`). A low vertex count is
+    deliberate — the facets catch light so a round form still reads as faceted scrap, not plastic.
+    `radius`/`depth` are metres; `location` is the centre in metres.
+    """
+    bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=radius, depth=depth, location=location)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.data.materials.append(material(mat))
+    apply_style(obj)
+    return obj
+
+
 def apply_style(obj) -> None:
     """The uniform finish: smooth shade, weighted normals, a small catch-light bevel.
 

@@ -80,7 +80,7 @@ export class EntityViews {
     group.userData['wheels'] = []; // populated on load; animateWheels reads it (safe when empty)
     group.userData['reclaimer'] = null; // set on load for an articulated arm; animateReclaimer reads it
     // Uniform resize of the authored asset (base-centre origin, so it stays grounded). Lets one GLB
-    // serve at multiple sizes — e.g. the scrap-pile reused shrunk as a loose-scrap pickup.
+    // serve at multiple sizes when a caller passes Renderable.scale.
     group.scale.setScalar(scale);
 
     const placeholder = placeholderMesh();

@@ -74,20 +74,29 @@ as a mechanical engine — so mounting it is a felt tradeoff. All tunable in `co
 
 ---
 
-## PR4 — Scrap pile: capability-gated hold-to-work rummage · `pending`
+## PR4 — Scrap pile: capability-gated hold-to-work rummage · `done`
 
 **Goal:** the felt rummage beat — gated, tactile, depleting.
 
-- A **pile entity** in the world; a **capability-gate** (`requires` the Reclaimer) — no Reclaimer →
-  the interaction is **visibly locked**.
-- **Hold-to-work:** press-and-hold (facing the pile) **visibly depletes** the pile in waves
-  (pillar 4) and **drives the dig animation** (PR2's joint driver) while you work — the arm **deploys
-  from its stowed pose** to dig and **returns to stowed** when idle/driving (poses authored in PR1).
-- **Scrap burst:** scrap scatters out around the rig and is **drive-over-collected reusing M1**,
-  **gated on storage space**.
+**Delivered (this PR).**
 
-**Depends on:** PR2 (drive the dig), PR3 (own the gate), M1 (scatter-collect). **Not here:** the loot
-table / loot UI (PR5) — emptying a pile in this PR just yields the scrap burst.
+- A **pile entity** (`spawnScrapPile`) — a rough **5×3×3** rusted heap with wheels (a new
+  `scrap-pile` GLB; the small drive-over pickup got its own dedicated `loose-scrap` GLB, retiring the
+  old "loose scrap borrows the pile" placeholder). A `ScrapPile` component carries the gate + depth.
+- A **capability + facing gate** (`scrapPileSystem`): a pile lights up its proximity disc (same lit
+  green as the workshop) **only** when the rig parks in reach AND carries a **mounted Reclaimer** AND
+  its arm is **aimed at the pile within a 120° FOV**. No Reclaimer / wrong way round → the disc stays
+  dim (visibly locked).
+- **Hold-to-work** (`scrapRummageSystem`, **E** held): the Reclaimer is marked `Digging` and the arm
+  **deploys from its stowed pose** to the dig cycle (`ReclaimerRig.drive` smooth-blends stow↔dig) and
+  **retracts** when you release / drive off; the heap **depletes in waves** and the render layer
+  **shrinks** it (pillar 4).
+- **Scrap burst:** each wave scatters `loose-scrap` around the rig, **drive-over-collected reusing
+  M1**, **gated on storage space**. An emptied pile is destroyed (the cleared ground) — its burst was
+  the yield (the loot table is PR5).
+
+**Depended on:** PR2 (drive the dig), PR3 (own the gate), M1 (scatter-collect). **Not here:** the loot
+table / loot UI (PR5).
 
 ---
 
