@@ -56,8 +56,24 @@ export const STORAGE_RECIPE: Recipe = {
   ],
 };
 
+/**
+ * The Reclaimer recipe (Option C / PR3) — the first NON-engine socket grammar: a base `arm` slot
+ * plus the `head` socket the bucket slots into (alongside the engine's four-slot grammar). Untyped
+ * (no electric/mechanical), so it never engages the no-hybrid rule; assembly sums its parts' weight
+ * and stamps out a `reclaimer`-kind product exactly as the engine and container recipes do.
+ */
+export const RECLAIMER_RECIPE: Recipe = {
+  id: 'reclaimer',
+  output: 'Reclaimer',
+  productKind: 'reclaimer',
+  slots: [
+    { slot: 'arm', label: 'Reclaimer Arm' },
+    { slot: 'head', label: 'Bucket Head' },
+  ],
+};
+
 /** Every buildable recipe, in the order the bench's recipe picker shows them. */
-export const RECIPES: readonly Recipe[] = [ENGINE_RECIPE, STORAGE_RECIPE];
+export const RECIPES: readonly Recipe[] = [ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE];
 
 /** Resolve a recipe id to its definition, or `undefined` if it isn't a known recipe. */
 export function recipeById(id: string): Recipe | undefined {

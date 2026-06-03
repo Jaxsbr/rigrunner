@@ -3,7 +3,6 @@ import { spawnRig } from './content/rig';
 import { engineParts } from './content/engines';
 import { spawnWorkshop } from './content/workshop';
 import { scatterScrap } from './content/scrap';
-import { spawnReclaimer } from './content/reclaimer';
 import { Transform } from './components/transform';
 import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
@@ -55,16 +54,19 @@ scatterScrap(world, 64, 5, 34);
 // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
 // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
 spawnWorkshop(world, 0, 8);
-// The Reclaimer, staged beside the workshop (Option C / PR2): the first articulated asset in the
-// game, rendered with its bucket head attached and its joints driven (an idle stow-and-scan). It's
-// a prop here — not yet a buildable/mountable part (PR3) and not yet wired to a pile (PR4).
-spawnReclaimer(world, 4, 8);
+// The Reclaimer is no longer a staged prop (Option C / PR3): it's now a real buildable, mountable,
+// purchasable part. Buy the Arm + Bucket in the Parts Shop, assemble them on the bench (the
+// Reclaimer recipe), stage the product on the workshop deck, then grab it off the deck and mount it
+// on the rig like any part. (PR2's articulation runtime renders it with the bucket on its wrist.)
 // The player store: one singleton entity holding what the player OWNS across rebuilds — `Wallet`
 // (banked scrap) and `Inventory` (loose parts / assembled engines). Lives outside any rig/container
 // so both survive rig rebuilds and chassis swaps. The workshop drain feeds the wallet; the HUD
 // reads it; the workshop interface (P3+) browses the inventory.
 const playerStore = world.createEntity();
-world.add(playerStore, Wallet, { scrap: 5 });
+// DEV/TEST SEED: temporarily inflated so the Reclaimer (arm 24 + bucket 12 = 36) can be bought and
+// tested without grinding the loose-scrap field first. Revert to 5 before merge — the intended cold
+// start is exactly enough for the first storage-container shell + rim.
+world.add(playerStore, Wallet, { scrap: 60 });
 world.add(playerStore, Inventory, { items: [] });
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
@@ -78,9 +80,8 @@ world.add(bench, Bench, {
 });
 
 // No loose-part dev grant: every build sub-part now comes from the Parts Shop. The rig still starts
-// with a complete mounted electric engine so the player can drive immediately, and the wallet starts
-// with exactly enough scrap to buy the first storage-container shell + rim.
-console.info('[starter] wallet seeded with 5 scrap; all loose build parts are bought from the Parts Shop.');
+// with a complete mounted electric engine so the player can drive immediately.
+console.info('[starter] DEV SEED: wallet seeded with 60 scrap so the Reclaimer can be bought to test (revert to 5 before merge).');
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);

@@ -37,7 +37,7 @@ reference driver (`viewer/src/articulation.ts`) the game re-implements against t
 
 ---
 
-## PR2 — Game-side articulation runtime · `pending`
+## PR2 — Game-side articulation runtime · `done`
 
 **Goal:** the game can render an articulated GLB and drive it — the viewer's contract, in `game/`.
 
@@ -50,18 +50,27 @@ reference driver (`viewer/src/articulation.ts`) the game re-implements against t
 
 ---
 
-## PR3 — The Reclaimer as a real part: assemble · mount · acquire · `pending`
+## PR3 — The Reclaimer as a real part: assemble · mount · acquire · `done`
 
 **Goal:** the Reclaimer becomes a buildable, mountable, purchasable part.
 
 - **Assemble** the Reclaimer from **arm + slottable bucket** on MW's existing bench — the first
-  **non-engine socket grammar** (a head-socket alongside the engine's four-slot grammar).
-- **Mount** the assembled Reclaimer on the chassis, **directional** (facing matters).
+  **non-engine socket grammar** (a head-socket alongside the engine's four-slot grammar). Delivered
+  as `RECLAIMER_RECIPE` (`arm` + `head` slots) + a new `reclaimer` part category/kind; assembly is
+  recipe-generic, so it reused the existing bench/inspect/dismantle path unchanged.
+- **Mount** the assembled Reclaimer on the chassis, **directional** (facing matters) — it gets the
+  same `MountFacing {specific, outward}` an engine does, so the arm points off the rig. The product
+  renders the articulated `reclaimer-arm` GLB and the render layer parents the bucket on its wrist.
 - **Acquire** both parts via **Option B's Parts Shop** (two new entries in the part-cost list),
   priced under the **bootstrapping constraint**: affordable from **loose scrap alone** (M1), since
   piles are gated behind owning it — a save-up goal, above storage cost.
 
-**Resolves:** the **Reclaimer cost numbers** open sub-question. **Depends on:** PR2 + MW bench/mount.
+**Resolved — the Reclaimer cost numbers:** `reclaimer-arm` **24** + `reclaimer-bucket` **12** = **36**
+scrap. That sits well above a storage container (5) and ≈ a whole engine (electric 30 / mechanical
+36), so it reads as the priciest single save-up goal, yet is reachable from the loose-scrap field
+alone (no pile needed to earn it). The Reclaimer also adds **weight 8** (arm 5 + bucket 3) — as heavy
+as a mechanical engine — so mounting it is a felt tradeoff. All tunable in `content/part-costs.ts` /
+`content/parts-catalog.ts`. **Depended on:** PR2 + MW bench/mount.
 
 ---
 
