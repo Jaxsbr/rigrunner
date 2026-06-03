@@ -39,8 +39,13 @@ simple** and its **rarity is legible from the material** — and crucially that 
   How does tier map to **stats** (flat better, or trade-offs)? And the **visual-cue system** — one
   palette of tier finishes shared across every part, defined once (like `rr_style`).
 
-**Status:** RAW. A naming/lore + visual-rarity brainstorm to run on its own; pairs with the
-workshop-UX pass in `observations.md` #10. Nothing here is decided.
+**Status:** PROMOTED (2026-06-03). This raw thread has been worked into a structured spec +
+implementation plan — [`part-identity-spec.md`](part-identity-spec.md) — after a follow-up brainstorm.
+Key shifts from this raw entry: tiers are **per-sub-part + additive with a matched-set bonus** (not a
+single product tier); "special" is reworked from a **rare recipe** to a **rare "gold" part variant**;
+and the engine vocabularies **diverge** (electric: Casing/Core/Coupling/Regulator · steam:
+Boiler/Piston/Driveshaft/Throttle) rather than sharing nouns. See the spec for the decided vs.
+earn-their-place parts. Still pairs with the workshop-UX pass in `observations.md` #10.
 
 ---
 
