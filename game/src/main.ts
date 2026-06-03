@@ -8,9 +8,12 @@ import { DriveControl } from './components/drive-control';
 import { Wallet } from './components/wallet';
 import { Inventory } from './components/inventory';
 import { Bench, emptyBenchSlots } from './components/bench';
-import { ENGINE_RECIPE } from './content/recipes';
+import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from './content/recipes';
+import { partDef } from './content/parts-catalog';
 import { composeProduct, placeProductInWorld } from './systems/assembly';
-import { mountPart } from './systems/mounting';
+import { mountPart, resolveLocalYaw } from './systems/mounting';
+import { MountGrid } from './components/mount-grid';
+import { MountFacing } from './components/mount-facing';
 import { WorkshopZone } from './components/workshop-zone';
 import { movementSystem } from './systems/movement';
 import { mountingSystem } from './systems/mounting';
@@ -47,6 +50,26 @@ const player = spawnRig(world);
   const rigT = world.get(player, Transform)!;
   placeProductInWorld(world, engine, rigT.x, rigT.z);
   mountPart(world, engine, player, 0, 1); // a deck cell; the mounting system rides it into place
+}
+// DEV/TEST SEED: the rig also starts with a storage container and a Reclaimer already mounted, so a
+// test session can drive, rummage piles, and sweep scrap immediately — without rebuilding these two
+// every run. They're normal composed products (removable/dismantlable like any part), just pre-fitted.
+// Cells: engine is at (col 0, row 1); storage takes (col 1, row 1), the Reclaimer (col 1, row 0).
+{
+  const rigT = world.get(player, Transform)!;
+  const grid = world.get(player, MountGrid)!;
+
+  // Storage container (shell + rim) — non-directional, mounts deck-aligned.
+  const storage = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
+  placeProductInWorld(world, storage, rigT.x, rigT.z);
+  mountPart(world, storage, player, 1, 1);
+
+  // Reclaimer (arm + bucket) — directional: placeProductInWorld gives it an outward MountFacing, so
+  // resolve the matching local yaw for its cell and the arm rests pointing off the deck, ready to dig.
+  const reclaimer = composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!));
+  placeProductInWorld(world, reclaimer, rigT.x, rigT.z);
+  const reclaimerYaw = resolveLocalYaw(world.get(reclaimer, MountFacing), grid, 1, 0, 0, 0);
+  mountPart(world, reclaimer, player, 1, 0, reclaimerYaw);
 }
 // Loose scrap scattered around the rig — drive over pieces to sweep them into mounted storage, bank
 // them at the workshop, then spend the wallet total in the Parts Shop. The larger field makes the

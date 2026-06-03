@@ -37,9 +37,10 @@ const STAIN_MAX_R = 1.3;
 const STAIN_MIN_ASPECT = 0.55;
 
 // Darkness varies per piece: full progress maps somewhere in this opacity band, so some stains read
-// as deep oily pools and others as faint light seepage. Never fully opaque — a smudge, not a hole.
-const STAIN_MIN_OPACITY = 0.28;
-const STAIN_MAX_OPACITY = 0.6;
+// as deep oily pools and others as lighter seepage. The band sits high so even the lightest stain
+// reads clearly against the dusty ground; never fully opaque — a dark smudge, not a hole.
+const STAIN_MIN_OPACITY = 0.5;
+const STAIN_MAX_OPACITY = 0.85;
 
 // Distinct blotch-pattern textures, built once and shared; each stain picks one at random.
 const TEXTURE_VARIANTS = 6;
@@ -104,6 +105,7 @@ export class ScrapStains {
     // Lay the plane flat (rotate about X) and spin it about its own normal (Z, applied first under the
     // default XYZ Euler order) so the oval's long axis points in a random ground-plane direction.
     mesh.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI);
+    mesh.renderOrder = 1; // draw above the proximity-zone disc so a stain is never hidden inside it
     mesh.visible = false;
     const t = world.get(e, Transform)!;
     mesh.position.set(t.x, STAIN_Y, t.z);

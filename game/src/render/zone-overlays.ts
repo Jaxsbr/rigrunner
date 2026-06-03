@@ -7,11 +7,14 @@ import { ScrapPile } from '../components/scrap-pile';
 
 /**
  * Proximity-zone discs: one flat circle under each gated interaction (a workshop, a scrap pile),
- * coloured by its gate state. Pure view polish (a projection of the `active` flag the sim owns) —
- * lit green when the interaction is available and dim grey otherwise, so the "you can act now" state
- * is unmistakable. The same disc reads identically for the workshop and the pile, on purpose: a lit
- * ring means "park here and go". Discs are created lazily on first sight and dropped when their
- * owner is gone (a pile is destroyed when emptied).
+ * shown ONLY while the interaction is available. A dormant zone draws nothing at all (the structure
+ * itself — the heap, the workshop — is self-evident, so an idle ring just clutters the ground and
+ * covers the scrap stains); the instant the gate lights, a translucent green disc appears = "park
+ * here and go". The same disc reads identically for the workshop and the pile, on purpose. Discs are
+ * created lazily on first sight and dropped when their owner is gone (a pile is destroyed when emptied).
+ *
+ * The disc sits BELOW the scrap stains and writes no depth, so an active ring composites under any
+ * seepage stain rather than punching a hole in it.
  */
 export class ZoneOverlays {
   private readonly discs = new Map<EntityId, THREE.Mesh>();
@@ -41,19 +44,18 @@ export class ZoneOverlays {
   private upsert(world: World, e: EntityId, radius: number, active: boolean): void {
     let disc = this.discs.get(e);
     if (!disc) {
-      // Sized to the zone radius once (radius is fixed) and reused thereafter.
+      // Sized to the zone radius once (radius is fixed) and reused thereafter. depthWrite off + a y
+      // just under the stains (≈0.02) so an active disc never occludes a seepage stain inside it.
       disc = new THREE.Mesh(
         new THREE.CircleGeometry(radius, 48),
-        new THREE.MeshBasicMaterial({ color: 0x59ff9f, transparent: true, opacity: 0.18 }),
+        new THREE.MeshBasicMaterial({ color: 0x59ff9f, transparent: true, opacity: 0.25, depthWrite: false }),
       );
       disc.rotation.x = -Math.PI / 2;
       this.scene.add(disc);
       this.discs.set(e, disc);
     }
     const t = world.get(e, Transform)!;
-    disc.position.set(t.x, 0.03, t.z); // just above the ground plane to avoid z-fighting
-    const mat = disc.material as THREE.MeshBasicMaterial;
-    mat.color.setHex(active ? 0x59ff9f : 0x6f685c); // glow_green active, dim grey dormant
-    mat.opacity = active ? 0.28 : 0.14;
+    disc.position.set(t.x, 0.012, t.z); // below the scrap stains; above the ground/grid
+    disc.visible = active; // fully transparent (drawn nothing) when dormant; green ring when lit
   }
 }

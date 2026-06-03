@@ -78,9 +78,14 @@ Keep it dead simple first; only reach for a shader if flat decals look wrong.
 - **Per-piece variety (shipped):** the field must NOT read as stamped copies, so every stain randomises
   independently — **size** (half-extent **0.45–1.3 m**, from a faint mark to a big puddle past the
   scrap's 0.4 m footprint), **ovalness** (minor axis 0.55–1.0 of the major) at a **random ground-plane
-  orientation**, **darkness** (per-stain max opacity 0.28–0.6 — some deep oily pools, some light
-  seepage), and **pattern** (each picks one of a small pool of distinct blotch textures, whose core
-  darkness, falloff, and scatter of darker pools all differ).
+  orientation**, **darkness** (per-stain max opacity 0.5–0.85 — band kept high so even the lightest
+  stain reads clearly against the dusty ground; some deep oily pools, some lighter seepage), and
+  **pattern** (each picks one of a small pool of distinct blotch textures, whose core darkness,
+  falloff, and scatter of darker pools all differ).
+- **Layering vs the zone disc:** stains draw at `renderOrder 1` and the proximity-zone disc
+  (`zone-overlays.ts`) sits just *below* stain height with `depthWrite:false`, so a lit green ring
+  composites *under* any stain rather than occluding it (the earlier bug: an opaque disc above the
+  stains hid the part inside its circle).
 - **One decal per loose-scrap entity**, owned by a small render-side registry keyed by `EntityId`
   (mirrors `EntityViews.objects`), NOT a component on the entity — gameplay never needs to know.
 
