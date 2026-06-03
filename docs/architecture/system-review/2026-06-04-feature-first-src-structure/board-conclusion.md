@@ -1,6 +1,6 @@
 # Board Conclusion — Review of the Feature-First `src/` Structure Proposal
 
-> **The board's verdict on `docs/architecture/feature-first-structure-proposal.md` (Option B).**
+> **The board's verdict on the feature-first `src/` structure proposal (Option B)** — now graduated into [ADR-003](../../adr-003-feature-first-src-structure.md); the reviewed proposal is archived alongside this file as [`feature-first-structure-proposal.md`](feature-first-structure-proposal.md).
 > Collated by the orchestrator from 11 research artifacts, 4 synthesis briefs, and 3 persona reviews.
 > **Date:** 2026-06-04 · **Branch reviewed:** `idea/feature-first-structure`.
 
@@ -241,10 +241,12 @@ This is Option B, unchanged in shape, with the §2 payload sequenced per §3.
 
 ## 6. Next step
 
-Graduate the (altered) proposal into an **ADR** (per the proposal's own "when accepted this graduates
-into an ADR"), capturing: the three-tier layout, the `common/` admission rule + inward-only invariant,
+✅ **Done:** graduated into [**ADR-003 — Feature-first `game/src/` structure**](../../adr-003-feature-first-src-structure.md)
+(2026-06-04), capturing the three-tier layout, the `common/` admission rule + inward-only invariant,
 the chosen animator/`view.ts` resolution, the path-alias decision, and the scrap-first pilot ordering.
-Then execute **Step 0**.
+
+**Now:** execute **Step 0** (path aliases + animator/`view.ts` fix + extract `mountedStorages` + write
+the placement & admission rules), then the scrap pilot.
 
 ---
 

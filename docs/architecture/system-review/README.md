@@ -84,4 +84,4 @@ and review use the strong model.
 
 | Date | Subject | Verdict | Session |
 |---|---|---|---|
-| 2026-06-04 | Feature-first `game/src/` structure proposal (Option B) | **(b) Alter** — adopt the axis, with a defined alteration payload | [`2026-06-04-feature-first-src-structure/`](2026-06-04-feature-first-src-structure/) |
+| 2026-06-04 | Feature-first `game/src/` structure proposal (Option B) | **(b) Alter** — adopt the axis with a defined payload → graduated into [ADR-003](../adr-003-feature-first-src-structure.md) | [`2026-06-04-feature-first-src-structure/`](2026-06-04-feature-first-src-structure/) |

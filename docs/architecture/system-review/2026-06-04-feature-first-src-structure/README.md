@@ -1,6 +1,7 @@
 # Session: Feature-First `src/` Structure Proposal
 
-> **Subject reviewed:** [`../../feature-first-structure-proposal.md`](../../feature-first-structure-proposal.md) (Option B).
+> **Subject reviewed:** [`feature-first-structure-proposal.md`](feature-first-structure-proposal.md) (Option B) — the original proposal, archived in this folder.
+> **Outcome:** graduated, with alterations, into [**ADR-003**](../../adr-003-feature-first-src-structure.md).
 > **Date:** 2026-06-04 · **Part of the [system-review](../README.md) process** — see that README for the
 > board method (researchers → synthesizers → reviewers → board).
 

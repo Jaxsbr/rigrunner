@@ -1,8 +1,12 @@
-# Proposal — Feature-first source structure for `game/src/`
+# Proposal — Feature-first source structure for `game/src/` (ARCHIVED)
 
-> **Status:** **Proposal / not committed.** Jaco is leaning toward **Option B** (feature-first,
-> strict shared tier) after reviewing the evidence below. Nothing has moved. When accepted this
-> graduates into an ADR; until then it is a candidate, not direction.
+> **Status: ARCHIVED — historical.** This proposal was critiqued by a review board (2026-06-04) and
+> graduated, *with alterations*, into [**ADR-003**](../../adr-003-feature-first-src-structure.md) — the
+> current decision. It is kept here as the historical subject of that review; the verdict ((b) ALTER),
+> the alteration payload, and the full evidence sit alongside it (start with
+> [`board-conclusion.md`](board-conclusion.md)). **Do not treat this file as current direction —
+> ADR-003 is.**
+> **Original status (at review time):** Proposal / not committed; Jaco leaning Option B.
 > **Date:** 2026-06-04 · **Author:** brainstorm session (Jaco + agent)
 
 ---
