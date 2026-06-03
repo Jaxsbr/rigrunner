@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { ModelLoader } from '../../../shared/model-loader';
 
 /**
  * The Reclaimer motion rig, game-side — drives the articulated `reclaimer-arm` GLB and parents
@@ -53,6 +54,25 @@ const IDLE_YAW_SPEED = 0.5; // rad/s phase rate
 /** Returns true if a loaded asset is the articulated arm this rig knows how to drive. */
 export function isArticulated(assetId: string): boolean {
   return assetId === ARM_ASSET;
+}
+
+/**
+ * Compose the Reclaimer's bucket head onto a freshly-loaded ARM model and hold the static stow pose
+ * — the non-animated form the workshop previews (the Workshop Deck view and the inspect portrait)
+ * show, so a staged/selected Reclaimer reads as the whole tool instead of a headless arm. A no-op
+ * for any non-articulated asset, so callers can apply it blindly to every model they load. Mirrors
+ * the live in-world path (render/entity-views): the bucket is loaded (cached) via the same loader
+ * and cloned onto the wrist socket. Those live views animate the rig per frame; these don't, so a
+ * single resting `stow()` is enough here.
+ */
+export async function attachStaticHead(
+  assetId: string,
+  arm: THREE.Object3D,
+  loader: ModelLoader,
+): Promise<void> {
+  if (!isArticulated(assetId)) return;
+  const bucket = (await loader.load(BUCKET_ASSET)).clone(true);
+  new ReclaimerRig(arm, bucket).stow();
 }
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;

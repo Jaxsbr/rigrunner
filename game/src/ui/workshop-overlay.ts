@@ -38,6 +38,8 @@ import {
 import { buyPart, purchaseVerdict, resaleValue, sellPart } from '../systems/shop';
 import { closestFreeCellLocal } from '../systems/mounting';
 import { createModelPortrait, type ModelPortrait } from '../../../shared/model-portrait';
+import { ModelLoader } from '../../../shared/model-loader';
+import { attachStaticHead } from '../render/articulation';
 import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from './deck-view';
 
 /**
@@ -148,6 +150,7 @@ export class WorkshopOverlay {
   private readonly deck: DeckView;
   private readonly slotEls = new Map<string, HTMLElement>();
   private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
+  private readonly headLoader = new ModelLoader(); // loads the Reclaimer bucket for the inspect portrait
 
   private readonly onCloseClick = (): void => this.closeOverlay();
   private readonly onTabClick = (): void => this.openOverlay();
@@ -185,7 +188,11 @@ export class WorkshopOverlay {
     this.benchPreviewEl = panel.querySelector<HTMLElement>('#wk-bench-preview')!;
     this.assembleBtn = panel.querySelector<HTMLButtonElement>('#wk-assemble')!;
     this.detailEl = panel.querySelector<HTMLElement>('#wk-detail')!;
-    this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!);
+    this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!, {
+      // Compose the Reclaimer's bucket head onto the arm in the inspect portrait (a no-op for any
+      // other part), so a selected Reclaimer reads as the whole tool — matching the live world.
+      decorate: (assetId, model) => attachStaticHead(assetId, model, this.headLoader),
+    });
     this.deck = createDeckView(this.deckHost, { onSelect: (e) => this.onDeckSelect(e) });
 
     this.tabEl.addEventListener('click', this.onTabClick);

@@ -4,6 +4,7 @@ import { MODEL_ASSETS } from '../../../shared/assets';
 import { createThreeCanvas, disposeObject } from '../../../shared/three-canvas';
 import type { EntityId } from '../core/types';
 import { cellLocalOffset } from '../systems/mounting';
+import { attachStaticHead } from '../render/articulation';
 
 /**
  * A live 3D view of the workshop deck and the products staged on it — the centrepiece of the
@@ -139,7 +140,12 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
       .load(assetId)
       .then((template) => {
         if (myToken !== token) return; // a newer render() superseded this
-        group.add(template.clone(true));
+        const instance = template.clone(true);
+        group.add(instance);
+        // An articulated arm (the Reclaimer) gets its bucket head parented onto the wrist socket in
+        // a static stow pose — mirroring the live world (render/entity-views), so a staged Reclaimer
+        // reads as the whole tool here too, not a bare headless arm. A no-op for any other asset.
+        void attachStaticHead(assetId, instance, models);
       })
       .catch(() => {
         if (myToken !== token) return;

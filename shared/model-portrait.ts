@@ -35,6 +35,13 @@ export interface ModelPortrait {
 export interface ModelPortraitOptions {
   /** Gently spin the model on its own? Off by default — callers opt in (the viewer does). */
   autoRotate?: boolean;
+  /**
+   * Optional post-load hook to enrich a freshly-loaded model — e.g. parenting an articulated head
+   * onto its socket — keeping the portrait itself asset-agnostic (the caller injects any app-specific
+   * composition). Runs after the model is added and framed; if it changes the model's bounds (an
+   * added head), the portrait re-frames when it resolves. A no-op return is fine for non-special assets.
+   */
+  decorate?(assetId: string, model: THREE.Object3D): void | Promise<void>;
 }
 
 /** Create a portrait widget that renders into a canvas appended to `host`. */
@@ -54,6 +61,7 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
   const { scene, camera, controls } = cv;
   camera.position.set(2.4, 1.9, 2.8);
   controls.target.set(0, 0.5, 0);
+  const decorate = opts.decorate; // captured here — `show`'s own `opts` param shadows the ctor opts
 
   const holder = new THREE.Group(); // the currently-displayed model/placeholder lives here
   scene.add(holder);
@@ -166,6 +174,14 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
         if (ghost) applyGhost(obj); // flat-grey build-target silhouette
         holder.add(obj);
         frame(obj);
+        // Let the caller compose extra geometry onto the loaded model (e.g. an articulated head).
+        // Re-frame once it resolves in case the added geometry grew the bounds. Skipped while
+        // ghosting — a build-target silhouette shows the base shape only.
+        if (decorate && !ghost) {
+          void Promise.resolve(decorate(assetId, obj))
+            .then(() => { if (currentId === assetId) frame(obj); })
+            .catch(() => { /* show the base model rather than nothing */ });
+        }
       })
       .catch(() => {
         if (currentId !== assetId) return;
