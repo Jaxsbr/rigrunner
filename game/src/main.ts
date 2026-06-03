@@ -202,6 +202,9 @@ function frame(now: number): void {
   // proximity "Press E" / "Hold E" bubbles fade in/out with each interaction's lit disc; runs always
   // (even paused) so the prompt stays put behind the overlay rather than popping on resume.
   view.syncInteractionHints(world, dt);
+  // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
+  // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
+  view.syncScrapStains(world, dt);
   if (!paused) {
     view.animateWheels(world, dt);
     view.animateStorageFill(world, dt);

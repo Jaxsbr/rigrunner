@@ -5,10 +5,11 @@ mark on the ground around every loose scrap piece, that **fades out when the scr
 (a cleaning effect) and **fades in when new scrap is spawned** by looting a scrap-pile (pollution
 added). Captured ahead of building so we have a historical record of the plan when we pick it up next.
 
-> **Status:** **planned, not built.** No code yet — this is the record of intent. Purely cosmetic:
-> it must not touch collection, collision, loot, or storage logic. Numbers below are starting
-> strawmen, tuned against feel once it's on screen. True to "build by discovery", it goes in because
-> it should make the world read as *lived-in and reactive*, not because it's on a roadmap.
+> **Status:** **built** (same PR/branch as this spec). Implemented as `game/src/render/scrap-stains.ts`
+> — a render-layer collaborator (`ScrapStains`) following §5a (despawn-diff, zero coupling to
+> collection). Purely cosmetic: it touches no collection, collision, loot, or storage logic. The
+> numbers below are the shipped strawmen — still tune against feel. True to "build by discovery", it
+> went in because it makes the world read as *lived-in and reactive*, not because it was on a roadmap.
 
 ---
 
