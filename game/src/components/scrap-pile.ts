@@ -16,9 +16,11 @@ import { defineComponent } from '../core/component';
  * front (local −Z) and the direction to the pile against `fov / 2`.
  *
  * `total`/`remaining` are the pile's depth in WAVES of scrap. Holding-to-work drains `remaining` one
- * wave at a time (each wave scatters loose scrap around the rig), and the render layer shrinks the
- * heap toward `remaining / total` so the depletion is watched, not a counter. `worked` is the
- * transient time accrued toward the next wave (like WorkshopDrain.elapsed).
+ * wave at a time (each wave scatters a random handful of loose scrap around the rig), and the render
+ * layer shrinks the heap toward `remaining / total` so the depletion is watched, not a counter.
+ * `worked` is the transient time accrued toward the next wave (like WorkshopDrain.elapsed).
+ * `scrapScattered` accumulates how many loose-scrap pieces the pile has flung out across its waves —
+ * the pile's running scrap yield, reported in the loot popup when it clears (PR5).
  *
  * `active` is recomputed each frame by scrapPileSystem (the full gate above); it's cached here so the
  * rummage system (may I drain this?) and the render overlay (dim grey vs. lit green disc) read one
@@ -30,6 +32,7 @@ export interface ScrapPile {
   total: number;
   remaining: number;
   worked: number;
+  scrapScattered: number;
   active: boolean;
 }
 

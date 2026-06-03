@@ -89,6 +89,7 @@ export function spawnScrapPile(world: World, x: number, z: number, rotationY = 0
     total: PILE_WAVES,
     remaining: PILE_WAVES,
     worked: 0,
+    scrapScattered: 0,
     active: false,
   });
   world.add(e, Renderable, { shape: 'model', assetId: 'scrap-pile' });

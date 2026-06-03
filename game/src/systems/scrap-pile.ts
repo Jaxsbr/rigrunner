@@ -6,7 +6,10 @@ import { Part } from '../components/part';
 import { Mount } from '../components/mount';
 import { ScrapPile } from '../components/scrap-pile';
 import { Digging } from '../components/digging';
+import { LootDrop } from '../components/loot-drop';
+import { ClearedGround } from '../components/cleared-ground';
 import { scatterScrapAround } from '../content/scrap';
+import { rollLoot, rollScrapBurst } from '../content/loot-table';
 
 /**
  * The scrap-pile interaction: the capability-gated, hold-to-work rummage (Option C / PR4).
@@ -23,9 +26,9 @@ import { scatterScrapAround } from '../content/scrap';
  */
 
 // Hold-to-work tuning. A wave is one "bite" of the heap: it drops `remaining` by one and scatters a
-// handful of scrap. PILE_WAVES bites at WAVE_INTERVAL each set how long a full rummage takes.
+// random handful of scrap (the per-wave count comes from the loot table's scrap tier, so a pile's
+// total scrap is random). PILE_WAVES bites at WAVE_INTERVAL each set how long a full rummage takes.
 const WAVE_INTERVAL = 0.45;      // seconds of holding between waves
-const SCRAP_PER_WAVE = 2;        // loose-scrap pieces flung out per wave
 const BURST_MIN_R = 1.8;         // inner radius scrap scatters to around the rig (some auto-collected)
 const BURST_MAX_R = 3.5;         // outer radius (these you nudge the rig over to sweep up)
 
@@ -90,11 +93,24 @@ export function scrapPileSystem(world: World, rig: EntityId): void {
  * The hold-to-work beat. With `working` true (the work key held) and a pile `active`, the rig's
  * Reclaimer is marked Digging (its arm deploys + animates) and the pile drains a wave at a time,
  * each wave bursting loose scrap around the rig. When `working` is false or no pile is active, the
- * Reclaimer stops digging and partial wave progress resets. An emptied pile is destroyed — the
- * "cleared ground"; its scrap burst was the yield (the loot table is PR5). Returns the scrap ids
- * spawned this frame (for tests / feedback).
+ * Reclaimer stops digging and partial wave progress resets.
+ *
+ * When a pile empties it is destroyed (the "cleared ground"), and on the way out it pays out PR5's
+ * loot: the burst it scattered wave-by-wave was the scrap, and an empty-roll of the loot table
+ * (`rollLoot`) adds any hidden finds. Both are queued on a single `LootDrop` (always created — the
+ * popup always reports the scrap haul) for the loot UI to reveal and grant. It also leaves a
+ * `ClearedGround` marker where it stood — the restoration seam (nothing consumes it yet). `rng` is
+ * injected so the burst counts + roll are testable; it defaults to `Math.random`.
+ *
+ * Returns the scrap ids spawned this frame (for tests / feedback).
  */
-export function scrapRummageSystem(world: World, rig: EntityId, working: boolean, dt: number): EntityId[] {
+export function scrapRummageSystem(
+  world: World,
+  rig: EntityId,
+  working: boolean,
+  dt: number,
+  rng: () => number = Math.random,
+): EntityId[] {
   const reclaimer = mountedReclaimer(world, rig);
 
   // The pile being worked: the first active one (zones don't overlap, so at most one is in play).
@@ -125,11 +141,22 @@ export function scrapRummageSystem(world: World, rig: EntityId, working: boolean
     while (pile.worked >= WAVE_INTERVAL && pile.remaining > 0) {
       pile.worked -= WAVE_INTERVAL;
       pile.remaining -= 1;
-      spawned.push(...scatterScrapAround(world, rigT.x, rigT.z, SCRAP_PER_WAVE, BURST_MIN_R, BURST_MAX_R));
+      const burst = rollScrapBurst(rng); // random pieces this wave (the pile's scrap is random)
+      pile.scrapScattered += burst;
+      spawned.push(...scatterScrapAround(world, rigT.x, rigT.z, burst, BURST_MIN_R, BURST_MAX_R));
     }
     if (pile.remaining <= 0) {
-      // Emptied: clear the ground and stop the dig (nothing left to work).
+      // Emptied: stop the dig (nothing left to work), pay out the loot, and clear the ground.
       if (reclaimer !== null && world.has(reclaimer, Digging)) world.remove(reclaimer, Digging);
+      const pt = world.get(p, Transform)!;
+      // Empty-roll the loot table and queue a LootDrop for the loot UI. ALWAYS created: a pile always
+      // gave scrap (the burst), so the popup always reports the haul; `finds` carries any non-scrap
+      // bonus (empty about half the time at the 50% sub-part chance) for the UI to reveal + grant.
+      const drop = world.createEntity();
+      world.add(drop, LootDrop, { scrap: pile.scrapScattered, finds: rollLoot(rng) });
+      // The ground-cleared signal: a marker where the pile stood, for the future restoration seam.
+      const marker = world.createEntity();
+      world.add(marker, ClearedGround, { x: pt.x, z: pt.z });
       world.destroyEntity(p);
     }
   }

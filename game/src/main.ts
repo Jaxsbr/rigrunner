@@ -26,6 +26,7 @@ import { RenderView } from './render/view';
 import { StatsHud } from './ui/stats-hud';
 import { WalletHud } from './ui/wallet-hud';
 import { WorkshopOverlay } from './ui/workshop-overlay';
+import { LootOverlay } from './ui/loot-overlay';
 
 /**
  * Composition root. The ONLY place that knows about all three layers at once: it wires
@@ -55,11 +56,15 @@ scatterScrap(world, 64, 5, 34);
 // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
 // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
 spawnWorkshop(world, 0, 8);
-// A rummageable scrap pile (Option C / PR4), off to one side of the field. It only lights up once
+// Rummageable scrap piles (Option C / PR4–5) scattered around the field. A pile only lights up once
 // the rig parks in reach with a MOUNTED RECLAIMER aimed at it (the capability + facing gate); then
 // hold E to dig — the arm deploys, the heap slumps in waves, and loose scrap bursts out around the
-// rig for the usual drive-over collection to sweep into storage.
-spawnScrapPile(world, -10, 2);
+// rig for the usual drive-over collection to sweep into storage. When a pile empties it rolls the
+// loot table (PR5) — a 50% chance of 1–3 bonus sub-parts, revealed in the loot popup. Several piles
+// spread across the field so the loot roll is worth driving between and easy to exercise in testing.
+for (const [x, z] of [[-10, 2], [13, 6], [-15, -11], [9, -15], [17, -3], [-4, -16]] as const) {
+  spawnScrapPile(world, x, z);
+}
 // The Reclaimer is no longer a staged prop (Option C / PR3): it's now a real buildable, mountable,
 // purchasable part. Buy the Arm + Bucket in the Parts Shop, assemble them on the bench (the
 // Reclaimer recipe), stage the product on the workshop deck, then grab it off the deck and mount it
@@ -96,16 +101,32 @@ const build = createBuildController(world, view, canvas, player);
 const stats = new StatsHud(document.querySelector<HTMLElement>('#stats')!);
 const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!);
 
-// The workshop interface shell. Opening its tab freezes the simulation; main owns the `paused`
-// flag and the overlay flips it through the callback. The tab's visibility tracks zone proximity,
-// which main pushes in each frame (the overlay never touches the World).
+// Two overlays can each freeze the simulation: the workshop interface and the loot popup. Main owns
+// one `paused` flag that is the OR of both, so whichever is up holds the sim still and resuming needs
+// both down. Each overlay flips its own bit through its callback.
 let paused = false;
+let workshopPaused = false;
+let lootPaused = false;
+const syncPaused = (): void => { paused = workshopPaused || lootPaused; };
+
+// The workshop interface shell. Opening its tab freezes the simulation; the tab's visibility tracks
+// zone proximity, which main pushes in each frame (the overlay never touches the World).
 const overlay = new WorkshopOverlay(
   document.querySelector<HTMLButtonElement>('#workshop-tab')!,
   document.querySelector<HTMLElement>('#workshop-overlay')!,
   world,
   {
-    onPauseChange: (p) => { paused = p; },
+    onPauseChange: (p) => { workshopPaused = p; syncPaused(); },
+  },
+);
+
+// The loot popup. It opens itself the frame a rummaged-empty pile queues a LootDrop, freezes the sim
+// while showing the find, and on Collect grants the find to inventory and resumes (see loot-overlay).
+const loot = new LootOverlay(
+  document.querySelector<HTMLElement>('#loot-overlay')!,
+  world,
+  {
+    onPauseChange: (p) => { lootPaused = p; syncPaused(); },
   },
 );
 
@@ -167,6 +188,10 @@ function frame(now: number): void {
   // the tab tracks zone proximity each frame (the overlay hides it while open, so reading the
   // frozen zone state while paused is harmless).
   overlay.setZoneActive(anyZoneActive());
+
+  // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
+  // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
+  loot.update();
 
   // render (reads state; owns no truth) — always runs so the frozen scene stays drawn. The
   // sim-driven animators (wheel spin, storage fill) are skipped while paused: the rig coasts, so

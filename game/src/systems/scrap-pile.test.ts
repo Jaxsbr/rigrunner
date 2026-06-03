@@ -9,6 +9,8 @@ import { MountGrid } from '../components/mount-grid';
 import { ScrapPile } from '../components/scrap-pile';
 import { Digging } from '../components/digging';
 import { Collectible } from '../components/collectible';
+import { LootDrop } from '../components/loot-drop';
+import { ClearedGround } from '../components/cleared-ground';
 import { scrapPileSystem, scrapRummageSystem, facingWithinFov } from './scrap-pile';
 
 const FOV = (120 * Math.PI) / 180;
@@ -34,7 +36,7 @@ function reclaimer(world: World, rigId: EntityId, x: number, z: number, rotation
 function pile(world: World, x: number, z: number, waves = 8): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY: 0 });
-  world.add(e, ScrapPile, { radius: 4, fov: FOV, total: waves, remaining: waves, worked: 0, active: false });
+  world.add(e, ScrapPile, { radius: 4, fov: FOV, total: waves, remaining: waves, worked: 0, scrapScattered: 0, active: false });
   return e;
 }
 
@@ -127,10 +129,12 @@ describe('scrapRummageSystem (hold-to-work)', () => {
 
   it('drains one wave per interval and bursts scrap around the rig', () => {
     const { world, r, p } = workableWorld();
-    // 0.45 s = one WAVE_INTERVAL → exactly one wave drained.
-    const spawned = scrapRummageSystem(world, r, true, 0.45);
+    // 0.45 s = one WAVE_INTERVAL → exactly one wave drained. rng 0.5 → a deterministic 2-piece burst
+    // (scrap tier range 1–3) and the pile tracks what it scattered.
+    const spawned = scrapRummageSystem(world, r, true, 0.45, () => 0.5);
     expect(world.get(p, ScrapPile)!.remaining).toBe(7);
-    expect(spawned.length).toBe(2); // SCRAP_PER_WAVE
+    expect(spawned.length).toBe(2);
+    expect(world.get(p, ScrapPile)!.scrapScattered).toBe(2);
     for (const s of spawned) expect(world.has(s, Collectible)).toBe(true);
   });
 
@@ -148,5 +152,36 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     scrapRummageSystem(world, r, true, 1.0);
     expect(world.isAlive(p)).toBe(false);
     expect(world.has(rec, Digging)).toBe(false);
+  });
+
+  it('leaves a ClearedGround marker at the pile position when it empties', () => {
+    const { world, r, p } = workableWorld(2);
+    const pt = world.get(p, Transform)!;
+    scrapRummageSystem(world, r, true, 1.0, () => 0.99); // emptied; rng fails the loot roll
+    const markers = world.query(ClearedGround);
+    expect(markers).toHaveLength(1);
+    const m = world.get(markers[0]!, ClearedGround)!;
+    expect(m.x).toBe(pt.x);
+    expect(m.z).toBe(pt.z);
+  });
+
+  it('always queues a LootDrop on empty: finds on a winning roll, scrap-only on a miss', () => {
+    // rng = 0 forces the 50% sub-part tier to drop → a LootDrop with finds AND scrap reported.
+    const win = workableWorld(2);
+    scrapRummageSystem(win.world, win.r, true, 1.0, () => 0);
+    const wd = win.world.query(LootDrop);
+    expect(wd).toHaveLength(1);
+    const wdrop = win.world.get(wd[0]!, LootDrop)!;
+    expect(wdrop.finds.length).toBeGreaterThan(0);
+    expect(wdrop.scrap).toBeGreaterThan(0);
+
+    // rng ≥ 0.5 → the sub-part roll fails → still a LootDrop, finds empty but scrap reported.
+    const miss = workableWorld(2);
+    scrapRummageSystem(miss.world, miss.r, true, 1.0, () => 0.99);
+    const md = miss.world.query(LootDrop);
+    expect(md).toHaveLength(1);
+    const mdrop = miss.world.get(md[0]!, LootDrop)!;
+    expect(mdrop.finds).toHaveLength(0);
+    expect(mdrop.scrap).toBeGreaterThan(0);
   });
 });
