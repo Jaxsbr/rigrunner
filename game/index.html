@@ -125,6 +125,35 @@
          informational (rummaging is the held E key), so only the tab gets the click affordance. */
       #workshop-tab { cursor: pointer; }
       #workshop-tab:hover { background: rgba(28, 40, 34, 0.96); }
+      /* Transient notification toast, top-centre. Unlike the bottom-centre .hud-prompt cues (which
+         track a live gate and hold while it's lit) and the modal overlays (which freeze the game), a
+         toast announces a one-off event — e.g. a chassis deploy refused at the field cap — then
+         self-dismisses. hazard_yellow border + amber text read it as a heads-up, distinct from the
+         glow_green affordance prompts. .hidden fades and lifts it off so it never pops; ignores the
+         mouse so it never intercepts the build drag underneath. */
+      #cap-toast {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%) translateY(0);
+        max-width: min(440px, 86vw);
+        padding: 10px 16px;
+        border: 1px solid rgba(217, 165, 33, 0.55);
+        border-radius: 8px;
+        background: rgba(28, 23, 12, 0.92);
+        color: #e8c965;
+        font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.03em;
+        text-align: center;
+        user-select: none;
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+      #cap-toast.hidden {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-12px);
+      }
       /* Full-screen workshop overlay. Backdrop dims + intercepts the mouse (pointer-events:auto),
          so the frozen scene underneath can't be dragged/orbited while it's open. An empty shell
          in P1 — the inventory browser, portrait and bench land in later PRs. */
@@ -726,6 +755,7 @@
     <button id="workshop-tab" class="hud-prompt hidden" type="button">🔧 Open Workshop<kbd>E</kbd></button>
     <div id="scrap-prompt" class="hud-prompt hidden">🦾 Scrap Pile · Hold<kbd>E</kbd></div>
     <div id="pack-prompt" class="hud-prompt hidden">📦 Pack up chassis · Press<kbd>E</kbd></div>
+    <div id="cap-toast" class="hidden"></div>
     <div id="workshop-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workshop">
       <div class="workshop-panel">
         <header class="workshop-header">

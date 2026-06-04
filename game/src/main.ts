@@ -26,7 +26,7 @@ import { workshopDrainSystem } from '@features/workshop/workshop-drain-system';
 import { createDriveInput } from '@common/input/drive-input';
 import { createCameraInput } from '@common/input/camera-input';
 import { createBuildController } from '@features/mounting/build-controller';
-import { markOwned, setActiveRig, getActiveRig } from '@features/chassis/ownership';
+import { markOwned, setActiveRig, getActiveRig, MAX_OWNED } from '@features/chassis/ownership';
 import { advanceDeploying } from '@features/chassis/deploying';
 import { animateChassisDeploy } from '@features/chassis/deploy-animator';
 import { ChassisBar } from '@features/chassis/chassis-bar';
@@ -42,6 +42,7 @@ import { animateStorageFill } from '@features/storage/storage-fill';
 import { animateReclaimer } from '@features/scrap/reclaimer-animator';
 import { animateScrapPile } from '@features/scrap/scrap-pile-animator';
 import { StatsHud } from '@features/hud/stats-hud';
+import { Toast } from '@features/hud/toast';
 import { WalletHud } from '@features/economy/wallet-hud';
 import { WorkshopOverlay } from '@features/workshop/workshop-overlay';
 import { LootOverlay } from '@features/scrap/loot-overlay';
@@ -141,13 +142,17 @@ for (let i = 0; i < 2; i++) {
   const container = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
   addToInventory(world, container);
 }
-// A full 1×3 chassis sub-part set, so the chassis-kit flow (build on the bench → stage the 2×2 kit
-// → haul it out into the world to assemble a new rig) is exercisable immediately without grinding.
-// The 3×5 set, and more 1×3 sets, are bought in the Parts Shop.
-for (const id of ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3']) {
-  addToInventory(world, spawnCatalogPart(world, partDef(id)!));
+// Two full 1×3 chassis sub-part sets, so the chassis-kit flow (build on the bench → stage the 2×2 kit
+// → haul it out into the world to assemble a new rig) is exercisable immediately without grinding —
+// AND so the ownership cap can be felt: deploy the first kit to reach the MAX_OWNED=2 cap, then haul
+// the second out to trip the cap-refusal toast. The 3×5 set, and more 1×3 sets, are bought in the
+// Parts Shop.
+for (let set = 0; set < 2; set++) {
+  for (const id of ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3']) {
+    addToInventory(world, spawnCatalogPart(world, partDef(id)!));
+  }
 }
-console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanical engines, 2 storage containers, and a 1×3 chassis sub-part set (remove before merge).');
+console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanical engines, 2 storage containers, and two 1×3 chassis sub-part sets (remove before merge).');
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
 // workshop interface drops parts into while composing the active recipe's output. Starts on the
@@ -166,11 +171,24 @@ console.info('[starter] DEV SEED: wallet seeded with 60 scrap so the Reclaimer c
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
 const view = new RenderView(canvas);
+// The transient cap-refusal toast (top-centre): when the player hauls out a chassis kit they can't
+// field — already at MAX_OWNED — the build controller calls back here so the refusal is spoken, not
+// silent (the kit still glides home to the deck). The composition root owns the copy; the toast itself
+// is a generic primitive.
+const capToast = new Toast(document.querySelector<HTMLElement>('#cap-toast')!);
+
 // The build controller follows the ACTIVE rig (so you build on whichever chassis you control) and is
 // given the workshop's active staging decks — rather than importing the workshop's WorkshopZone
 // itself — so mounting never imports workshop; the edge points downhill (workshop → mounting),
 // keeping the cross-feature DAG acyclic (ADR-003).
-const build = createBuildController(world, view, canvas, () => getActiveRig(world)!, () => activeStagingTargets(world));
+const build = createBuildController(
+  world,
+  view,
+  canvas,
+  () => getActiveRig(world)!,
+  () => activeStagingTargets(world),
+  () => capToast.show(`You can only field ${MAX_OWNED} chassis at once — pack up one first to make room.`),
+);
 const stats = new StatsHud(document.querySelector<HTMLElement>('#stats')!);
 const chassisBar = new ChassisBar(document.querySelector<HTMLElement>('#chassis-bar')!, world);
 const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!);
@@ -344,6 +362,9 @@ function frame(now: number): void {
   stats.update(world, activeRig);
   chassisBar.update();
   walletHud.update(world);
+  // the cap-refusal toast ticks its dismiss countdown on real (clamped) time — always, so it fades on
+  // schedule even if the player opens the workshop right after triggering it.
+  capToast.update(dt);
 
   requestAnimationFrame(frame);
 }

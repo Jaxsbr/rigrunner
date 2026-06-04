@@ -84,6 +84,10 @@ export interface BuildController {
  * @param stagingTargets the active workshop decks a carried part may be staged onto this frame
  *            (rig parked in range). Injected by `main.ts` (from `@features/workshop/staging`) so
  *            mounting does NOT import workshop — the dependency points downhill (ADR-003 inward rule).
+ * @param onCapRefused called when a hauled-out chassis kit is refused because the player is already at
+ *            the `MAX_OWNED` field cap — the kit still glides home, but `main.ts` uses this to surface a
+ *            toast so the refusal isn't silent. Mounting reports the event; the composition root owns
+ *            the user-facing copy, keeping chassis-cap wording out of this slice.
  */
 export function createBuildController(
   world: World,
@@ -91,6 +95,7 @@ export function createBuildController(
   canvas: HTMLCanvasElement,
   getRig: () => EntityId,
   stagingTargets: () => EntityId[],
+  onCapRefused: () => void,
 ): BuildController {
   let carried: EntityId | null = null;
   let grabFromY = 0;
@@ -175,18 +180,22 @@ export function createBuildController(
 
     // A chassis kit dropped clear of any deck is the "haul it out" payoff. While the player owns
     // fewer than the cap, the crate LANDS on the ground (this glide), then on arrival deploys into a
-    // new drivable rig that plays its unfold (the deploy on glide arrival). At the cap, it's refused
-    // like any rejected move and falls through to the return-to-origin handling below — so it glides
-    // back to the workshop deck rather than deploying a third chassis.
-    if (world.get(part, Part)?.kind === 'chassis' && ownedCount(world) < MAX_OWNED) {
-      glides.push({
-        part,
-        fromX: t.x, fromY: t.y ?? CARRY_PLANE_Y, fromZ: t.z,
-        toX: dragX, toY: 0, toZ: dragZ,
-        t: 0,
-        deploy: true,
-      });
-      return;
+    // new drivable rig that plays its unfold (the deploy on glide arrival).
+    if (world.get(part, Part)?.kind === 'chassis') {
+      if (ownedCount(world) < MAX_OWNED) {
+        glides.push({
+          part,
+          fromX: t.x, fromY: t.y ?? CARRY_PLANE_Y, fromZ: t.z,
+          toX: dragX, toY: 0, toZ: dragZ,
+          t: 0,
+          deploy: true,
+        });
+        return;
+      }
+      // At the cap, the deploy is refused: tell the player why before the kit falls through to the
+      // return-to-origin glide below (which sends it home to the workshop deck). Without this the kit
+      // silently gliding back reads as a bug — the toast points them at pack-up to free a slot.
+      onCapRefused();
     }
 
     // Not over a free cell. If the part came off a deck, send it BACK to that cell (a rejected
