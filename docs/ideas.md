@@ -90,8 +90,7 @@ If electric is "low-load / fast" and mechanical is "heavy / slow," can you ever 
 
 ### Housekeeping
 - **Current rig is 2×3, not 3×3.** In this tier scheme 2×3 is a **large** chassis — the *starter*
-  would be the smallest (size 1). (Corrects a stray "3×3" note I left in a dev-seed comment on the MD
-  branch; fix that there.)
+  would be the smallest (size 1). (A stray "3×3" in the dev-seed comment is corrected in this PR.)
 
 ### Where this plugs in
 - **Unblocks / reshapes MP** — the chassis cap is what makes tiered driving stats safe; gold-engine
