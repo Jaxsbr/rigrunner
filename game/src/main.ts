@@ -263,7 +263,7 @@ function frame(now: number): void {
   // proximity discs + "Press E"/"Hold E" bubbles: each feature contributes its gated entries and
   // main concatenates them for the shared render-tier overlays. Runs always (even paused) so the
   // disc/prompt stay put behind the overlay rather than popping on resume.
-  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)]);
+  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)], dt);
   hints.sync([...workshopHints(world), ...scrapPileHints(world)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
