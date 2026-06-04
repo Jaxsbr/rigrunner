@@ -7,6 +7,11 @@ import type { CellPose } from '@core/geometry';
  * part will land. They live together because they cooperate visually — the shadow sits just above
  * the highlight so it composites cleanly over the glow.
  */
+
+// The pad's base geometry: a single 1 m cell inset 0.05 m on every side, so it glows just inside the
+// cell rather than touching the grid lines. A multi-cell pad (below) keeps the same inset off its
+// region's outer edge.
+const PAD_CELL = 0.9;
 export class BuildAffordances {
   // Filled, glowing pad on the cell a carried part will snap into — a glowing pad rather than a
   // faint outline, so it reads as eager to accept the part. The group holds a fill + a bright
@@ -26,10 +31,10 @@ export class BuildAffordances {
     this.cellHighlightFill = new THREE.MeshBasicMaterial({
       color: 0x59ff9f, transparent: true, opacity: 0.4, depthWrite: false,
     });
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), this.cellHighlightFill);
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(PAD_CELL, PAD_CELL), this.cellHighlightFill);
     fill.renderOrder = 2;
     const border = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.9, 0.9)),
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(PAD_CELL, PAD_CELL)),
       new THREE.LineBasicMaterial({ color: 0x9dffc8, transparent: true, opacity: 0.95, depthWrite: false }),
     );
     border.renderOrder = 3;
@@ -49,12 +54,24 @@ export class BuildAffordances {
   }
 
   /**
-   * Show the snap-target highlight on a cell at the given world pose (or hide it when null). The
+   * The resting pad span, in metres, for a part's deck `footprint`. A multi-cell part (the 2×2
+   * chassis kit) lights its WHOLE region, not just the centre cell: an N×M footprint spans N×M cells,
+   * and the pad keeps the same 0.05 m inset off the region's outer edge that a single cell gets
+   * (`PAD_CELL` = 1 − 0.1). So 1×1 → 0.9, 2×2 → 1.9. Pure maths, unit-tested.
+   */
+  static padMeters(footprint: { cols: number; rows: number }): { x: number; z: number } {
+    const inset = 1 - PAD_CELL;
+    return { x: footprint.cols - inset, z: footprint.rows - inset };
+  }
+
+  /**
+   * Show the snap-target highlight at the given world pose (the footprint REGION's centre), sized to
+   * `footprint` so a multi-cell part lights all the cells it will occupy — or hide it when null. The
    * pad breathes (opacity + scale) so the cell looks alive and eager to take the part, and grows
    * in with a quick pop the moment it lands on a (new) cell — a clear "this cell will accept it"
    * reaction, not a static marker. Both effects are pure view polish driven off the clock.
    */
-  showCellHighlight(pose: CellPose | null): void {
+  showCellHighlight(pose: CellPose | null, footprint: { cols: number; rows: number } = { cols: 1, rows: 1 }): void {
     if (!pose) {
       if (this.cellHighlight.visible) this.cellHighlightShownAt = 0; // reset so the pop replays next time
       this.cellHighlight.visible = false;
@@ -82,7 +99,11 @@ export class BuildAffordances {
 
     const settled = 0.94 + breathe * 0.06; // 0.94–1.0
     const scale = settled * (0.7 + 0.3 * growIn); // 70%→100% of settled on arrival, max = settled
-    this.cellHighlight.scale.set(scale, scale, 1);
+    // Stretch the unit pad to the footprint's region (1×1 leaves it unchanged), then apply the
+    // breathing/pop on top. The pad is rotated flat about X and turned by the part's facing below;
+    // the only multi-cell part is the square 2×2 kit, so the per-axis stretch reads the same either way.
+    const pad = BuildAffordances.padMeters(footprint);
+    this.cellHighlight.scale.set((scale * pad.x) / PAD_CELL, (scale * pad.z) / PAD_CELL, 1);
     this.cellHighlight.rotation.set(-Math.PI / 2, 0, pose.rotationY);
     this.cellHighlightFill.opacity = (0.3 + breathe * 0.3) * (0.55 + 0.45 * growIn); // brighten as it grows in
   }

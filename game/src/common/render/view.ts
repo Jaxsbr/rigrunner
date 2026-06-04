@@ -60,7 +60,9 @@ export class RenderView {
   raycastPlane(clientX: number, clientY: number, planeY: number): { x: number; z: number } | null {
     return this.picker.raycastPlane(clientX, clientY, planeY);
   }
-  showCellHighlight(pose: CellPose | null): void { this.affordances.showCellHighlight(pose); }
+  showCellHighlight(pose: CellPose | null, footprint?: { cols: number; rows: number }): void {
+    this.affordances.showCellHighlight(pose, footprint);
+  }
   showCarryShadow(at: { x: number; z: number; y: number } | null): void {
     this.affordances.showCarryShadow(at);
   }
