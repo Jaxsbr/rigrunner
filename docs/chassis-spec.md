@@ -4,8 +4,9 @@
 composed, sized part of the rig — the plan of record for the feature requested 2026-06-04. It is the
 home for the whole feature; PR1 (the foundation) is built, PR2–PR3 are committed follow-ups.
 
-> **Status:** **PR1 is built.** PR2 (chassis-kit workshop flow) and PR3 (multi-chassis ownership +
-> selection) are **planned** and gated behind feeling PR1, true to "build by discovery."
+> **Status:** **PR1 + PR2 are built.** PR3 is split: **PR3a** (multi-chassis ownership + selection +
+> a visible deploy) is in progress; **PR3b** (the authored unfold animation) is planned — gated
+> behind feeling PR3a, true to "build by discovery."
 
 ---
 
@@ -66,19 +67,33 @@ The chassis becomes a real, composed, sized part, wired end-to-end except for dr
   `tools/blender/assets/chassis_common.py` + the two size modules. Registered in `shared/assets.ts`.
 - The 1×3 starter seed in `main.ts` rewritten for the 3-cell deck.
 
-### PR2 — The chassis-kit workshop flow *(planned)*
-- Building a chassis from its three sub-parts on the bench, assembling into a **chassis-kit** shown as
-  a **2×2 block** in the workshop UI.
-- Moving the kit from the workshop deck **out into the world**, where it assembles into a new drivable
-  chassis. (PR1 already isolates the seam: a chassis product gains the *rig's* components, not a
-  mounted part's — see `spawnRig`. The chassis recipes are intentionally **absent** from the on-rig
-  bench picker `RECIPES[]` until this flow exists.)
+### PR2 — The chassis-kit workshop flow *(built)*
+- A chassis is built from its three sub-parts on the workshop **bench** (its two recipes sit in the
+  picker, size-locked by `acceptsChassisPart`), assembling into a **chassis-kit** — a composed
+  product with a 2×2 `Part.footprint` (`CHASSIS_KIT_FOOTPRINT`), shown as a 2×2 block on the deck.
+- The kit is hauled off the deck **out into the world**, where it assembles into a new drivable
+  chassis. The convert seam is `chassisToRig` (factored out of `spawnRig`, `@features/mounting/rig`);
+  the kit renders as the packed `chassis-kit` crate and swaps to the unfolded chassis on deploy.
+- Sub-parts are bought in the **Parts Shop** (`part-costs.ts`). Mounting carries a multi-cell
+  footprint primitive (`regionFree`, footprint-aware `partAtCell`/snap/ride) for the 2×2 block.
 
-### PR3 — Multi-chassis ownership + selection *(planned)*
-- The player owns **1–2** chassis.
-- A small **icon per owned chassis**, top-left; keys **`1`** / **`2`** switch which rig the player
-  controls (refactor `main.ts`'s single `player` binding into an "active rig" the input/camera/HUD/
-  zone systems follow).
+### PR3 — Multi-chassis ownership + selection
+The player owns **1–2** chassis and switches which one they control. Split in two:
+
+**PR3a — ownership + selection + a visible deploy *(in progress)*.**
+- `PlayerChassis` + `ActiveRig` markers (`@features/chassis/ownership.ts`): own up to `MAX_OWNED`
+  (2); exactly one is active. `main.ts`'s single `player` binding becomes a per-frame `activeRig` the
+  input/camera/HUD/zone/scrap/build interaction all follow; the build controller takes a `getRig`.
+- A top-left **chassis bar** (`chassis-bar.ts`): a chip per owned chassis (size + its `1`/`2`
+  hotkey, active highlighted); click or press the number to switch control.
+- **Visible deploy:** a hauled-out kit's crate **lands and stays a crate**, then after a short beat
+  assembles into a rig (`deployChassis` = `chassisToRig` + `markOwned`, cap-aware). Control **stays
+  on the current rig** (no camera jump); a 3rd kit at the cap is refused and returns to the deck.
+
+**PR3b — the authored unfold animation *(planned)*.** Replace PR3a's simple assemble beat with a
+mechanical unfold (wheels roll out, body rises) — an articulated "deploying" chassis + a deploy
+animator. The deploy seam (`deployChassis`) stays; only the visual is upgraded. Camera target-easing
+on a `1`/`2` switch (PR3a retargets instantly) rides along here.
 
 ---
 

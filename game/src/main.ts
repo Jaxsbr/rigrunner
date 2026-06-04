@@ -25,6 +25,8 @@ import { workshopDrainSystem } from '@features/workshop/workshop-drain-system';
 import { createDriveInput } from '@common/input/drive-input';
 import { createCameraInput } from '@common/input/camera-input';
 import { createBuildController } from '@features/mounting/build-controller';
+import { markOwned, setActiveRig, getActiveRig } from '@features/chassis/ownership';
+import { ChassisBar } from '@features/chassis/chassis-bar';
 import { activeStagingTargets } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
 import { ZoneOverlays } from '@common/render/zone-overlays';
@@ -52,6 +54,11 @@ const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
 const world = new World();
 const player = spawnRig(world); // a scrap 1×3 chassis — a 3-cell deck (col 0, rows 0–2) that runs 1–2 engines
+// The starter is the player's first owned chassis and the one they control at boot. Any chassis they
+// build and deploy in the world becomes another owned chassis (capped at MAX_OWNED); the chassis bar
+// + 1/2 keys switch which one input/camera/HUD/zones follow.
+markOwned(world, player);
+setActiveRig(world, player);
 // The rig starts with a basic pre-assembled ELECTRIC engine already mounted — a gentle cold start
 // (the player can drive immediately, and electric's snappy/light profile is the friendlier default
 // than the heavy hauler). It's a normal composed engine — removable and dismantlable like any other
@@ -155,11 +162,13 @@ console.info('[starter] DEV SEED: wallet seeded with 60 scrap so the Reclaimer c
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
 const view = new RenderView(canvas);
-// The build controller is given the workshop's active staging decks (rather than importing the
-// workshop's WorkshopZone itself) so mounting never imports workshop — the edge points downhill
-// (workshop → mounting), keeping the cross-feature DAG acyclic (ADR-003).
-const build = createBuildController(world, view, canvas, player, () => activeStagingTargets(world));
+// The build controller follows the ACTIVE rig (so you build on whichever chassis you control) and is
+// given the workshop's active staging decks — rather than importing the workshop's WorkshopZone
+// itself — so mounting never imports workshop; the edge points downhill (workshop → mounting),
+// keeping the cross-feature DAG acyclic (ADR-003).
+const build = createBuildController(world, view, canvas, () => getActiveRig(world)!, () => activeStagingTargets(world));
 const stats = new StatsHud(document.querySelector<HTMLElement>('#stats')!);
+const chassisBar = new ChassisBar(document.querySelector<HTMLElement>('#chassis-bar')!, world);
 const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!);
 
 // Feature render dispatched from the composition root (ADR-003 §4): the proximity discs, the "Press
@@ -215,10 +224,15 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05); // clamp to avoid jumps on refocus
   last = now;
 
-  // input → intent → the player's control component (the seam). While the workshop overlay is open
-  // the sim is frozen: drive input is ignored and the control is zeroed, so no held-then-released
-  // key survives the pause to lurch the rig on resume.
-  const ctl = world.get(player, DriveControl)!;
+  // The chassis the player currently controls — input, camera, HUD, the workshop zone and the
+  // scrap-pile gate all follow it, so switching rigs (the chassis bar / 1-2 keys) reroutes them all
+  // with no extra wiring. The starter is owned + active at boot, so this is always set.
+  const activeRig = getActiveRig(world)!;
+
+  // input → intent → the active rig's control component (the seam). While the workshop overlay is
+  // open the sim is frozen: drive input is ignored and the control is zeroed, so no held-then-
+  // released key survives the pause to lurch the rig on resume.
+  const ctl = world.get(activeRig, DriveControl)!;
   let work = false; // E held this frame (only while the sim runs) — the hold-to-work rummage intent
   if (paused) {
     ctl.throttle = 0;
@@ -239,14 +253,14 @@ function frame(now: number): void {
     mountingSystem(world);
     // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
     // it, so a part dropped this frame snaps onto the workshop only when it's lit.
-    workshopZoneSystem(world, player);
+    workshopZoneSystem(world, activeRig);
     build.update(dt);
 
     // scrap piles: recompute each pile's capability+facing gate (after mounting has ridden the
     // Reclaimer to its cell, so its aim is current), then turn a held work key over an active pile
     // into the rummage — the arm digs and the heap bursts loose scrap around the rig.
-    scrapPileSystem(world, player);
-    scrapRummageSystem(world, player, work, dt);
+    scrapPileSystem(world, activeRig);
+    scrapRummageSystem(world, activeRig, work, dt);
 
     // collision → collection: with parts now placed at their cells, find overlaps and let any
     // scrap the rig (or a part on it) touched be swept into storage. Pure pair list in, mutations
@@ -270,7 +284,7 @@ function frame(now: number): void {
   // render (reads state; owns no truth) — always runs so the frozen scene stays drawn. The
   // sim-driven animators (wheel spin, storage fill) are skipped while paused: the rig coasts, so
   // its Velocity survives the freeze and the wheels would otherwise keep spinning.
-  view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
+  view.follow(world.get(activeRig, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
   // proximity discs (workshop + scrap): each feature contributes its gated disc entries and main
   // concatenates them for the shared render tier. Each feature's "what key does this" prompt is a
@@ -289,8 +303,10 @@ function frame(now: number): void {
   }
   view.render();
 
-  // UI (reads state; owns no truth) — rig stat readout + the scrap wallet total.
-  stats.update(world, player);
+  // UI (reads state; owns no truth) — the active rig's stat readout, the owned-chassis bar, and the
+  // scrap wallet total.
+  stats.update(world, activeRig);
+  chassisBar.update();
   walletHud.update(world);
 
   requestAnimationFrame(frame);

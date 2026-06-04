@@ -17,7 +17,8 @@ import { composeProduct } from '@common/sim/assembly';
 import { engineParts } from '@features/engine/engines';
 import { mountPart, withinEngineCapacity } from '@features/mounting/mounting';
 import { chassisParts } from './chassis';
-import { spawnRig, chassisToRig } from '@features/mounting/rig';
+import { ownedChassis, getActiveRig, markOwned, MAX_OWNED } from './ownership';
+import { spawnRig, chassisToRig, deployChassis } from '@features/mounting/rig';
 
 const engine = (w: World) => composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
 const container = (w: World) =>
@@ -139,5 +140,28 @@ describe('chassisToRig', () => {
     chassisToRig(w, chassis, 0, 0);
     expect(w.get(chassis, Collider)).toMatchObject({ radius: 1.9 });
     expect(w.get(chassis, Renderable)).toMatchObject({ shape: 'model', assetId: 'chassis-3x5' });
+  });
+});
+
+describe('deployChassis', () => {
+  it('converts a hauled-out kit to a rig and registers it owned, without switching control', () => {
+    const w = new World();
+    const kit = composeProduct(w, chassisRecipeForSize('1x3'), chassisParts('1x3'));
+
+    expect(deployChassis(w, kit, 4, 5)).toBe(true);
+    expect(w.get(kit, DriveControl)).toBeDefined(); // it's a drivable rig now
+    expect(w.get(kit, Renderable)).toMatchObject({ assetId: 'chassis-1x3' });
+    expect(ownedChassis(w)).toContain(kit); // registered as owned
+    expect(getActiveRig(w)).toBeNull(); // deploying does NOT move control to the new chassis
+  });
+
+  it('refuses to deploy past MAX_OWNED, leaving the kit unconverted', () => {
+    const w = new World();
+    for (let i = 0; i < MAX_OWNED; i++) markOwned(w, w.createEntity()); // fill the cap
+    const kit = composeProduct(w, chassisRecipeForSize('1x3'), chassisParts('1x3'));
+
+    expect(deployChassis(w, kit, 0, 0)).toBe(false);
+    expect(w.get(kit, DriveControl)).toBeUndefined(); // not converted
+    expect(ownedChassis(w)).not.toContain(kit);
   });
 });

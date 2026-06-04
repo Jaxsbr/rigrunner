@@ -8,7 +8,8 @@ import { Mount } from '@common/components/mount';
 import { MountFacing } from '@common/components/mount-facing';
 import { DriveControl } from '@features/drive/drive-control';
 import { Carried } from '@features/mounting/carried';
-import { chassisToRig } from '@features/mounting/rig';
+import { deployChassis } from '@features/mounting/rig';
+import { ownedCount, MAX_OWNED } from '@features/chassis/ownership';
 import {
   nearestMountTarget,
   cellWorldPose,
@@ -48,6 +49,8 @@ const LIFT_DUR = 0.14;   // seconds for the grab rise
 const DROP_DUR = 0.14;   // seconds for a drop to settle (loose on the ground, or back to its cell)
 const SNAP_DIST = 0.7;   // rig-local metres: how close to a cell counts as "over" it
 const CARRY_TURN = 12;   // how fast a held part eases toward its resting yaw
+const DEPLOY_HOLD = 0.4; // seconds a dropped chassis kit sits as a crate after landing, before it
+                         // assembles into a rig — the visible "it lands, then unpacks" beat
 
 /** Where a part came from, captured at grab so an invalid drop can send it back rather than loose. */
 interface PrevMount {
@@ -65,6 +68,15 @@ interface Glide {
   // When set, the part is gliding BACK to a deck cell (an invalid drop returning to origin); it is
   // mounted there on arrival. Absent for a loose drop, which just settles on the ground.
   remount?: PrevMount;
+  // When set, this is a chassis kit landing on open ground: on arrival it begins the deploy hold
+  // (sits as a crate), then assembles into a rig. Mutually exclusive with `remount`.
+  deploy?: boolean;
+}
+
+/** A chassis kit that has landed and is sitting as a crate before it assembles into a rig. */
+interface Deploy {
+  part: EntityId;
+  t: number; // 0→1 over DEPLOY_HOLD
 }
 
 export interface BuildController {
@@ -73,9 +85,10 @@ export interface BuildController {
 }
 
 /**
- * @param rig the player's rig — always a mount target. Other targets (workshops) are supplied by
- *            `stagingTargets`, so generalising mounting to more decks needed no new wiring here:
- *            attachment is just data, and the controller already snaps to the nearest cell.
+ * @param getRig the player's ACTIVE rig — always a mount target, read fresh each frame so the build
+ *            interaction follows whichever chassis the player currently controls (the `1`/`2`
+ *            selection). Other targets (workshops) are supplied by `stagingTargets`, so generalising
+ *            mounting to more decks needed no new wiring here: attachment is just data.
  * @param stagingTargets the active workshop decks a carried part may be staged onto this frame
  *            (rig parked in range). Injected by `main.ts` (from `@features/workshop/staging`) so
  *            mounting does NOT import workshop — the dependency points downhill (ADR-003 inward rule).
@@ -84,7 +97,7 @@ export function createBuildController(
   world: World,
   view: RenderView,
   canvas: HTMLCanvasElement,
-  rig: EntityId,
+  getRig: () => EntityId,
   stagingTargets: () => EntityId[],
 ): BuildController {
   let carried: EntityId | null = null;
@@ -93,6 +106,7 @@ export function createBuildController(
   let dragZ = 0;
   let prevMount: PrevMount | null = null; // the cell the carried part was on before lifting, if any
   const glides: Glide[] = [];
+  const deploys: Deploy[] = []; // chassis kits landed and counting down to assembling into a rig
 
   /**
    * The decks the carried `part` may snap onto this frame: the rig, plus any workshop whose
@@ -116,6 +130,7 @@ export function createBuildController(
    */
   function mountTargets(part: EntityId): EntityId[] {
     const targets: EntityId[] = [];
+    const rig = getRig();
     const isChassis = world.get(part, Part)?.kind === 'chassis';
     if (!isChassis && canMountPartOn(world, rig, part) && withinEngineCapacity(world, rig, part)) {
       targets.push(rig);
@@ -129,8 +144,15 @@ export function createBuildController(
     if (i >= 0) glides.splice(i, 1);
   }
 
+  /** Abandon a part's in-progress deploy (re-grabbing a landing/holding crate cancels it). */
+  function cancelDeploy(part: EntityId): void {
+    const i = deploys.findIndex((d) => d.part === part);
+    if (i >= 0) deploys.splice(i, 1);
+  }
+
   function beginCarry(part: EntityId): void {
     cancelGlide(part);
+    cancelDeploy(part);
     // Remember where it was mounted (before we free the cell) so an invalid drop returns it here.
     const m = world.get(part, Mount);
     prevMount = m ? { target: m.rig, col: m.col, row: m.row, yaw: m.yaw } : null;
@@ -167,10 +189,19 @@ export function createBuildController(
       return;
     }
 
-    // A chassis kit dropped clear of any deck is the "haul it out" payoff: it assembles into a new
-    // drivable rig right where it's released — there is no loose-chassis-on-the-ground state.
-    if (world.get(part, Part)?.kind === 'chassis') {
-      chassisToRig(world, part, dragX, dragZ);
+    // A chassis kit dropped clear of any deck is the "haul it out" payoff. While the player owns
+    // fewer than the cap, the crate LANDS on the ground and stays a crate (this glide), then a short
+    // beat later assembles into a new drivable rig (the deploy on glide arrival). At the cap, it's
+    // refused like any rejected move and falls through to the return-to-origin handling below — so
+    // it glides back to the workshop deck rather than deploying a third chassis.
+    if (world.get(part, Part)?.kind === 'chassis' && ownedCount(world) < MAX_OWNED) {
+      glides.push({
+        part,
+        fromX: t.x, fromY: t.y ?? CARRY_PLANE_Y, fromZ: t.z,
+        toX: dragX, toY: 0, toZ: dragZ,
+        t: 0,
+        deploy: true,
+      });
       return;
     }
 
@@ -263,12 +294,30 @@ export function createBuildController(
         if (g.t >= 1) {
           if (g.remount) {
             mountPart(world, g.part, g.remount.target, g.remount.col, g.remount.row, g.remount.yaw);
+          } else if (g.deploy) {
+            deploys.push({ part: g.part, t: 0 }); // crate has landed — begin the deploy hold
           }
           glides.splice(i, 1);
         }
       }
 
+      // Advance landed chassis kits: each sits as a crate for DEPLOY_HOLD, then assembles into a
+      // drivable, owned rig where it landed (deployChassis swaps the crate model for the chassis and
+      // registers ownership). The land glide + this hold are the visible "it lands, then unpacks"
+      // beat; PR3b replaces the hold with the authored unfold without changing this seam.
+      for (let i = deploys.length - 1; i >= 0; i--) {
+        const d = deploys[i]!;
+        d.t = Math.min(1, d.t + dt / DEPLOY_HOLD);
+        if (d.t >= 1) {
+          const t = world.get(d.part, Transform);
+          if (t) deployChassis(world, d.part, t.x, t.z);
+          deploys.splice(i, 1);
+        }
+      }
+
       if (carried === null) return;
+
+      const rig = getRig(); // the active rig — the fallback deck for the carry preview below
 
       const c = world.get(carried, Carried)!;
       c.liftT = Math.min(1, c.liftT + dt / LIFT_DUR);
