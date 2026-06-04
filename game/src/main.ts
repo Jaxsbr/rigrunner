@@ -1,6 +1,6 @@
 import { World } from '@core/world';
 import type { EntityId } from '@core/types';
-import { spawnRig } from '@features/mounting/rig';
+import { spawnRig, canPackUp, packUpChassis } from '@features/mounting/rig';
 import { engineParts } from '@features/engine/engines';
 import { spawnWorkshop } from '@features/workshop/workshop';
 import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
@@ -30,6 +30,7 @@ import { markOwned, setActiveRig, getActiveRig } from '@features/chassis/ownersh
 import { advanceDeploying } from '@features/chassis/deploying';
 import { animateChassisDeploy } from '@features/chassis/deploy-animator';
 import { ChassisBar } from '@features/chassis/chassis-bar';
+import { PackPrompt } from '@features/chassis/pack-prompt';
 import { activeStagingTargets } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
 import { ZoneOverlays } from '@common/render/zone-overlays';
@@ -214,6 +215,10 @@ const loot = new LootOverlay(
 // pile-gate state into it each frame (the prompt never touches the World).
 const scrapPrompt = new ScrapPrompt(document.querySelector<HTMLElement>('#scrap-prompt')!);
 
+// The pack-up prompt, sharing that bottom-centre slot: shown when the controlled chassis is empty and
+// can fold back into a kit. Main computes the gate (off the workshop, off a pile) and pushes it here.
+const packPrompt = new PackPrompt(document.querySelector<HTMLElement>('#pack-prompt')!);
+
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
 function anyZoneActive(): boolean {
   for (const w of world.query(WorkshopZone)) {
@@ -224,6 +229,7 @@ function anyZoneActive(): boolean {
 
 let last = performance.now();
 let prevActiveRig: EntityId | null = null; // last frame's active rig — a change drives the camera pan
+let prevWork = false; // E held last frame — the rising edge is the single-press pack-up trigger
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05); // clamp to avoid jumps on refocus
   last = now;
@@ -247,6 +253,10 @@ function frame(now: number): void {
     ctl.steer = intent.steer;
     work = intent.work;
   }
+  // E's RISING edge — one press, distinct from the held-E rummage. Pack-up (a single-shot action) reads
+  // it; the two never collide because an empty chassis (the pack gate) carries no Reclaimer to rummage.
+  const ePressed = work && !prevWork;
+  prevWork = work;
 
   // simulation (the source of truth): drive the rigs, then ride mounted parts to their cells,
   // then let the build interaction move a carried part / settle drops. The whole block is gated by
@@ -262,6 +272,15 @@ function frame(now: number): void {
     // advance any in-progress chassis deploy (a kit the build interaction just hauled out and
     // converted): ticks the unfold's timeline and retires the Deploying marker when it completes.
     advanceDeploying(world, dt);
+
+    // pack-up: one E press on an EMPTY controlled chassis (and only when a backup chassis exists to
+    // hand control to) folds it back into a kit crate where it stands. Gated off the workshop zone —
+    // which owns E there to open the interface — so the bottom-centre prompt slot and the E key are
+    // never contested; control snaps to the backup (the camera eases over next frame). The local
+    // `activeRig` is now the packed crate for the rest of this frame; getActiveRig is the backup.
+    if (ePressed && !anyZoneActive() && canPackUp(world, activeRig)) {
+      packUpChassis(world, activeRig);
+    }
 
     // scrap piles: recompute each pile's capability+facing gate (after mounting has ridden the
     // Reclaimer to its cell, so its aim is current), then turn a held work key over an active pile
@@ -283,6 +302,10 @@ function frame(now: number): void {
   overlay.setZoneActive(anyZoneActive());
   // the scrap prompt mirrors that for piles: shown only while the sim runs and a pile's gate is lit.
   scrapPrompt.sync(world, !paused);
+  // the pack-up prompt shares the slot: shown only while the sim runs, away from any workshop zone,
+  // and when the controlled chassis is empty with a backup to fall back to (`canPackUp`). Read fresh
+  // from getActiveRig so the frame a pack-up happens it reflects the backup (not the just-packed crate).
+  packPrompt.sync(!paused && !anyZoneActive() && canPackUp(world, getActiveRig(world)!));
 
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
