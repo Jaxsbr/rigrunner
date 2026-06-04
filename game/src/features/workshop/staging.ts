@@ -6,7 +6,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Assembly } from '@common/components/assembly';
 import { WorkshopZone } from '@features/workshop/workshop-zone';
-import { partAtCell, mountPart, unmountPart } from '@features/mounting/mounting';
+import { regionFree, partFootprint, mountPart, unmountPart } from '@features/mounting/mounting';
 import { placeProductInWorld, removeFromWorld } from './assembly';
 import { addToInventory } from '@features/economy/inventory';
 
@@ -63,6 +63,9 @@ export function stagedProducts(world: World, workshop: EntityId): EntityId[] {
  * system won't ride it to the cell until the overlay closes — the 3D deck view draws it at its cell
  * pose directly from the Mount, so it shows correctly meanwhile. Only composed products may be
  * staged (a loose sub-part has no standalone use on a deck); a non-product is refused (returns false).
+ *
+ * (col, row) is the anchor (min corner) of the product's footprint — a 1×1 part takes one cell, a
+ * 2×2 chassis kit reserves four — so the whole region must be in-grid and clear (`regionFree`).
  */
 export function stageProduct(
   world: World,
@@ -72,7 +75,8 @@ export function stageProduct(
   row: number,
 ): boolean {
   if (!world.get(product, Assembly)) return false; // products only — sub-parts are barred
-  if (partAtCell(world, workshop, col, row)) return false; // cell occupied — refused
+  const fp = partFootprint(world, product);
+  if (!regionFree(world, workshop, col, row, fp.cols, fp.rows)) return false; // region occupied / off-deck
   const wt = world.get(workshop, Transform);
   if (!wt) return false;
   // Position is irrelevant (the mount overrides it) — drop it at the workshop origin for presence.

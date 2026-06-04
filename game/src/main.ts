@@ -9,7 +9,7 @@ import { Wallet } from '@features/economy/wallet';
 import { Inventory, addToInventory } from '@features/economy/inventory';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
 import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
-import { partDef } from '@common/parts/parts-catalog';
+import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
 import { placeProductInWorld } from '@features/workshop/assembly';
 import { mountPart, resolveLocalYaw, mountingSystem } from '@features/mounting/mounting';
@@ -130,7 +130,13 @@ for (let i = 0; i < 2; i++) {
   const container = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
   addToInventory(world, container);
 }
-console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanical engines and 2 storage containers (remove before merge).');
+// A full 1×3 chassis sub-part set, so the chassis-kit flow (build on the bench → stage the 2×2 kit
+// → haul it out into the world to assemble a new rig) is exercisable immediately without grinding.
+// The 3×5 set, and more 1×3 sets, are bought in the Parts Shop.
+for (const id of ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3']) {
+  addToInventory(world, spawnCatalogPart(world, partDef(id)!));
+}
+console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanical engines, 2 storage containers, and a 1×3 chassis sub-part set (remove before merge).');
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
 // workshop interface drops parts into while composing the active recipe's output. Starts on the

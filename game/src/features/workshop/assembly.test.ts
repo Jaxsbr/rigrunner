@@ -13,7 +13,7 @@ import { Collider } from '@common/components/collider';
 import { MountFacing } from '@common/components/mount-facing';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 import { engineParts } from '@features/engine/engines';
-import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
+import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
 import { CONTAINER_CAPACITY } from '@common/components/storage';
 import {
   sumPartStats,
@@ -24,6 +24,7 @@ import {
 import {
   benchEnergyType,
   acceptsType,
+  acceptsChassisPart,
   isBenchComplete,
   assembleVerdict,
   assemble,
@@ -257,6 +258,39 @@ describe('assembly — placeProductInWorld gives a product world presence', () =
 
     expect(w.get(container, Renderable)).toMatchObject({ shape: 'model', assetId: 'storage' });
     expect(w.get(container, MountFacing)).toBeUndefined(); // a container has no directional facing
+  });
+});
+
+describe('assembly — the chassis size-match rule', () => {
+  const recipe1x3 = chassisRecipeForSize('1x3');
+
+  it('matches a sub-part to the recipe size, and waves through everything else', () => {
+    expect(acceptsChassisPart(recipe1x3, partDef('wheel-axle-1x3')!)).toBe(true);
+    expect(acceptsChassisPart(recipe1x3, partDef('wheel-axle-3x5')!)).toBe(false); // wrong size
+    expect(acceptsChassisPart(ENGINE_RECIPE, partDef('e-core')!)).toBe(true); // not a chassis build
+    expect(acceptsChassisPart(recipe1x3, partDef('e-core')!)).toBe(true); // not a chassis part
+  });
+
+  it('flags a size-mismatched chassis bench (a 3×5 part among 1×3 parts)', () => {
+    const w = setup();
+    loadRecipe(w, recipe1x3.id, recipe1x3.slots.map((s) => s.slot));
+    placeOnSlot(w, 'wheel-axle-1x3');
+    placeOnSlot(w, 'suspension-steering-1x3');
+    placeOnSlot(w, 'frame-3x5');
+    const v = assembleVerdict(w, recipe1x3);
+    expect(v.ok).toBe(false);
+    expect(v.reason).toMatch(/size/i);
+  });
+
+  it('assembles a matched 1×3 set into a 2×2-footprint chassis kit', () => {
+    const w = setup();
+    loadRecipe(w, recipe1x3.id, recipe1x3.slots.map((s) => s.slot));
+    ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3'].forEach((id) => placeOnSlot(w, id));
+    expect(assembleVerdict(w, recipe1x3).ok).toBe(true);
+
+    const kit = assemble(w, recipe1x3)!;
+    expect(w.get(kit, Part)!.kind).toBe('chassis');
+    expect(w.get(kit, Part)!.footprint).toEqual({ cols: 2, rows: 2 });
   });
 });
 

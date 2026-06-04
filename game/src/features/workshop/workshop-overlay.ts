@@ -27,6 +27,7 @@ import {
 } from '@common/sim/assembly';
 import {
   acceptsType,
+  acceptsChassisPart,
   assembleVerdict,
   assemble,
   dismantle,
@@ -38,7 +39,7 @@ import {
   unstageProduct,
 } from '@features/workshop/staging';
 import { buyPart, purchaseVerdict, resaleValue, sellPart } from '@features/workshop/shop';
-import { closestFreeCellLocal } from '@features/mounting/mounting';
+import { closestFreeCellLocal, partFootprint } from '@features/mounting/mounting';
 import { createModelPortrait, type ModelPortrait } from '@shared/model-portrait';
 import { ModelLoader } from '@shared/model-loader';
 import { attachStaticHead } from '@common/render/articulation';
@@ -85,6 +86,7 @@ const COLOR_BY_KEY: Record<string, number> = {
   mechanical: 0x8a4b2f, // rust
   storage: 0x2f6f9f, // rig_blue
   reclaimer: 0xd9a521, // hazard_yellow — the rummage tool's signature
+  chassis: 0x6b6b6b, // scrap_grey — the structural foundation
 };
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -471,13 +473,18 @@ export class WorkshopOverlay {
         : recipe.productKind === 'engine'
           ? '—'
           : cap(recipe.productKind);
+    // A chassis shows the three attributes its sub-parts contribute (one each); every other product
+    // shows the engine-shaped power/torque/weight triple.
+    const statRows = recipe.productKind === 'chassis'
+      ? `<span class="k">top speed</span><span class="v">${stats.topSpeed ?? 0}</span>` +
+        `<span class="k">turning</span><span class="v">${stats.turning ?? 0}</span>` +
+        `<span class="k">load cap</span><span class="v">${stats.loadCapacity ?? 0}</span>`
+      : `<span class="k">power</span><span class="v">${stats.power}</span>` +
+        `<span class="k">torque</span><span class="v">${stats.torque}</span>` +
+        `<span class="k">weight</span><span class="v">${stats.weight}</span>`;
     this.benchPreviewEl.innerHTML =
       `<div class="wk-bp-title">Projected ${recipe.output.toLowerCase()} · ${typeLabel}</div>` +
-      `<div class="wk-bp-stats">` +
-      `<span class="k">power</span><span class="v">${stats.power}</span>` +
-      `<span class="k">torque</span><span class="v">${stats.torque}</span>` +
-      `<span class="k">weight</span><span class="v">${stats.weight}</span>` +
-      `</div>`;
+      `<div class="wk-bp-stats">${statRows}</div>`;
   }
 
   /**
@@ -660,16 +667,22 @@ export class WorkshopOverlay {
     this.decorateHead = view.isProduct && this.world.get(view.entity, Part)?.kind === 'reclaimer';
     const a = view.attrs;
     const staged = view.isProduct && this.isStaged(view.entity);
+    // A chassis (sub-part or kit) reads as its three contributed attributes + mass; everything else
+    // shows the engine-shaped power/torque/weight + the reserved durability/burst.
+    const attrsHtml = view.colorKey === 'chassis'
+      ? `<span class="k">top speed</span><span class="v">${a.topSpeed ?? 0}</span>` +
+        `<span class="k">turning</span><span class="v">${a.turning ?? 0}</span>` +
+        `<span class="k">load cap</span><span class="v">${a.loadCapacity ?? 0}</span>` +
+        `<span class="k">weight</span><span class="v">${a.weight}</span>`
+      : `<span class="k">power</span><span class="v">${a.power}</span>` +
+        `<span class="k">torque</span><span class="v">${a.torque}</span>` +
+        `<span class="k">weight</span><span class="v">${a.weight}</span>` +
+        `<span class="k reserved">durability</span><span class="v reserved">${a.durability} (reserved)</span>` +
+        `<span class="k reserved">burst</span><span class="v reserved">${a.burst} (reserved)</span>`;
     this.detailEl.innerHTML =
       `<h4>${view.displayName}</h4>` +
       `<div class="wk-detail-sub">${view.sub}${staged ? ' · staged on deck' : ''}</div>` +
-      `<div class="wk-attrs">` +
-      `<span class="k">power</span><span class="v">${a.power}</span>` +
-      `<span class="k">torque</span><span class="v">${a.torque}</span>` +
-      `<span class="k">weight</span><span class="v">${a.weight}</span>` +
-      `<span class="k reserved">durability</span><span class="v reserved">${a.durability} (reserved)</span>` +
-      `<span class="k reserved">burst</span><span class="v reserved">${a.burst} (reserved)</span>` +
-      `</div>` +
+      `<div class="wk-attrs">${attrsHtml}</div>` +
       // A product's actions: unstage (only when it's on the deck) + dismantle. A loose part shows a
       // hint that it builds on the bench (it isn't directly stageable).
       (view.isProduct
@@ -712,7 +725,7 @@ export class WorkshopOverlay {
           r && r.shape === 'model'
             ? r.assetId
             : productAssetId(this.world.get(e, Part)?.kind ?? 'engine', asm?.recipeId ?? '', asm?.type);
-        parts.push({ entity: e, assetId, col: m.col, row: m.row, yaw: m.yaw });
+        parts.push({ entity: e, assetId, col: m.col, row: m.row, yaw: m.yaw, footprint: partFootprint(this.world, e) });
       }
     }
     return {
@@ -822,8 +835,8 @@ export class WorkshopOverlay {
 
     if (drop === 'deck') {
       if (!d.view.isProduct || d.source.kind !== 'inventory') return false; // products from inventory only
-      const cell = this.deckCellAt(x, y);
-      if (!cell) return false; // deck full / off-deck
+      const cell = this.deckCellAt(x, y, partFootprint(this.world, d.view.entity));
+      if (!cell) return false; // deck full / off-deck / footprint won't fit
       const workshop = workshopEntity(this.world)!;
       return stageProduct(this.world, d.view.entity, workshop, cell.col, cell.row);
     }
@@ -834,20 +847,40 @@ export class WorkshopOverlay {
     if (d.view.slot === null || slot !== d.view.slot) return false; // wrong role (or a product)
     if (d.source.kind === 'bench' && d.source.slot === slot) return false; // already here
     if (!acceptsType(this.world, d.view.type)) return false; // cross-type — the no-hybrid refusal
+    if (!this.acceptsChassisDrop(d.view.entity)) return false; // wrong chassis size — the size refusal
     if (!placeOnBench(this.world, slot, d.view.entity)) return false; // slot occupied — refused
     removeFromInventory(this.world, d.view.entity);
     return true;
   }
 
-  /** The nearest free workshop cell under a screen point on the deck, or null. */
-  private deckCellAt(x: number, y: number): { col: number; row: number } | null {
+  /**
+   * The chassis size-match guard at DROP time: a chassis sub-part whose size doesn't match the
+   * active chassis recipe won't snap into its slot — the size counterpart to the no-hybrid
+   * `acceptsType`. True for every non-chassis build/part (the engine/container/Reclaimer benches).
+   */
+  private acceptsChassisDrop(entity: EntityId): boolean {
+    const ep = this.world.get(entity, EnginePart);
+    const def = ep ? partDef(ep.id) : undefined;
+    return def ? acceptsChassisPart(this.activeRecipe(), def) : true;
+  }
+
+  /**
+   * The nearest free workshop region under a screen point on the deck (its anchor cell), or null.
+   * `footprint` is the dragged product's size, so a 2×2 chassis kit snaps only where the whole block
+   * fits; defaults to a single cell.
+   */
+  private deckCellAt(
+    x: number,
+    y: number,
+    footprint: { cols: number; rows: number } = { cols: 1, rows: 1 },
+  ): { col: number; row: number } | null {
     const workshop = workshopEntity(this.world);
     if (workshop === null) return null;
     const lp = this.deck.localPointAt(x, y);
     if (!lp) return null;
     // The deck view raycasts in workshop-local space, so the snap takes the local point directly —
     // no reach bound (the deck plane is unbounded; an off-deck miss is caught by `localPointAt`).
-    return closestFreeCellLocal(this.world, workshop, lp.lx, lp.lz);
+    return closestFreeCellLocal(this.world, workshop, lp.lx, lp.lz, Infinity, footprint);
   }
 
   /** Create the floating clone that follows the cursor. Sized to match the source chip. */
@@ -901,10 +934,12 @@ export class WorkshopOverlay {
     }
     const drop = el.dataset['drop']!;
     if (drop === 'deck') {
-      // Honest 3D highlight: green on the cell a valid product will land on, rust otherwise.
+      // Honest 3D highlight: green on the region a valid product will land on, rust otherwise. The
+      // footprint sizes the highlight (a 2×2 block for a chassis kit).
       const ok = d.view.isProduct && d.source.kind === 'inventory';
-      const cell = ok ? this.deckCellAt(x, y) : null;
-      this.deck.highlight(cell, ok && cell !== null);
+      const fp = partFootprint(this.world, d.view.entity);
+      const cell = ok ? this.deckCellAt(x, y, fp) : null;
+      this.deck.highlight(cell, ok && cell !== null, fp);
       el.classList.add(ok && cell ? 'drop-hover' : 'drop-reject');
       return;
     }
@@ -921,6 +956,7 @@ export class WorkshopOverlay {
     if (d.view.slot === null || slot !== d.view.slot) return false;
     if (d.source.kind === 'bench' && d.source.slot === slot) return false;
     if (!acceptsType(this.world, d.view.type)) return false;
+    if (!this.acceptsChassisDrop(d.view.entity)) return false;
     return benchSlots(this.world)[slot] === null;
   }
 

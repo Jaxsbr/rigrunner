@@ -32,4 +32,14 @@ export const PART_COSTS: readonly PartCost[] = [
   // (5) — a deliberate save-up. Tune here against feel (this is the single price surface).
   { partId: 'reclaimer-arm', buyCost: 24 },
   { partId: 'reclaimer-bucket', buyCost: 12 },
+
+  // Chassis sub-parts — built into a chassis-kit on the bench, then hauled out of the workshop to
+  // assemble into a new rig. The 1×3 scout set (~30 total) is an early save-up, on a par with an
+  // engine; the 3×5 hauler set (~68) is a major goal. Strawman numbers — tune here against feel.
+  { partId: 'wheel-axle-1x3', buyCost: 10 },
+  { partId: 'suspension-steering-1x3', buyCost: 8 },
+  { partId: 'frame-1x3', buyCost: 12 },
+  { partId: 'wheel-axle-3x5', buyCost: 22 },
+  { partId: 'suspension-steering-3x5', buyCost: 18 },
+  { partId: 'frame-3x5', buyCost: 28 },
 ];

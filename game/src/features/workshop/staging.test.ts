@@ -10,8 +10,9 @@ import { Mount } from '@common/components/mount';
 import { Assembly } from '@common/components/assembly';
 import { spawnCatalogPart, partDef } from '@common/parts/parts-catalog';
 import { engineParts } from '@features/engine/engines';
-import { ENGINE_RECIPE } from '@common/parts/recipes';
+import { ENGINE_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
 import { composeProduct } from '@common/sim/assembly';
+import { chassisParts } from '@features/chassis/chassis';
 import { partAtCell } from '@features/mounting/mounting';
 import {
   workshopEntity,
@@ -37,6 +38,15 @@ function ownedEngine(world: World) {
   addToInventory(world, product);
   return product;
 }
+
+/** A composed 1×3 chassis kit (a 2×2-footprint product), placed in inventory. */
+function ownedKit(world: World) {
+  const product = composeProduct(world, chassisRecipeForSize('1x3'), chassisParts('1x3'));
+  addToInventory(world, product);
+  return product;
+}
+
+const KIT_CELLS = [[0, 0], [1, 0], [0, 1], [1, 1]] as const;
 
 describe('staging — workshop lookup', () => {
   it('finds the workshop (MountGrid + WorkshopZone), not a bare grid', () => {
@@ -105,5 +115,40 @@ describe('staging — unstage', () => {
     stageProduct(world, product, workshop, 2, 2);
     unstageProduct(world, product);
     expect(inventoryItems(world)).toEqual(before);
+  });
+});
+
+describe('staging — a 2×2 chassis kit', () => {
+  it('stages the kit reserving all four of its cells', () => {
+    const { world, workshop } = setup();
+    const kit = ownedKit(world);
+
+    expect(stageProduct(world, kit, workshop, 0, 0)).toBe(true);
+    for (const [c, r] of KIT_CELLS) expect(partAtCell(world, workshop, c, r)).toBe(kit);
+    expect(inventoryItems(world)).not.toContain(kit);
+  });
+
+  it('refuses a product that would overlap the staged kit, but accepts a free corner', () => {
+    const { world, workshop } = setup();
+    stageProduct(world, ownedKit(world), workshop, 0, 0); // reserves (0,0),(1,0),(0,1),(1,1)
+    const engine = ownedEngine(world);
+    expect(stageProduct(world, engine, workshop, 1, 1)).toBe(false); // inside the block
+    expect(stageProduct(world, engine, workshop, 2, 2)).toBe(true); // a free corner cell
+  });
+
+  it('refuses a kit whose 2×2 block would spill off the 3×3 deck', () => {
+    const { world, workshop } = setup();
+    expect(stageProduct(world, ownedKit(world), workshop, 2, 2)).toBe(false); // 2×2 from (2,2) is off-grid
+  });
+
+  it('unstaging a kit frees all four cells and returns it to inventory', () => {
+    const { world, workshop } = setup();
+    const kit = ownedKit(world);
+    stageProduct(world, kit, workshop, 0, 0);
+
+    unstageProduct(world, kit);
+
+    for (const [c, r] of KIT_CELLS) expect(partAtCell(world, workshop, c, r)).toBeUndefined();
+    expect(inventoryItems(world)).toContain(kit);
   });
 });

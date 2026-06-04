@@ -14,13 +14,18 @@ import { defineComponent } from '@core/component';
  * Mount (sitting in the world), and *mounted* when it has a Mount pointing at a rig cell — at
  * which point the mounting system rides it along with that rig.
  *
- * Footprint is a single 1×1 cell for now; multi-cell parts can add a size field here later
- * without disturbing callers.
+ * `footprint` is how many deck cells the part occupies, anchored at its Mount's (col, row) and
+ * spanning right/back from there. Absent ⇒ a single 1×1 cell (the common case). A chassis kit is
+ * 2×2 — the packed form the player stages and hauls out (`CHASSIS_KIT_FOOTPRINT` in
+ * `@common/components/chassis`); mounting's occupancy and snap honour the whole region (see
+ * `@features/mounting/mounting`).
  */
 export type PartKind = 'engine' | 'storage' | 'reclaimer' | 'chassis';
 
 export interface Part {
   kind: PartKind;
+  /** Deck cells occupied, anchored at the Mount cell. Absent ⇒ 1×1. */
+  footprint?: { cols: number; rows: number };
 }
 
 export const Part = defineComponent<Part>('Part');

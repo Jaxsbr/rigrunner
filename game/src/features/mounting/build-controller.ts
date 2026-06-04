@@ -6,7 +6,9 @@ import { MountGrid } from '@common/components/mount-grid';
 import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { MountFacing } from '@common/components/mount-facing';
+import { DriveControl } from '@features/drive/drive-control';
 import { Carried } from '@features/mounting/carried';
+import { chassisToRig } from '@features/mounting/rig';
 import {
   nearestMountTarget,
   cellWorldPose,
@@ -14,6 +16,7 @@ import {
   worldToRigLocal,
   isOverDeck,
   partAtCell,
+  partFootprint,
   mountPart,
   unmountPart,
   canMountPartOn,
@@ -106,10 +109,17 @@ export function createBuildController(
    *     engines (2 on a 1×3, 6 on a 3×5).
    * Either failing drops the rig from the target list, leaving the carried part no free cell, so the
    * drop returns to origin / settles loose — the tactile "won't snap" refusal.
+   *
+   * A chassis KIT is the exception: it isn't a module you mount ONTO the rig (it BECOMES a rig), so
+   * the rig is never its target — only active workshops are. Dropped clear of any deck, it assembles
+   * into a rig (see `dropCarry`).
    */
   function mountTargets(part: EntityId): EntityId[] {
     const targets: EntityId[] = [];
-    if (canMountPartOn(world, rig, part) && withinEngineCapacity(world, rig, part)) targets.push(rig);
+    const isChassis = world.get(part, Part)?.kind === 'chassis';
+    if (!isChassis && canMountPartOn(world, rig, part) && withinEngineCapacity(world, rig, part)) {
+      targets.push(rig);
+    }
     for (const w of stagingTargets()) targets.push(w); // staging accepts any part — no locks
     return targets;
   }
@@ -146,7 +156,7 @@ export function createBuildController(
     world.remove(part, Carried);
 
     const t = world.get(part, Transform)!;
-    const cell = nearestMountTarget(world, mountTargets(part), dragX, dragZ, SNAP_DIST);
+    const cell = nearestMountTarget(world, mountTargets(part), dragX, dragZ, SNAP_DIST, partFootprint(world, part));
     if (cell) {
       // Connect: mount on the winning deck's cell at the facing the preview was showing — recompute
       // from the same inputs (and the SAME target) so the dropped facing matches what the player saw.
@@ -154,6 +164,13 @@ export function createBuildController(
       const local = worldToRigLocal(world.get(cell.target, Transform)!, dragX, dragZ);
       const yaw = resolveLocalYaw(world.get(part, MountFacing), grid, cell.col, cell.row, local.lx, local.lz);
       mountPart(world, part, cell.target, cell.col, cell.row, yaw);
+      return;
+    }
+
+    // A chassis kit dropped clear of any deck is the "haul it out" payoff: it assembles into a new
+    // drivable rig right where it's released — there is no loose-chassis-on-the-ground state.
+    if (world.get(part, Part)?.kind === 'chassis') {
+      chassisToRig(world, part, dragX, dragZ);
       return;
     }
 
@@ -197,9 +214,14 @@ export function createBuildController(
 
   const onPointerDown = (e: PointerEvent): void => {
     if (e.button !== 0) return; // left-button only; middle is the camera orbit
-    // Grab any part EXCEPT a chassis: a chassis carries `Part` (it's a composed product) but it IS
-    // the rig's foundation, not a module you lift off it — clicking the rig body must not pick it up.
-    const grabbable = world.query(Part).filter((p) => world.get(p, Part)!.kind !== 'chassis');
+    // Grab any part — but never a drivable rig. A chassis kit (a composed `Part{kind:'chassis'}`
+    // staged on the workshop) IS grabbable, so the player can haul it out into the world; the rig is
+    // the same kind but carries `DriveControl`, marking it the foundation you stand on, not a module
+    // to lift off itself. So: grabbable unless it's a chassis that has already become a rig.
+    const grabbable = world.query(Part).filter((p) => {
+      if (world.get(p, Part)!.kind !== 'chassis') return true;
+      return world.get(p, DriveControl) === undefined;
+    });
     const hit = view.pickEntity(e.clientX, e.clientY, grabbable);
     if (hit === null) return;
     e.preventDefault();
@@ -258,11 +280,16 @@ export function createBuildController(
       // workshops), highlight it, and ease the part toward the exact yaw its MountFacing rule will
       // give it there — so the held part visibly turns to show how it will sit before you let go.
       // No cell in reach → align to the rig and hide the marker (and the shadow falls to the floor).
-      const cell = nearestMountTarget(world, mountTargets(carried), dragX, dragZ, SNAP_DIST);
+      const fp = partFootprint(world, carried);
+      const cell = nearestMountTarget(world, mountTargets(carried), dragX, dragZ, SNAP_DIST, fp);
       const targetT = world.get(cell?.target ?? rig, Transform)!;
       const grid = world.get(cell?.target ?? rig, MountGrid)!;
       const local = worldToRigLocal(targetT, dragX, dragZ);
-      const pose = cell ? cellWorldPose(targetT, grid, cell.col, cell.row) : null;
+      // The highlight (and, below, the held part) sit at the footprint CENTRE, so a 2×2 kit previews
+      // over its whole region rather than anchored to a corner.
+      const pose = cell
+        ? cellWorldPose(targetT, grid, cell.col + (fp.cols - 1) / 2, cell.row + (fp.rows - 1) / 2)
+        : null;
       view.showCellHighlight(pose);
 
       // Float a fixed clearance above the deck below (the chosen target's, or the rig's when none),

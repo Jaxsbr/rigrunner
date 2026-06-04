@@ -125,14 +125,21 @@ export function chassisRecipeForSize(size: ChassisSize): Recipe {
 }
 
 /**
- * Every buildable recipe the bench's recipe picker shows, in order. The chassis recipes are
- * deliberately ABSENT: a chassis is built through its own kit flow (move the kit out into the world
- * to assemble it), not slotted onto the rig like an engine, so it doesn't belong in the on-rig bench
- * picker. They're still composed directly (`chassisRecipeForSize`) to seed the starting rig.
+ * Every buildable recipe the workshop bench's recipe picker shows, in order. The two chassis recipes
+ * sit alongside the engine/container/Reclaimer ones: the chassis is built on the bench like the
+ * others, then hauled out of the workshop as a kit to assemble into a rig. The size-match guard
+ * (`acceptsChassisPart` in `@features/workshop/assembly`) keeps a chassis build to one size, the way
+ * the no-hybrid rule keeps an engine to one energy type.
  */
-export const RECIPES: readonly Recipe[] = [ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE];
+export const RECIPES: readonly Recipe[] = [
+  ENGINE_RECIPE,
+  STORAGE_RECIPE,
+  RECLAIMER_RECIPE,
+  CHASSIS_1X3_RECIPE,
+  CHASSIS_3X5_RECIPE,
+];
 
 /** Resolve a recipe id to its definition, or `undefined` if it isn't a known recipe. */
 export function recipeById(id: string): Recipe | undefined {
-  return [...RECIPES, CHASSIS_1X3_RECIPE, CHASSIS_3X5_RECIPE].find((r) => r.id === id);
+  return RECIPES.find((r) => r.id === id);
 }

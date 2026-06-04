@@ -1,13 +1,29 @@
 import { describe, it, expect } from 'vitest';
-import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE, RECIPES, recipeById } from './recipes';
+import {
+  ENGINE_RECIPE,
+  STORAGE_RECIPE,
+  RECLAIMER_RECIPE,
+  CHASSIS_1X3_RECIPE,
+  CHASSIS_3X5_RECIPE,
+  RECIPES,
+  recipeById,
+} from './recipes';
 import { PARTS_CATALOG } from './parts-catalog';
 
 describe('recipes', () => {
-  it('exposes the engine (4 parts), storage (2 parts) and reclaimer (2 parts) recipes', () => {
+  it('the bench picker lists every buildable: engine, storage, reclaimer, and the two chassis kits', () => {
     expect(ENGINE_RECIPE.slots).toHaveLength(4);
     expect(STORAGE_RECIPE.slots).toHaveLength(2);
     expect(RECLAIMER_RECIPE.slots).toHaveLength(2);
-    expect(RECIPES.map((r) => r.id)).toEqual(['engine', 'storage', 'reclaimer']);
+    expect(RECIPES.map((r) => r.id)).toEqual([
+      'engine', 'storage', 'reclaimer', 'chassis-1x3', 'chassis-3x5',
+    ]);
+  });
+
+  it('each chassis recipe is the 3-slot grammar carrying its size-fixed structure', () => {
+    expect(CHASSIS_1X3_RECIPE.slots.map((s) => s.slot)).toEqual(['wheel-axle', 'suspension-steering', 'frame']);
+    expect(CHASSIS_1X3_RECIPE.chassis).toMatchObject({ size: '1x3', cols: 1, rows: 3 });
+    expect(CHASSIS_3X5_RECIPE.chassis).toMatchObject({ size: '3x5', cols: 3, rows: 5 });
   });
 
   it('each recipe declares the part kind it produces (drives the assembled product capability)', () => {

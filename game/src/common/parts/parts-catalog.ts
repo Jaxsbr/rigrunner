@@ -1,6 +1,7 @@
 import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { EnginePart } from '@common/parts/engine-part';
+import type { ChassisSize } from '@common/components/chassis';
 
 /**
  * The engine-parts catalog — the authoritative roster of buildable engine sub-parts for milestone
@@ -70,6 +71,9 @@ export interface PartDef {
   category: PartCategory;
   /** Engine parts only — electric/mechanical (drives the type-lock, P4). Omitted for storage parts. */
   type?: EnergyType;
+  /** Chassis parts only — which chassis size this sub-part builds. Drives the bench's size-match
+   *  guard (a 1×3 part can't join a 3×5 chassis), the size counterpart to the no-hybrid type rule. */
+  chassisSize?: ChassisSize;
   displayName: string;
   attributes: PartAttributes;
   assetId: string;
@@ -208,6 +212,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'wheel-axle-1x3',
     slot: 'wheel-axle',
     category: 'chassis',
+    chassisSize: '1x3',
     displayName: 'Wheel & Axle Set',
     attributes: { power: 0, torque: 0, weight: 3, durability: 0, burst: 0, topSpeed: 12 },
     assetId: 'wheel-axle',
@@ -216,6 +221,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'suspension-steering-1x3',
     slot: 'suspension-steering',
     category: 'chassis',
+    chassisSize: '1x3',
     displayName: 'Suspension & Steering Set',
     attributes: { power: 0, torque: 0, weight: 2, durability: 0, burst: 0, turning: 8 },
     assetId: 'suspension-steering',
@@ -224,6 +230,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'frame-1x3',
     slot: 'frame',
     category: 'chassis',
+    chassisSize: '1x3',
     displayName: 'Chassis Frame',
     attributes: { power: 0, torque: 0, weight: 6, durability: 0, burst: 0, loadCapacity: 24 },
     assetId: 'chassis-frame',
@@ -234,6 +241,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'wheel-axle-3x5',
     slot: 'wheel-axle',
     category: 'chassis',
+    chassisSize: '3x5',
     displayName: 'Wheel & Axle Set',
     attributes: { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, topSpeed: 16 },
     assetId: 'wheel-axle',
@@ -242,6 +250,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'suspension-steering-3x5',
     slot: 'suspension-steering',
     category: 'chassis',
+    chassisSize: '3x5',
     displayName: 'Suspension & Steering Set',
     attributes: { power: 0, torque: 0, weight: 5, durability: 0, burst: 0, turning: 5 },
     assetId: 'suspension-steering',
@@ -250,6 +259,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'frame-3x5',
     slot: 'frame',
     category: 'chassis',
+    chassisSize: '3x5',
     displayName: 'Chassis Frame',
     attributes: { power: 0, torque: 0, weight: 14, durability: 0, burst: 0, loadCapacity: 60 },
     assetId: 'chassis-frame',
