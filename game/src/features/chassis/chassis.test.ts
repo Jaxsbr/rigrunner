@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { World } from '@core/world';
+import type { EntityId } from '@core/types';
 import { Part } from '@common/components/part';
 import { Weight } from '@common/components/weight';
 import { Chassis } from '@common/components/chassis';
@@ -17,9 +18,24 @@ import { composeProduct } from '@common/sim/assembly';
 import { engineParts } from '@features/engine/engines';
 import { mountPart, withinEngineCapacity } from '@features/mounting/mounting';
 import { chassisParts } from './chassis';
-import { ownedChassis, getActiveRig, markOwned, MAX_OWNED } from './ownership';
+import {
+  ActiveRig,
+  PlayerChassis,
+  ownedChassis,
+  getActiveRig,
+  markOwned,
+  setActiveRig,
+  MAX_OWNED,
+} from './ownership';
 import { Deploying } from './deploying';
-import { spawnRig, chassisToRig, deployChassis } from '@features/mounting/rig';
+import {
+  spawnRig,
+  chassisToRig,
+  chassisToKit,
+  deployChassis,
+  canPackUp,
+  packUpChassis,
+} from '@features/mounting/rig';
 
 const engine = (w: World) => composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
 const container = (w: World) =>
@@ -165,5 +181,108 @@ describe('deployChassis', () => {
     expect(deployChassis(w, kit, 0, 0)).toBe(false);
     expect(w.get(kit, DriveControl)).toBeUndefined(); // not converted
     expect(ownedChassis(w)).not.toContain(kit);
+  });
+});
+
+/** Two drivable, owned 1×3 rigs with control on the first — the multi-chassis starting state. */
+function twoFielded(w: World): [EntityId, EntityId] {
+  const a = spawnRig(w, 0, 0);
+  const b = spawnRig(w, 10, 0);
+  markOwned(w, a);
+  markOwned(w, b);
+  setActiveRig(w, a);
+  return [a, b];
+}
+
+describe('chassisToKit', () => {
+  it('folds a drivable rig back into a packed kit — the inverse of chassisToRig', () => {
+    const w = new World();
+    const rig = spawnRig(w, 7, -2); // a drivable 1×3 rig
+    expect(w.get(rig, DriveControl)).toBeDefined();
+
+    expect(chassisToKit(w, rig)).toBe(rig); // the same entity folds back
+
+    // Drive/world components stripped.
+    expect(w.has(rig, DriveControl)).toBe(false);
+    expect(w.has(rig, Velocity)).toBe(false);
+    expect(w.has(rig, Drivetrain)).toBe(false);
+    expect(w.has(rig, Collider)).toBe(false);
+    // The packed crate look + the 2×2 footprint a rig sheds, both restored.
+    expect(w.get(rig, Renderable)).toMatchObject({ shape: 'model', assetId: 'chassis-kit' });
+    expect(w.get(rig, Part)!.footprint).toEqual({ cols: 2, rows: 2 });
+    // The chassis spec, deck and mass survive — it deploys again as the same chassis.
+    expect(w.get(rig, Chassis)!.size).toBe('1x3');
+    expect(w.get(rig, MountGrid)).toMatchObject({ cols: 1, rows: 3 });
+    expect(w.get(rig, Weight)!.value).toBe(11);
+    // Stays where the rig stood, ready to be hauled onto the workshop deck.
+    expect(w.get(rig, Transform)).toMatchObject({ x: 7, z: -2 });
+  });
+});
+
+describe('canPackUp', () => {
+  it('allows packing an empty fielded chassis while a backup is owned', () => {
+    const w = new World();
+    const [a] = twoFielded(w);
+    expect(canPackUp(w, a)).toBe(true);
+  });
+
+  it('refuses while the chassis still carries a mounted part (strip it bare first)', () => {
+    const w = new World();
+    const [a] = twoFielded(w);
+    mountPart(w, engine(w), a, 0, 0);
+    expect(canPackUp(w, a)).toBe(false);
+  });
+
+  it('refuses the last fielded chassis — no backup to hand control to', () => {
+    const w = new World();
+    const only = spawnRig(w);
+    markOwned(w, only);
+    setActiveRig(w, only);
+    expect(canPackUp(w, only)).toBe(false);
+  });
+
+  it('refuses a chassis the player does not own', () => {
+    const w = new World();
+    const loose = spawnRig(w); // a rig, but never marked owned
+    expect(canPackUp(w, loose)).toBe(false);
+  });
+});
+
+describe('packUpChassis', () => {
+  it('folds the active chassis to a kit, frees a cap slot, and hands control to the backup', () => {
+    const w = new World();
+    const [a, b] = twoFielded(w);
+
+    expect(packUpChassis(w, a)).toBe(true);
+
+    // a is a packed kit now — no longer fielded.
+    expect(w.has(a, DriveControl)).toBe(false);
+    expect(w.get(a, Renderable)).toMatchObject({ assetId: 'chassis-kit' });
+    expect(w.get(a, Part)!.footprint).toEqual({ cols: 2, rows: 2 });
+    expect(w.has(a, PlayerChassis)).toBe(false); // dropped from the owned/fielded set
+    expect(ownedChassis(w)).toEqual([b]);         // freeing a slot under the cap
+    // Control snapped to the backup; nothing else carries the active marker.
+    expect(getActiveRig(w)).toBe(b);
+    expect(w.has(a, ActiveRig)).toBe(false);
+  });
+
+  it('is a refused no-op when the gate is not met', () => {
+    const w = new World();
+    const [a] = twoFielded(w);
+    mountPart(w, engine(w), a, 0, 0); // not empty → gate closed
+
+    expect(packUpChassis(w, a)).toBe(false);
+    expect(w.get(a, DriveControl)).toBeDefined(); // unchanged — still a drivable rig
+    expect(getActiveRig(w)).toBe(a);
+  });
+
+  it('frees a slot so a third chassis can then deploy', () => {
+    const w = new World();
+    const [a] = twoFielded(w);
+    const kit = composeProduct(w, chassisRecipeForSize('1x3'), chassisParts('1x3'));
+
+    expect(deployChassis(w, kit, 0, 0)).toBe(false); // at the cap (2 fielded)
+    packUpChassis(w, a);
+    expect(deployChassis(w, kit, 3, 3)).toBe(true); // the freed slot admits it
   });
 });

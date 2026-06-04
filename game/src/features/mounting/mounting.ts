@@ -122,6 +122,19 @@ export function regionFree(
   return true;
 }
 
+/**
+ * Does this rig carry any mounted part at all (of any kind)? The pack-up gate: a chassis must be
+ * stripped bare before it can fold back into a kit, or packing would orphan whatever was left on it.
+ * The chassis itself answers no — it carries `Part{kind:'chassis'}` but no `Mount` (it IS the rig, not
+ * a module mounted onto one), so only the parts bolted onto its deck count.
+ */
+export function hasMountedParts(world: World, rig: EntityId): boolean {
+  for (const p of world.query(Part, Mount)) {
+    if (world.get(p, Mount)!.rig === rig) return true;
+  }
+  return false;
+}
+
 /** Does this rig have at least one mounted part of the given kind? (Drives the engine gate.) */
 export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind): boolean {
   for (const p of world.query(Part, Mount)) {

@@ -11,6 +11,7 @@ import {
   cellLocalOffset,
   cellWorldPose,
   partAtCell,
+  hasMountedParts,
   hasMountedPartKind,
   committedEngineType,
   canMountPartOn,
@@ -102,6 +103,19 @@ describe('mounting occupancy + gating', () => {
     unmountPart(w, p);
     expect(partAtCell(w, r, 1, 2)).toBeUndefined();
     expect(hasMountedPartKind(w, r, 'engine')).toBe(false);
+  });
+
+  it('reports whether a rig carries any mounted part (the pack-up empty gate)', () => {
+    const w = new World();
+    const r = rig(w);
+    expect(hasMountedParts(w, r)).toBe(false); // bare deck
+
+    const p = enginePart(w);
+    mountPart(w, p, r, 0, 0);
+    expect(hasMountedParts(w, r)).toBe(true);
+
+    unmountPart(w, p);
+    expect(hasMountedParts(w, r)).toBe(false); // stripped bare again
   });
 
   it('finds the nearest free cell to a world point and skips occupied ones', () => {

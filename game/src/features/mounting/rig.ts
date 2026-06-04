@@ -8,11 +8,20 @@ import { Collider } from '@common/components/collider';
 import { Renderable } from '@common/components/renderable';
 import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
-import { Chassis, type ChassisSize } from '@common/components/chassis';
+import { Chassis, CHASSIS_KIT_FOOTPRINT, type ChassisSize } from '@common/components/chassis';
 import { chassisRecipeForSize } from '@common/parts/recipes';
 import { composeProduct } from '@common/sim/assembly';
+import { hasMountedParts } from '@features/mounting/mounting';
 import { chassisParts } from '@features/chassis/chassis';
-import { markOwned, ownedCount, MAX_OWNED } from '@features/chassis/ownership';
+import {
+  markOwned,
+  ownedCount,
+  ownedChassis,
+  setActiveRig,
+  PlayerChassis,
+  ActiveRig,
+  MAX_OWNED,
+} from '@features/chassis/ownership';
 import { Deploying } from '@features/chassis/deploying';
 
 /**
@@ -58,6 +67,31 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   return chassis;
 }
 
+/**
+ * Fold a drivable rig back into a packed chassis-kit crate — the exact inverse of `chassisToRig`. It
+ * strips the drive/world components a rig wears, restores the 2×2 packed `Part.footprint`, and swaps
+ * the Renderable back to the `chassis-kit` crate, while leaving the chassis spec, deck `MountGrid`,
+ * mass and `Assembly` untouched — so the crate deploys again as the same chassis it was. The crate
+ * stays at the rig's position (loose in the world, y still on the ground), a plain grabbable chassis
+ * Part ready to be hauled onto the workshop deck like any kit.
+ *
+ * Pairs with `chassisToRig`: deploy bolts the rig on, pack-up takes it off. The build controller keys
+ * "grabbable chassis" off the ABSENCE of `DriveControl` (you can't lift a rig off itself), so removing
+ * it here is exactly what makes the packed kit liftable again.
+ */
+export function chassisToKit(world: World, chassis: EntityId): EntityId {
+  world.remove(chassis, Drivetrain);
+  world.remove(chassis, Velocity);
+  world.remove(chassis, DriveControl);
+  world.remove(chassis, Collider);
+  world.remove(chassis, Deploying); // a settled rig isn't mid-unfold, but never leave a stale marker
+  world.add(chassis, Renderable, { shape: 'model', assetId: 'chassis-kit' });
+  // Restore the 2×2 packed footprint a rig sheds — mounting reserves the whole region when the kit is
+  // staged back onto the workshop deck.
+  world.get(chassis, Part)!.footprint = { ...CHASSIS_KIT_FOOTPRINT };
+  return chassis;
+}
+
 /** Compose a fresh chassis of `size` and make it a drivable rig — the starting-rig seed. */
 export function spawnRig(world: World, x = 0, z = 0, size: ChassisSize = '1x3'): EntityId {
   return chassisToRig(world, composeProduct(world, chassisRecipeForSize(size), chassisParts(size)), x, z);
@@ -80,5 +114,38 @@ export function deployChassis(world: World, chassis: EntityId, x = 0, z = 0): bo
   chassisToRig(world, chassis, x, z);
   markOwned(world, chassis);
   world.add(chassis, Deploying, { since: 0 });
+  return true;
+}
+
+/**
+ * Whether the controlled `chassis` can fold back into a kit right now — the pack-up gate. True only
+ * when it is an owned (fielded) chassis carrying NO mounted parts (packing a loaded chassis would
+ * orphan its parts — strip it first) AND the player owns another chassis to hand control to (we never
+ * pack the last rig, which would leave nothing to drive). Where the prompt is allowed to show — off
+ * the workshop, off a pile — is the composition root's placement call, not part of this rule.
+ */
+export function canPackUp(world: World, chassis: EntityId): boolean {
+  if (!world.has(chassis, PlayerChassis)) return false;
+  if (hasMountedParts(world, chassis)) return false;
+  return ownedChassis(world).some((c) => c !== chassis);
+}
+
+/**
+ * Pack up the chassis the player is controlling: fold it back into a kit crate and hand control to a
+ * remaining owned chassis — the inverse of `deployChassis`. Refused (returns false, nothing changes)
+ * unless `canPackUp` holds.
+ *
+ * On success the chassis stops being fielded — `PlayerChassis`/`ActiveRig` come off, which frees a
+ * slot under the `MAX_OWNED` cap so a different chassis can deploy in its place — and control snaps to
+ * the backup (the camera eases over via `main.ts`'s active-rig change). The crate it leaves behind is
+ * a plain chassis Part again, hauled onto the workshop deck like any kit.
+ */
+export function packUpChassis(world: World, chassis: EntityId): boolean {
+  if (!canPackUp(world, chassis)) return false;
+  const backup = ownedChassis(world).find((c) => c !== chassis)!; // canPackUp guarantees one exists
+  chassisToKit(world, chassis);
+  world.remove(chassis, PlayerChassis);
+  world.remove(chassis, ActiveRig);
+  setActiveRig(world, backup);
   return true;
 }
