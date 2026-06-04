@@ -9,11 +9,12 @@ import { rigPerformance } from './drive';
  * Integrates throttle/steer intent into motion for every entity that can be driven
  * (has Transform + Drivetrain + Velocity + DriveControl).
  *
- * Propulsion comes from the rig's engines, weighed down by its total mass — both resolved by
- * rigPerformance (systems/drive.ts). A stronger engine drives faster and accelerates harder, two
- * engines beat one (with diminishing returns), and a heavier rig is slower unless its torque keeps
- * up. A rig with NO engine has zero output: throttle is dead and it coasts to rest under friction —
- * the "I built a rig but forgot the engine" teaching moment, felt directly in the controls.
+ * Propulsion comes from the rig's engines, resolved by rigPerformance (drive.ts). A stronger engine
+ * drives faster and accelerates harder, and engines sum linearly — two beat one, six give the most,
+ * with no diminishing-returns cliff. (Weight is parked: it doesn't drag performance yet — that
+ * returns with the felt-weight feature.) A rig with NO engine has zero output: throttle is dead and
+ * it coasts to rest under friction — the "I built a rig but forgot the engine" teaching moment, felt
+ * directly in the controls.
  *
  * Pure over the world — state in, state out, no side effects — so it runs and is tested headless.
  */

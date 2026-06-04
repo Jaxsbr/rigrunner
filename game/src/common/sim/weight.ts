@@ -9,6 +9,10 @@ import { Weight } from '@common/components/weight';
  * mounted on it. Engines are parts too, so their weight is counted here automatically — and any
  * future weighted part (a gun, a full container, cargo) is included the moment it's mounted, with
  * no change here.
+ *
+ * Note: drive performance does NOT consume this yet — weight is parked (see drive.ts). This function
+ * is the seam the felt-weight feature (milestone Option A) reattaches to; keeping it correct now
+ * makes that re-wiring a one-line change in `features/drive/drive.ts`.
  */
 export function totalRigWeight(world: World, rig: EntityId): number {
   let total = world.get(rig, Weight)?.value ?? 0;

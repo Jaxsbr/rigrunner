@@ -256,3 +256,38 @@ clearer part/recipe/selection affordances, separating "pick a recipe to build" f
 selected part", a no-truncation layout, and **real sub-part assets** so shape (not text) carries
 identity. The recipe-selector limit in #9 is part of the same pass. Pairs with the part-naming /
 rarity-visual-cues rebrand idea (see `ideas.md` 2026-06-03).
+
+---
+
+## 11. Adding engines made you *slower* — two damping algorithms compounding
+
+**Context:** Drivetrain / engine output, before the felt-weight feature. Bolting more engines onto a
+rig past ~3 reduced its top speed and acceleration instead of raising them.
+
+**Observation:** With **zero cargo**, a 4th–6th engine of *either* type was a net loss. The cause was
+two algorithms stacking, fed by engine self-weight:
+
+1. **`aggregateEngineOutput` summed engines on a `0.4ⁿ` falloff** → total output capped at ~1.67× a
+   single engine, no matter how many you bolted on (geometric series).
+2. **`rigPerformance` scaled everything by** `mobility = torque / (torque + 0.5·weight)`.
+3. **Every engine is a mounted part with full `Weight`** (electric 4, mechanical 8) on top of the
+   chassis's 10.
+
+So output **plateaued** (1) while weight **climbed linearly** (3) → mobility fell (2) → past the peak
+each engine *subtracted*. Measured on an all-electric rig: top speed peaked at **3 engines (~10.8)**
+and by **6 engines (~9.5)** had dropped below the 2-engine figure. The electric-vs-mechanical
+difference was *also* masked — the profiles already encode it (electric 13/8, mechanical 8/19); the
+algorithm just hid it.
+
+**Why it matters:** It directly contradicts the **build → run → build-better** loop — "bolt on more
+drive" must feel *more powerful*, not punish you. And because it bit with **no cargo**, it couldn't be
+explained to the player as weight; it just read as the game being broken. Classic observation-#5 leak:
+clunky feel was a symptom of an internal model (two damping curves), not a surface issue.
+
+**Action taken (milestone MD):** ripped out both algorithms. Engines now sum **linearly** (six give
+the most) and **engine output IS performance** (top speed = power, acceleration = torque) with no
+weight penalty. **Weight is parked** — `totalRigWeight` stays as the seam the felt-weight feature
+(Option A) reattaches to. The electric/mechanical contrast now reads straight from the profiles:
+electric tops faster, mechanical accelerates harder. Side effect to tune: absolute speeds rose (the
+old mobility was secretly ~halving them); per-engine catalog `power`/`torque` are the knob for final
+feel.

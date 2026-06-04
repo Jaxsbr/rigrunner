@@ -6,7 +6,7 @@ import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
 import { DriveControl } from '@features/drive/drive-control';
 import { Wallet } from '@features/economy/wallet';
-import { Inventory } from '@features/economy/inventory';
+import { Inventory, addToInventory } from '@features/economy/inventory';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
 import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
 import { partDef } from '@common/parts/parts-catalog';
@@ -115,6 +115,21 @@ const playerStore = world.createEntity();
 // start is exactly enough for the first storage-container shell + rim.
 world.add(playerStore, Wallet, { scrap: 60 });
 world.add(playerStore, Inventory, { items: [] });
+
+// DEV/TEST SEED (remove before merge): stock the inventory so the drivetrain rebalance (milestone MD)
+// can be felt without grinding or buying — 6 electric + 6 mechanical engines to mount 1..6 of either
+// type and watch top speed / acceleration scale linearly, plus 4 storage containers to swap in. These
+// are normal composed products (unplaced, browsable in the workshop), exactly what the bench / Parts
+// Shop grant. Note: the deck is 3×3, so free the pre-mounted storage + Reclaimer cells to fit six.
+for (let i = 0; i < 6; i++) {
+  addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('electric')));
+  addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('mechanical')));
+}
+for (let i = 0; i < 4; i++) {
+  const container = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
+  addToInventory(world, container);
+}
+console.info('[starter] DEV SEED: inventory stocked with 6 electric + 6 mechanical engines and 4 storage containers (remove before merge).');
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
 // workshop interface drops parts into while composing the active recipe's output. Starts on the

@@ -38,8 +38,8 @@ loop ("drive, collect, see the number grow").
 rig (chassis or any mounted part) over a piece sweeps it into mounted `Storage`, atomic per-piece and
 gated on having a tank bolted on, with a HUD readout and a visible fill fraction. The economy
 destination is now also in via **Option B (Spend Sink)** / the Parts Shop. **Still open before M1 is
-`done`:** **Option A (Laden & Weighted)** plus minor deferred polish (collect FX, a run lifecycle/reset
-frame).
+`done`:** **Option A (Laden & Weighted)** — now **`parked` pending MD** (drivetrain rebalance first) —
+plus minor deferred polish (collect FX, a run lifecycle/reset frame).
 
 ---
 
@@ -89,6 +89,45 @@ types, the type-lock rule, per-PR scope/files, and manual-test checklists.
 
 ---
 
+## MD — Drivetrain rebalance: linear engine scaling + energy-type identity · `done`
+
+**What:** Rip out the two algorithms that made adding engines *backfire*, and let engine output drive
+performance directly — so more engines = more performance (top speed + acceleration), with the
+electric/mechanical split finally legible. **Felt cargo weight (Option A) is parked behind this:** the
+drivetrain had to be sane before weight could layer on without making the rig feel immobile.
+
+**Why:** `observations.md` #11. With *zero* cargo, a 4th–6th engine of either type was a **net loss**:
+`aggregateEngineOutput`'s `0.4ⁿ` falloff capped combined output at ~1.67× a single engine, while every
+engine's own full weight dragged `rigPerformance`'s `mobility` down — so output plateaued as weight
+climbed, and past ~3 engines each one *subtracted*. The detriment couldn't even be read as weight
+(there wasn't any); it read as broken. It also masked the type differentiation the engine profiles
+already encode.
+
+**Done (2026-06-04):**
+- **Linear engine sum** — `aggregateEngineOutput` is a straight per-attribute sum; `diminishingSum` /
+  `ADDED_ENGINE_FALLOFF` deleted. Two engines are exactly twice one; six give the most.
+- **Engine output IS performance** — `rigPerformance`: top speed = power, acceleration = torque,
+  reverse = top speed × `reverseFactor`. The `mobility` / `WEIGHT_DRAG` tug-of-war is gone.
+- **Weight parked, seam kept** — `totalRigWeight` still computes mass but nothing consumes it; it is
+  the one-line seam Option A reattaches to (drive no longer imports it).
+- **Energy-type identity — emergent, no new mechanic.** With the masking gone the existing profiles
+  read true: **⚡ electric** (power 13 / torque 8) tops out faster — the *Runner*, rewards driving and
+  fleeing; **⛽ mechanical** (power 8 / torque 19) accelerates harder — the *Hauler*, whose torque
+  advantage becomes the weight-fighting/hauling advantage the moment Option A lands.
+- HUD drops the now-parked weight line and the redundant torque line (top speed = power and
+  acceleration = torque are 1:1); tests rewritten to lock in linear scaling, no-detriment-over-six,
+  parked weight, and the type contrast.
+
+**Known follow-up (tuning, not blocking):** removing the old mobility (~0.5×) raised absolute speeds —
+single-engine baseline is faster than before, six engines markedly so. Per-engine catalog
+`power`/`torque` are the live tuning knob; tune to feel.
+
+**Deliberately NOT in scope:** felt cargo weight (→ Option A, parked), boost/overdrive specials,
+per-type qualitative abilities, top-speed hard caps (superseded by "more engines = more"), and
+speed-proportional coast deceleration (raised, deferred to keep this tight).
+
+---
+
 ## The four near-term options (deliberately minimum)
 
 These four are the strongest near-term candidates, mapped against
@@ -112,16 +151,23 @@ it's sized right. If it only makes sense once three other systems exist, it's to
 
 ---
 
-## Option A — Laden & Weighted (cargo has felt weight) · `pending`
+## Option A — Laden & Weighted (cargo has felt weight) · `parked`
 
 *(Promoted from M1's deferred "laden weight" item.)*
+
+**Status (2026-06-04):** **Parked pending MD.** Layering felt weight onto the *old* drivetrain would
+have made a loaded rig feel immobile — and the drivetrain was already mis-tuned (engines backfired
+past ~3; see `observations.md` #11). MD fixes that first. The seam is held open: `totalRigWeight` is
+kept live but unconsumed, so un-parking is the one-line re-wire in `features/drive/drive.ts` MD calls
+out. Un-park once MD's higher absolute speeds are tuned to feel.
 
 **Essence:** Scrap you're carrying makes the rig physically heavier — collecting has a felt cost.
 
 **Minimum system (build this):** Cargo sitting in mounted `Storage` contributes to the rig's effective
-weight, which the **already-shipped** weight→drive pipeline (`Weight` →
-`aggregateEngineOutput`/`rigPerformance`) consumes — so a full rig is slower and slower to respond than
-an empty one. A single additive read (`Storage.amount` → a weight contribution); no new downstream maths.
+weight, which `rigPerformance` then consumes (the seam `totalRigWeight` feeds — MD parked its
+consumption but kept it computing) — so a full rig is slower and slower to respond than an empty one. A
+single additive read (`Storage.amount` → a weight contribution) plus re-wiring weight back into
+`rigPerformance`; no new downstream maths.
 
 **Stands alone:** Immediately playable with only what's shipped (M1 collection + MW engines). It turns
 "drive over scrap" from consequence-free into the central felt tradeoff, and produces the name-the-upgrade

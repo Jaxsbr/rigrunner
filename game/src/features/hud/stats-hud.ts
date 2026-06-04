@@ -37,15 +37,13 @@ export class StatsHud {
     });
     const type = labels.length === 0 ? '— none (no drive)' : groupLabels(labels);
 
-    // torque is the raw engine attribute; acceleration / move speed are what survives after the
-    // rig's weight drags on it — so you can see weight biting and torque fighting back.
+    // Engine output IS the performance now (weight parked, no diminishing returns), so top speed and
+    // acceleration are read straight off the rig — mount another engine and watch both climb.
     return [
       'RIG',
       `  type          ${type}`,
-      `  weight        ${fmt(perf.weight)}`,
-      `  torque        ${fmt(perf.torque)}`,
       `  acceleration  ${fmt(perf.acceleration)} u/s²`,
-      `  move speed    ${fmt(perf.topSpeed)} u/s`,
+      `  top speed     ${fmt(perf.topSpeed)} u/s`,
       `  reverse       ${fmt(perf.reverse)} u/s`,
     ].join('\n');
   }
