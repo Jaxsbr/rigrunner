@@ -6,6 +6,8 @@ import { Part } from '@common/components/part';
 import { Weight } from '@common/components/weight';
 import { EngineSpec } from '@common/components/engine-spec';
 import { Storage, CONTAINER_CAPACITY } from '@common/components/storage';
+import { Chassis } from '@common/components/chassis';
+import { MountGrid } from '@common/components/mount-grid';
 import {
   partDef,
   spawnCatalogPart,
@@ -35,7 +37,10 @@ import type { Recipe } from '@common/parts/recipes';
 /** The summed attribute contribution of a set of parts — the raw numbers a product is built from. */
 export type ProductStats = PartAttributes;
 
-const ZERO_STATS: ProductStats = { power: 0, torque: 0, weight: 0, durability: 0, burst: 0 };
+const ZERO_STATS: ProductStats = {
+  power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
+  topSpeed: 0, turning: 0, loadCapacity: 0,
+};
 
 /** Resolve a part entity to its catalog definition, or null if it isn't a known catalog part. */
 export function defOf(world: World, entity: EntityId): PartDef | null {
@@ -54,6 +59,10 @@ export function sumPartStats(world: World, parts: readonly EntityId[]): ProductS
     acc.weight += def.attributes.weight;
     acc.durability += def.attributes.durability;
     acc.burst += def.attributes.burst;
+    // Chassis contributions are optional (≡ 0 on every non-chassis part), so coalesce them in.
+    acc.topSpeed = (acc.topSpeed ?? 0) + (def.attributes.topSpeed ?? 0);
+    acc.turning = (acc.turning ?? 0) + (def.attributes.turning ?? 0);
+    acc.loadCapacity = (acc.loadCapacity ?? 0) + (def.attributes.loadCapacity ?? 0);
   }
   return acc;
 }
@@ -86,6 +95,23 @@ function attachCapability(world: World, product: EntityId, recipe: Recipe, stats
       // assembly. PR4's pile gate reads `Part.kind === 'reclaimer'` + a `Mount` on the rig directly,
       // so no capability component is attached here yet. (Weight is added by the shared path above.)
       break;
+    case 'chassis': {
+      // A chassis carries two intrinsics: the summed-from-sub-parts `Chassis` spec, and the deck
+      // `MountGrid` other parts mount onto. Both the deck dimensions and the engine envelope are
+      // size-fixed (from the recipe), not summed; the rest is the summed stats. spawnRig adds the
+      // drive/world components around this to make it a drivable rig.
+      const c = recipe.chassis!;
+      world.add(product, Chassis, {
+        size: c.size,
+        engineMin: c.engineMin,
+        engineMax: c.engineMax,
+        topSpeed: stats.topSpeed ?? 0,
+        turning: stats.turning ?? 0,
+        loadCapacity: stats.loadCapacity ?? 0,
+      });
+      world.add(product, MountGrid, { cols: c.cols, rows: c.rows, cellSize: 1, deckY: c.deckY });
+      break;
+    }
   }
 }
 

@@ -8,6 +8,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import type { MountFacing } from '@common/components/mount-facing';
 import { Assembly } from '@common/components/assembly';
+import { Chassis } from '@common/components/chassis';
 import type { EnergyType } from '@common/parts/parts-catalog';
 
 /**
@@ -91,6 +92,30 @@ export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind):
     if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === kind) return true;
   }
   return false;
+}
+
+/** How many parts of `kind` are mounted on `rig` — the count the engine-capacity gate reads. */
+export function countMountedPartKind(world: World, rig: EntityId, kind: PartKind): number {
+  let n = 0;
+  for (const p of world.query(Part, Mount)) {
+    if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === kind) n++;
+  }
+  return n;
+}
+
+/**
+ * The engine-count side of the chassis envelope: would mounting `part` keep `rig` within its
+ * chassis's `engineMax`? True for any non-engine part, and for an engine while the rig is still below
+ * its cap. The 1×3 deck accepts at most 2 engines, the 3×5 at most 6 (`Chassis.engineMax`); a rig
+ * with no `Chassis` is uncapped. There is no MIN gate — an under-engined rig is a legal, weak build
+ * (the HUD warns), never a refused mount. Lifting an already-mounted engine frees its cell first, so
+ * REPOSITIONING an engine never trips this — only adding one past the cap does.
+ */
+export function withinEngineCapacity(world: World, rig: EntityId, part: EntityId): boolean {
+  if (world.get(part, Part)?.kind !== 'engine') return true;
+  const max = world.get(rig, Chassis)?.engineMax;
+  if (max === undefined) return true;
+  return countMountedPartKind(world, rig, 'engine') < max;
 }
 
 /**

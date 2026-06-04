@@ -51,7 +51,7 @@ import { ScrapPrompt } from '@features/scrap/scrap-prompt';
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
 const world = new World();
-const player = spawnRig(world);
+const player = spawnRig(world); // a scrap 1×3 chassis — a 3-cell deck (col 0, rows 0–2) that runs 1–2 engines
 // The rig starts with a basic pre-assembled ELECTRIC engine already mounted — a gentle cold start
 // (the player can drive immediately, and electric's snappy/light profile is the friendlier default
 // than the heavy hauler). It's a normal composed engine — removable and dismantlable like any other
@@ -67,7 +67,8 @@ const player = spawnRig(world);
 // DEV/TEST SEED: the rig also starts with a storage container and a Reclaimer already mounted, so a
 // test session can drive, rummage piles, and sweep scrap immediately — without rebuilding these two
 // every run. They're normal composed products (removable/dismantlable like any part), just pre-fitted.
-// Cells: engine is at (col 0, row 1); storage takes (col 1, row 1), the Reclaimer (col 1, row 0).
+// The 1×3 deck has a single column (col 0); the three cells fill front→back: storage (row 0), engine
+// (row 1, above), the Reclaimer (row 2, aimed off the back).
 {
   const rigT = world.get(player, Transform)!;
   const grid = world.get(player, MountGrid)!;
@@ -75,14 +76,14 @@ const player = spawnRig(world);
   // Storage container (shell + rim) — non-directional, mounts deck-aligned.
   const storage = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
   placeProductInWorld(world, storage, rigT.x, rigT.z);
-  mountPart(world, storage, player, 1, 1);
+  mountPart(world, storage, player, 0, 0);
 
   // Reclaimer (arm + bucket) — directional: placeProductInWorld gives it an outward MountFacing, so
   // resolve the matching local yaw for its cell and the arm rests pointing off the deck, ready to dig.
   const reclaimer = composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!));
   placeProductInWorld(world, reclaimer, rigT.x, rigT.z);
-  const reclaimerYaw = resolveLocalYaw(world.get(reclaimer, MountFacing), grid, 1, 0, 0, 0);
-  mountPart(world, reclaimer, player, 1, 0, reclaimerYaw);
+  const reclaimerYaw = resolveLocalYaw(world.get(reclaimer, MountFacing), grid, 0, 2, 0, 0);
+  mountPart(world, reclaimer, player, 0, 2, reclaimerYaw);
 }
 // Loose scrap scattered around the rig — drive over pieces to sweep them into mounted storage, bank
 // them at the workshop, then spend the wallet total in the Parts Shop. The larger field makes the
@@ -116,20 +117,20 @@ const playerStore = world.createEntity();
 world.add(playerStore, Wallet, { scrap: 60 });
 world.add(playerStore, Inventory, { items: [] });
 
-// DEV/TEST SEED (remove before merge): stock the inventory so the drivetrain rebalance (milestone MD)
-// can be felt without grinding or buying — 6 electric + 6 mechanical engines to mount 1..6 of either
-// type and watch top speed / acceleration scale linearly, plus 4 storage containers to swap in. These
-// are normal composed products (unplaced, browsable in the workshop), exactly what the bench / Parts
-// Shop grant. Note: the deck is 2×3 (6 cells), so free the pre-mounted storage + Reclaimer cells to fit six.
-for (let i = 0; i < 6; i++) {
+// DEV/TEST SEED (remove before merge): stock the inventory so the chassis envelope can be felt
+// without grinding or buying — spare engines to free a deck cell and swap a SECOND engine in, then
+// feel the 1×3's max-2 cap refuse a third even over a free cell; plus storage containers to swap on
+// the 3-cell deck. Normal composed products (unplaced, browsable in the workshop), exactly what the
+// bench / Parts Shop grant.
+for (let i = 0; i < 2; i++) {
   addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('electric')));
   addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('mechanical')));
 }
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 2; i++) {
   const container = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
   addToInventory(world, container);
 }
-console.info('[starter] DEV SEED: inventory stocked with 6 electric + 6 mechanical engines and 4 storage containers (remove before merge).');
+console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanical engines and 2 storage containers (remove before merge).');
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
 // workshop interface drops parts into while composing the active recipe's output. Starts on the

@@ -1,0 +1,147 @@
+# RIGRUNNER — Chassis system (spec + phased plan)
+
+**What this is:** the design + phased implementation plan for making the **chassis** a first-class,
+composed, sized part of the rig — the plan of record for the feature requested 2026-06-04. It is the
+home for the whole feature; PR1 (the foundation) is built, PR2–PR3 are committed follow-ups.
+
+> **Status:** **PR1 is built.** PR2 (chassis-kit workshop flow) and PR3 (multi-chassis ownership +
+> selection) are **planned** and gated behind feeling PR1, true to "build by discovery."
+
+---
+
+## 1. What a chassis is
+
+The chassis is the **foundation** a rig is built on: the wheels/tracks it rolls on and the deck the
+rig's parts mount onto. Until now the player's "rig" *was* a monolithic chassis (one hard-coded deck +
+one lumped weight + one GLB). This feature decomposes it: a chassis is **composed from sub-parts**,
+exactly as an engine is, and comes in two **sizes**.
+
+A rig is still a **rig** — the controllable machine. `Chassis` is now a component *on* it (the
+counterpart to an engine's `EngineSpec`), not the rig itself.
+
+### Sub-parts (composed on the bench, summed into the chassis)
+| Slot | Sub-part | Contributes |
+|---|---|---|
+| `wheel-axle` | Wheel & Axle Set | top speed |
+| `suspension-steering` | Suspension & Steering Set | turning radius |
+| `frame` | Chassis Frame | load capacity (max carry weight) |
+
+The sum of the sub-parts makes the whole chassis's attributes — `topSpeed`, `turning`,
+`loadCapacity` — plus its own mass (`Weight`, summed from the three).
+
+### Sizes (the structural choice)
+| Size | Deck (cols×rows) | Engines (min–max) | Role |
+|---|---|---|---|
+| **1×3** | 1 × 3 (3 cells) | 1 – 2 | light scout — the starter (replaces the deprecated 2×3) |
+| **3×5** | 3 × 5 (15 cells) | 3 – 6 | heavy hauler |
+
+Size fixes the deck dimensions (`MountGrid`) and the engine envelope; it is **not** a sub-part. Each
+size has its own GLB and its own (heavier, higher-rated) sub-part set.
+
+### Tiers (scrap, iron, …) — a separate, not-yet-built axis
+Sub-parts will eventually carry **tiers** (scrap → iron → …). Per
+[`part-identity-spec.md`](part-identity-spec.md) §4a, tier is an axis on the part **instance**, not a
+catalog row, and multiplies the base attributes at resolve time — uniformly across *all* parts,
+chassis included. PR1 ships the base (tier-1 / "scrap") sub-parts only; nothing tier-specific is built
+here. When the tier system lands, chassis sub-parts gain tiers for free.
+
+---
+
+## 2. The 3-PR phasing
+
+### PR1 — Foundation *(built)*
+The chassis becomes a real, composed, sized part, wired end-to-end except for driving behaviour.
+- `Chassis` component (`@common/components/chassis.ts`); `'chassis'` `PartKind`.
+- Six chassis sub-parts (3 slots × 2 sizes, scrap base) + `topSpeed`/`turning`/`loadCapacity` on
+  `PartAttributes` (`@common/parts/parts-catalog.ts`).
+- Two chassis recipes carrying a size-fixed `chassis` meta block (`@common/parts/recipes.ts`); a
+  `'chassis'` case in `attachCapability` that stamps `Chassis` + the deck `MountGrid`
+  (`@common/sim/assembly.ts`).
+- `@features/chassis/chassis.ts` (`chassisParts(size)`); `spawnRig(world, x, z, size)` composes the
+  chassis and builds the drivable rig around it (`@features/mounting/rig.ts`).
+- Engine **max** enforced at mount (`withinEngineCapacity` in `@features/mounting/mounting.ts`, applied
+  in the build controller); engine **min** is a HUD warning, never a refusal.
+- Chassis HUD section: size, engines `N / min–max`, load `X / capacity` (`@features/hud/stats-hud.ts`).
+- Assets: `chassis-1x3.glb` (replaces `rig.glb`) + `chassis-3x5.glb`, via
+  `tools/blender/assets/chassis_common.py` + the two size modules. Registered in `shared/assets.ts`.
+- The 1×3 starter seed in `main.ts` rewritten for the 3-cell deck.
+
+### PR2 — The chassis-kit workshop flow *(planned)*
+- Building a chassis from its three sub-parts on the bench, assembling into a **chassis-kit** shown as
+  a **2×2 block** in the workshop UI.
+- Moving the kit from the workshop deck **out into the world**, where it assembles into a new drivable
+  chassis. (PR1 already isolates the seam: a chassis product gains the *rig's* components, not a
+  mounted part's — see `spawnRig`. The chassis recipes are intentionally **absent** from the on-rig
+  bench picker `RECIPES[]` until this flow exists.)
+
+### PR3 — Multi-chassis ownership + selection *(planned)*
+- The player owns **1–2** chassis.
+- A small **icon per owned chassis**, top-left; keys **`1`** / **`2`** switch which rig the player
+  controls (refactor `main.ts`'s single `player` binding into an "active rig" the input/camera/HUD/
+  zone systems follow).
+
+---
+
+## 3. Deferred: sub-part → driving behaviour (read this)
+
+**By decision (2026-06-04), chassis sub-parts do NOT affect how the rig drives in PR1.** The
+`Chassis.topSpeed` and `Chassis.turning` values are summed and stored, but:
+
+- **handling** still comes from the rig's **constant `Drivetrain`** (the same `turnRate` etc. for both
+  sizes), and
+- **propulsion / top speed** still comes solely from the mounted **engines** (`drive.ts` is
+  untouched — a unit test asserts `rigPerformance` is unchanged by the chassis).
+
+This is parked alongside the existing **"weight is parked"** decision (`drive.ts`, `weight.ts`). The
+two reattach together in the future **laden-weight milestone**, which will:
+- derive `Drivetrain.turnRate` from `Chassis.turning`,
+- cap engine-derived top speed by `Chassis.topSpeed`, and
+- make `Chassis.loadCapacity` a **binding** limit (overload → a real penalty/refusal).
+
+Until then **load capacity is a HUD readout only** — the HUD shows `load X / capacity Y` (live mounted
+weight vs the rated capacity) using the existing `totalRigWeight`, but nothing refuses an overload.
+
+The seams are deliberately left clean for that milestone: `Chassis` already carries the resolved
+`topSpeed`/`turning`/`loadCapacity`; `totalRigWeight` already sums the live load.
+
+---
+
+## 4. Data model (PR1, as built)
+
+- `Chassis { size; engineMin; engineMax; topSpeed; turning; loadCapacity }` — `@common/components`.
+- `PartKind` gains `'chassis'`; `PartCategory` gains `'chassis'`; `PartSlot` gains
+  `'wheel-axle' | 'suspension-steering' | 'frame'`; `PartAttributes` gains optional
+  `topSpeed?`/`turning?`/`loadCapacity?` (≡ 0 on non-chassis parts).
+- `Recipe.chassis?: { size; cols; rows; deckY; engineMin; engineMax }` — present only on the two
+  chassis recipes. `attachCapability`'s `'chassis'` case stamps `Chassis` (size + envelope from the
+  recipe; the three attributes from the summed stats) **and** the deck `MountGrid` (cols/rows/deckY).
+- A chassis product is special: it is not mounted onto a rig — `spawnRig` adds the rig's
+  drive/world components (`Transform`/`Velocity`/`DriveControl`/`Drivetrain`/`Collider`/`Renderable`)
+  onto it. It carries `Part{kind:'chassis'}` but the build controller excludes that kind from
+  grabbable parts (you can't lift the rig off itself).
+
+Scrap-tier sub-part numbers (starting strawmen, tuned later — inert except `loadCapacity`'s readout):
+
+| Sub-part | 1×3 | 3×5 |
+|---|---|---|
+| Wheel & Axle Set | topSpeed 12, weight 3 | topSpeed 16, weight 7 |
+| Suspension & Steering Set | turning 8, weight 2 | turning 5, weight 5 |
+| Chassis Frame | loadCapacity 24, weight 6 | loadCapacity 60, weight 14 |
+
+---
+
+## 5. Verification (PR1)
+- Headless tests (`game/src/features/chassis/chassis.test.ts`): each size composes the right `Chassis`
+  + `MountGrid` + summed mass; the engine cap admits up to `engineMax` then refuses a third over a
+  free cell; non-engine parts are never capped. Plus `sumPartStats` covers the new attributes.
+- `npm run dev:game`: the rig spawns as a 1×3 (3-cell deck), wheels spin, the HUD shows the chassis
+  section; dev-toggle `spawnRig(world, 0, 0, '3x5')` to confirm the larger deck + envelope + asset.
+
+---
+
+## 6. Where this connects
+- Supersedes the memory decision "rig frame is single-weight placeholder until components land" — the
+  chassis is now componentised (mass summed from sub-parts).
+- Feeds the parked **laden-weight** milestone (the driving-behaviour + capacity seam, §3).
+- Shares the tier architecture with [`part-identity-spec.md`](part-identity-spec.md) §4 (instance-tier,
+  resolve-through-multiplier).

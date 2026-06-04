@@ -1,5 +1,6 @@
 import type { PartSlot } from './parts-catalog';
 import type { PartKind } from '@common/components/part';
+import type { ChassisSize } from '@common/components/chassis';
 
 /**
  * An assembly RECIPE — the data the workshop bench renders from. A recipe lists the slots its
@@ -20,16 +21,32 @@ export interface RecipeSlot {
   label: string;
 }
 
+/**
+ * Size-fixed structure a chassis recipe carries — the part of a chassis NOT summed from its
+ * sub-parts but determined by which size you're building. Assembly stamps it onto the product's
+ * `Chassis` + `MountGrid` (see `systems/assembly.ts`). Present only on chassis recipes.
+ */
+export interface ChassisRecipeMeta {
+  size: ChassisSize;
+  cols: number;       // deck cells across (local X)
+  rows: number;       // deck cells along the length (local Z)
+  deckY: number;      // deck surface height — matches the GLB's deck top
+  engineMin: number;  // fewest engines this deck is meant to run (HUD warns below it)
+  engineMax: number;  // most engines this deck accepts (mounting refuses beyond it)
+}
+
 export interface Recipe {
   /** Stable id for the recipe. */
   id: string;
   /** Display name of what the recipe builds (shown in the bench header). */
   output: string;
   /** The kind of `Part` this recipe assembles — gives the product its downstream capability
-   *  (engine ⇒ EngineSpec, storage ⇒ Storage). See `systems/assembly.ts`. */
+   *  (engine ⇒ EngineSpec, storage ⇒ Storage, chassis ⇒ Chassis + MountGrid). See `systems/assembly.ts`. */
   productKind: PartKind;
   /** The slots that must be filled (in display order) to complete the build. */
   slots: readonly RecipeSlot[];
+  /** Size-fixed structure — chassis recipes only. */
+  chassis?: ChassisRecipeMeta;
 }
 
 /** The engine recipe — four same-type parts in the four-slot grammar (see the spec). */
@@ -72,10 +89,50 @@ export const RECLAIMER_RECIPE: Recipe = {
   ],
 };
 
-/** Every buildable recipe, in the order the bench's recipe picker shows them. */
+/**
+ * The two chassis recipes — same three-slot grammar, differing only in the size-fixed structure they
+ * stamp (deck dimensions + engine envelope). The 1×3 is the light scout (1–2 engines); the 3×5 the
+ * hauler (3–6). `chassisParts(size)` (in `@features/chassis`) supplies the size-matched sub-parts.
+ *
+ * The deck surface sits at the same height (0.66) for both, matching each size's GLB deck top, so the
+ * build-interaction's carry-clearance math is unchanged across sizes.
+ */
+const CHASSIS_SLOTS: readonly RecipeSlot[] = [
+  { slot: 'wheel-axle', label: 'Wheel & Axle Set' },
+  { slot: 'suspension-steering', label: 'Suspension & Steering Set' },
+  { slot: 'frame', label: 'Chassis Frame' },
+];
+
+export const CHASSIS_1X3_RECIPE: Recipe = {
+  id: 'chassis-1x3',
+  output: 'Chassis (1×3)',
+  productKind: 'chassis',
+  slots: CHASSIS_SLOTS,
+  chassis: { size: '1x3', cols: 1, rows: 3, deckY: 0.66, engineMin: 1, engineMax: 2 },
+};
+
+export const CHASSIS_3X5_RECIPE: Recipe = {
+  id: 'chassis-3x5',
+  output: 'Chassis (3×5)',
+  productKind: 'chassis',
+  slots: CHASSIS_SLOTS,
+  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.66, engineMin: 3, engineMax: 6 },
+};
+
+/** The chassis recipe for a size — the seam `spawnRig` composes its foundation through. */
+export function chassisRecipeForSize(size: ChassisSize): Recipe {
+  return size === '1x3' ? CHASSIS_1X3_RECIPE : CHASSIS_3X5_RECIPE;
+}
+
+/**
+ * Every buildable recipe the bench's recipe picker shows, in order. The chassis recipes are
+ * deliberately ABSENT: a chassis is built through its own kit flow (move the kit out into the world
+ * to assemble it), not slotted onto the rig like an engine, so it doesn't belong in the on-rig bench
+ * picker. They're still composed directly (`chassisRecipeForSize`) to seed the starting rig.
+ */
 export const RECIPES: readonly Recipe[] = [ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE];
 
 /** Resolve a recipe id to its definition, or `undefined` if it isn't a known recipe. */
 export function recipeById(id: string): Recipe | undefined {
-  return RECIPES.find((r) => r.id === id);
+  return [...RECIPES, CHASSIS_1X3_RECIPE, CHASSIS_3X5_RECIPE].find((r) => r.id === id);
 }
