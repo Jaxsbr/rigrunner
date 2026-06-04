@@ -30,7 +30,7 @@ import { RenderView } from '@common/render/view';
 import { ZoneOverlays } from '@common/render/zone-overlays';
 import { InteractionHints } from '@common/render/interaction-hints';
 import { ScrapStains } from '@features/scrap/scrap-stains';
-import { workshopZoneDiscs, workshopHints } from '@features/workshop/overlays';
+import { workshopZoneDiscs } from '@features/workshop/overlays';
 import { scrapPileDiscs, scrapPileHints } from '@features/scrap/overlays';
 import { animateWheels } from '@features/drive/wheel-spin';
 import { animateStorageFill } from '@features/storage/storage-fill';
@@ -260,11 +260,13 @@ function frame(now: number): void {
   // its Velocity survives the freeze and the wheels would otherwise keep spinning.
   view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
-  // proximity discs + "Press E"/"Hold E" bubbles: each feature contributes its gated entries and
-  // main concatenates them for the shared render-tier overlays. Runs always (even paused) so the
-  // disc/prompt stay put behind the overlay rather than popping on resume.
+  // proximity discs (workshop + scrap) and the "Hold E" scrap bubble: each feature contributes its
+  // gated entries and main concatenates them for the shared render-tier overlays. The workshop's
+  // "open" prompt is the bottom-centre HUD button instead of a floating bubble, so it never sits over
+  // the deck the player is loading. Runs always (even paused) so the disc/prompt stay put behind the
+  // overlay rather than popping on resume.
   zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)], dt);
-  hints.sync([...workshopHints(world), ...scrapPileHints(world)], dt);
+  hints.sync([...scrapPileHints(world)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);

@@ -43,7 +43,10 @@
         bottom: 18px;
         left: 50%;
         transform: translateX(-50%) translateY(0);
-        padding: 9px 18px;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 16px;
         border: 1px solid rgba(89, 255, 159, 0.5);
         border-radius: 8px 8px 0 0;
         background: rgba(20, 28, 24, 0.92);
@@ -56,6 +59,20 @@
         transition: opacity 0.2s ease, transform 0.2s ease;
       }
       #workshop-tab:hover { background: rgba(28, 40, 34, 0.96); }
+      /* "E" keycap on the tab — mirrors the keycap that used to ride the floating bubble (dark cap,
+         glow-green border + letter) so the keyboard shortcut reads at a glance without obstructing. */
+      #workshop-tab kbd {
+        display: inline-grid;
+        place-items: center;
+        min-width: 17px;
+        padding: 3px 4px;
+        border: 1px solid #59ff9f;
+        border-radius: 4px;
+        background: #101214;
+        color: #59ff9f;
+        font: inherit;
+        letter-spacing: 0;
+      }
       #workshop-tab.hidden {
         opacity: 0;
         transform: translateX(-50%) translateY(14px);
@@ -654,7 +671,7 @@
     <canvas id="view"></canvas>
     <pre id="stats"></pre>
     <pre id="wallet"></pre>
-    <button id="workshop-tab" class="hidden" type="button">🔧 Open Workshop</button>
+    <button id="workshop-tab" class="hidden" type="button">🔧 Open Workshop<kbd>E</kbd></button>
     <div id="workshop-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workshop">
       <div class="workshop-panel">
         <header class="workshop-header">
