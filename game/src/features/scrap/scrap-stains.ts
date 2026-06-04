@@ -15,7 +15,7 @@ import { Collectible } from '@features/scrap/collectible';
  * system: every frame, any decal whose owner entity is no longer a live Collectible eases toward
  * zero and is disposed when invisible. That keeps the collection/collision/loot/storage seams
  * completely untouched — this layer is a one-way projection of the world (destroy it, the sim is
- * unaffected), exactly like InteractionHints and the sim-driven animators.
+ * unaffected), exactly like the proximity ZoneOverlays and the sim-driven animators.
  *
  * Decals track `Collectible` (which today *is* loose scrap; see components/collectible.ts). Each
  * stain is deliberately *uneven* — it picks one of a small pool of distinct blotch textures and a

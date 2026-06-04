@@ -17,8 +17,9 @@ import type { EntityId } from '@core/types';
  * the entry list (e.g. a pile destroyed when emptied).
  *
  * The disc sits BELOW the scrap stains and writes no depth, so an active ring composites under any
- * seepage stain rather than punching a hole in it. The fade mirrors `InteractionHints` (the "Press
- * E" bubble that rides above the same zone), so the disc and its prompt appear/disappear in lockstep.
+ * seepage stain rather than punching a hole in it. Its opacity eases in/out with the zone's `active`
+ * gate, so the lit ring tracks the same proximity state the HUD prompt (workshop tab / scrap prompt)
+ * reflects, and they appear/disappear in lockstep.
  */
 export interface ZoneDisc {
   id: EntityId;

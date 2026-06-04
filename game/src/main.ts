@@ -28,10 +28,9 @@ import { createBuildController } from '@features/mounting/build-controller';
 import { activeStagingTargets } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
 import { ZoneOverlays } from '@common/render/zone-overlays';
-import { InteractionHints } from '@common/render/interaction-hints';
 import { ScrapStains } from '@features/scrap/scrap-stains';
-import { workshopZoneDiscs, workshopHints } from '@features/workshop/overlays';
-import { scrapPileDiscs, scrapPileHints } from '@features/scrap/overlays';
+import { workshopZoneDiscs } from '@features/workshop/overlays';
+import { scrapPileDiscs } from '@features/scrap/overlays';
 import { animateWheels } from '@features/drive/wheel-spin';
 import { animateStorageFill } from '@features/storage/storage-fill';
 import { animateReclaimer } from '@features/scrap/reclaimer-animator';
@@ -40,6 +39,7 @@ import { StatsHud } from '@features/hud/stats-hud';
 import { WalletHud } from '@features/economy/wallet-hud';
 import { WorkshopOverlay } from '@features/workshop/workshop-overlay';
 import { LootOverlay } from '@features/scrap/loot-overlay';
+import { ScrapPrompt } from '@features/scrap/scrap-prompt';
 
 /**
  * Composition root. The ONLY place that knows about all three tiers and every feature at once: it
@@ -160,7 +160,6 @@ const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!)
 // shared render tier (`@common/render/view`) imports no feature. The sim-driven animators are plain
 // functions called below against `view.entityViews`.
 const zones = new ZoneOverlays(view.scene);
-const hints = new InteractionHints(view.scene);
 const stains = new ScrapStains(view.scene);
 
 // Two overlays can each freeze the simulation: the workshop interface and the loot popup. Main owns
@@ -191,6 +190,10 @@ const loot = new LootOverlay(
     onPauseChange: (p) => { lootPaused = p; syncPaused(); },
   },
 );
+
+// The bottom-centre scrap-pile prompt: the fixed screen-space "Hold E" cue. Main pushes the live
+// pile-gate state into it each frame (the prompt never touches the World).
+const scrapPrompt = new ScrapPrompt(document.querySelector<HTMLElement>('#scrap-prompt')!);
 
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
 function anyZoneActive(): boolean {
@@ -250,6 +253,8 @@ function frame(now: number): void {
   // the tab tracks zone proximity each frame (the overlay hides it while open, so reading the
   // frozen zone state while paused is harmless).
   overlay.setZoneActive(anyZoneActive());
+  // the scrap prompt mirrors that for piles: shown only while the sim runs and a pile's gate is lit.
+  scrapPrompt.sync(world, !paused);
 
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
@@ -260,11 +265,12 @@ function frame(now: number): void {
   // its Velocity survives the freeze and the wheels would otherwise keep spinning.
   view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
-  // proximity discs + "Press E"/"Hold E" bubbles: each feature contributes its gated entries and
-  // main concatenates them for the shared render-tier overlays. Runs always (even paused) so the
-  // disc/prompt stay put behind the overlay rather than popping on resume.
+  // proximity discs (workshop + scrap): each feature contributes its gated disc entries and main
+  // concatenates them for the shared render tier. Each feature's "what key does this" prompt is a
+  // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
+  // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
+  // overlay rather than popping on resume.
   zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)], dt);
-  hints.sync([...workshopHints(world), ...scrapPileHints(world)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);

@@ -35,32 +35,53 @@
         pointer-events: none;
         user-select: none;
       }
-      /* Workshop tab, bottom-centre. Shown only while the rig is in a workshop zone (and the
-         overlay is closed). Slides/fades in via a transition; the .hidden class drives it off
-         rather than display:none so it never pops. */
-      #workshop-tab {
+      /* Bottom-centre proximity prompt — the fixed screen-space "what key does this" cue, shared by
+         the workshop tab and the scrap-pile prompt. A HUD element (not a world-space label), so it
+         never sits over the deck/heap. Shown only while the rig is in range; the .hidden class
+         slides/fades it off rather than display:none so it never pops. Both sit in the same slot,
+         which is safe because their zones never coincide (workshop alone at +Z, piles scattered far). */
+      .hud-prompt {
         position: fixed;
         bottom: 18px;
         left: 50%;
         transform: translateX(-50%) translateY(0);
-        padding: 9px 18px;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 16px;
         border: 1px solid rgba(89, 255, 159, 0.5);
         border-radius: 8px 8px 0 0;
         background: rgba(20, 28, 24, 0.92);
         color: #59ff9f;
         font: 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         letter-spacing: 0.04em;
-        cursor: pointer;
         user-select: none;
         box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.5);
         transition: opacity 0.2s ease, transform 0.2s ease;
       }
-      #workshop-tab:hover { background: rgba(28, 40, 34, 0.96); }
-      #workshop-tab.hidden {
+      .hud-prompt.hidden {
         opacity: 0;
         transform: translateX(-50%) translateY(14px);
         pointer-events: none;
       }
+      /* "E" keycap — a dark cap with a glow-green border + letter so the keyboard shortcut reads at a
+         glance; the green ties it to the lit proximity disc. */
+      .hud-prompt kbd {
+        display: inline-grid;
+        place-items: center;
+        min-width: 17px;
+        padding: 3px 4px;
+        border: 1px solid #59ff9f;
+        border-radius: 4px;
+        background: #101214;
+        color: #59ff9f;
+        font: inherit;
+        letter-spacing: 0;
+      }
+      /* The workshop tab is also a button (click = open the interface); the scrap prompt is purely
+         informational (rummaging is the held E key), so only the tab gets the click affordance. */
+      #workshop-tab { cursor: pointer; }
+      #workshop-tab:hover { background: rgba(28, 40, 34, 0.96); }
       /* Full-screen workshop overlay. Backdrop dims + intercepts the mouse (pointer-events:auto),
          so the frozen scene underneath can't be dragged/orbited while it's open. An empty shell
          in P1 — the inventory browser, portrait and bench land in later PRs. */
@@ -654,7 +675,8 @@
     <canvas id="view"></canvas>
     <pre id="stats"></pre>
     <pre id="wallet"></pre>
-    <button id="workshop-tab" class="hidden" type="button">🔧 Open Workshop</button>
+    <button id="workshop-tab" class="hud-prompt hidden" type="button">🔧 Open Workshop<kbd>E</kbd></button>
+    <div id="scrap-prompt" class="hud-prompt hidden">🦾 Scrap Pile · Hold<kbd>E</kbd></div>
     <div id="workshop-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workshop">
       <div class="workshop-panel">
         <header class="workshop-header">
