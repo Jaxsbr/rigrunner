@@ -2,10 +2,14 @@
 
 **What this is:** the design + phased implementation plan for making the **chassis** a first-class,
 composed, sized part of the rig — the plan of record for the feature requested 2026-06-04. It is the
-home for the whole feature; PR1 (the foundation) is built, PR2–PR3 are committed follow-ups.
+home for the whole feature; PR1–PR2 are built, PR3a is in progress, and PR3b–PR5 are committed
+follow-ups.
 
-> **Status:** **PR1 is built.** PR2 (chassis-kit workshop flow) and PR3 (multi-chassis ownership +
-> selection) are **planned** and gated behind feeling PR1, true to "build by discovery."
+> **Status:** **PR1 + PR2 are built.** PR3 is split: **PR3a** (multi-chassis ownership + selection +
+> a visible deploy) is in progress and **PR3b** (the authored unfold animation) is planned. **PR4**
+> (pack-up: fold a chassis back into a kit) and **PR5** (ownership-cap feedback) are planned
+> skeletons capturing the chassis-lifecycle follow-ups — each gated behind feeling the earlier work,
+> true to "build by discovery."
 
 ---
 
@@ -47,7 +51,7 @@ here. When the tier system lands, chassis sub-parts gain tiers for free.
 
 ---
 
-## 2. The 3-PR phasing
+## 2. The phased plan
 
 ### PR1 — Foundation *(built)*
 The chassis becomes a real, composed, sized part, wired end-to-end except for driving behaviour.
@@ -66,19 +70,74 @@ The chassis becomes a real, composed, sized part, wired end-to-end except for dr
   `tools/blender/assets/chassis_common.py` + the two size modules. Registered in `shared/assets.ts`.
 - The 1×3 starter seed in `main.ts` rewritten for the 3-cell deck.
 
-### PR2 — The chassis-kit workshop flow *(planned)*
-- Building a chassis from its three sub-parts on the bench, assembling into a **chassis-kit** shown as
-  a **2×2 block** in the workshop UI.
-- Moving the kit from the workshop deck **out into the world**, where it assembles into a new drivable
-  chassis. (PR1 already isolates the seam: a chassis product gains the *rig's* components, not a
-  mounted part's — see `spawnRig`. The chassis recipes are intentionally **absent** from the on-rig
-  bench picker `RECIPES[]` until this flow exists.)
+### PR2 — The chassis-kit workshop flow *(built)*
+- A chassis is built from its three sub-parts on the workshop **bench** (its two recipes sit in the
+  picker, size-locked by `acceptsChassisPart`), assembling into a **chassis-kit** — a composed
+  product with a 2×2 `Part.footprint` (`CHASSIS_KIT_FOOTPRINT`), shown as a 2×2 block on the deck.
+- The kit is hauled off the deck **out into the world**, where it assembles into a new drivable
+  chassis. The convert seam is `chassisToRig` (factored out of `spawnRig`, `@features/mounting/rig`);
+  the kit renders as the packed `chassis-kit` crate and swaps to the unfolded chassis on deploy.
+- Sub-parts are bought in the **Parts Shop** (`part-costs.ts`). Mounting carries a multi-cell
+  footprint primitive (`regionFree`, footprint-aware `partAtCell`/snap/ride) for the 2×2 block.
 
-### PR3 — Multi-chassis ownership + selection *(planned)*
-- The player owns **1–2** chassis.
-- A small **icon per owned chassis**, top-left; keys **`1`** / **`2`** switch which rig the player
-  controls (refactor `main.ts`'s single `player` binding into an "active rig" the input/camera/HUD/
-  zone systems follow).
+### PR3 — Multi-chassis ownership + selection
+The player owns **1–2** chassis and switches which one they control. Split in two:
+
+**PR3a — ownership + selection + a visible deploy *(in progress)*.**
+- `PlayerChassis` + `ActiveRig` markers (`@features/chassis/ownership.ts`): own up to `MAX_OWNED`
+  (2); exactly one is active. `main.ts`'s single `player` binding becomes a per-frame `activeRig` the
+  input/camera/HUD/zone/scrap/build interaction all follow; the build controller takes a `getRig`.
+- A top-left **chassis bar** (`chassis-bar.ts`): a chip per owned chassis (size + its `1`/`2`
+  hotkey, active highlighted); click or press the number to switch control.
+- **Visible deploy:** a hauled-out kit's crate **lands and stays a crate**, then after a short beat
+  assembles into a rig (`deployChassis` = `chassisToRig` + `markOwned`, cap-aware). Control **stays
+  on the current rig** (no camera jump); a 3rd kit at the cap is refused and returns to the deck.
+
+**PR3b — the authored unfold animation *(planned)*.** Replace PR3a's simple assemble beat with a
+mechanical unfold (wheels roll out, body rises) — an articulated "deploying" chassis + a deploy
+animator. The deploy seam (`deployChassis`) stays; only the visual is upgraded. Camera target-easing
+on a `1`/`2` switch (PR3a retargets instantly) rides along here.
+
+### PR4 — Pack-up: fold a deployed chassis back into a kit *(planned — skeleton)*
+The inverse of deploy, so a chassis isn't a one-way commitment — the player can retire one to make
+room for (or rework) another. While the player controls a chassis that has **no parts mounted**
+(strip it first — packing a loaded chassis would orphan its parts), a contextual **`E` prompt**
+appears — the same fixed HUD-prompt pattern as the scrap-pile "Hold E" / workshop tab — reading e.g.
+*"Pack up chassis."* Confirming folds it back into a **chassis-kit** crate (the inverse of
+`chassisToRig`: drop the drive/world components, restore the 2×2 `Part.footprint`, swap the
+Renderable back to `chassis-kit`), which the player then hauls onto the workshop deck like any kit.
+
+To design (skeleton):
+- **Empty-only gate** — the prompt shows only on a controlled chassis with zero mounted parts;
+  hinting the requirement when it isn't empty is TBD.
+- **Control hand-off** — you can't control a kit, so packing up the active rig must hand control to
+  another owned chassis (or leave none active until the player selects one).
+- **Where the kit goes** — see the ownership state model below.
+- A `chassisToKit` seam mirroring `chassisToRig`, beside it in `@features/mounting/rig.ts`.
+
+### PR5 — Ownership-cap feedback (notification) *(planned — skeleton)*
+Today a 3rd chassis at the cap is refused **silently** (the kit just glides back to the workshop
+deck), which reads as a bug. A player may have deliberately built a different-size or
+differently-configured 3rd chassis and won't understand why it won't deploy. Surface a clear
+**notification** at the refusal — e.g. *"You can only field 2 chassis at once — pack up or dismantle
+one first"* — pointing them at PR4's pack-up.
+
+To design (skeleton):
+- A lightweight **transient notification / toast** HUD primitive — the game has only *fixed* HUD
+  prompts (`.hud-prompt`) and modal overlays today; a brief auto-dismissing message is new. (Distinct
+  from PR4's contextual `E` prompt, which reuses the fixed-prompt pattern.)
+- **When to warn** — at deploy-refusal for sure; consider a heads-up at *build* time too (assembling
+  a kit you can't currently field), so the disappointment lands earlier. Depends on PR4 for the
+  call-to-action ("pack up") to be actionable.
+
+### Ownership state model (to settle in PR4)
+PR4/PR5 force a distinction PR3a doesn't make: **fielded** chassis (deployed, drivable — the ones the
+`MAX_OWNED = 2` cap and the `1`/`2` bar count) vs **packed kits** (a chassis you own but haven't
+deployed — a crate). The lean: **only fielded chassis count toward the cap**, so a packed kit is "in
+storage" and doesn't — pack-up genuinely frees a slot to deploy a different chassis. Open question
+Jaco flagged: a kit left **loose in the world** is messy, so likely **kits must live on the workshop**
+(moved there, not littering the field), with the world only ever holding a kit *transiently* while
+it's carried. Not committed — settle when PR4 is built.
 
 ---
 

@@ -12,6 +12,7 @@ import { Chassis, type ChassisSize } from '@common/components/chassis';
 import { chassisRecipeForSize } from '@common/parts/recipes';
 import { composeProduct } from '@common/sim/assembly';
 import { chassisParts } from '@features/chassis/chassis';
+import { markOwned, ownedCount, MAX_OWNED } from '@features/chassis/ownership';
 
 /**
  * A rig is not a class; it is a SET of capabilities a chassis carries once it's drivable. New entity
@@ -59,4 +60,18 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
 /** Compose a fresh chassis of `size` and make it a drivable rig — the starting-rig seed. */
 export function spawnRig(world: World, x = 0, z = 0, size: ChassisSize = '1x3'): EntityId {
   return chassisToRig(world, composeProduct(world, chassisRecipeForSize(size), chassisParts(size)), x, z);
+}
+
+/**
+ * Deploy a hauled-out chassis kit: turn it into a drivable rig at (x, z) and register it as one of
+ * the player's owned chassis. Refused — returns false, nothing changes — when the player is already
+ * at `MAX_OWNED` (the cap the build interaction enforces at drop). Control is NOT switched: the new
+ * chassis is owned and parked, switchable from the chassis bar. The convert+own pair lives here
+ * (with `chassisToRig`) so the one-way `mounting → chassis` import stays acyclic.
+ */
+export function deployChassis(world: World, chassis: EntityId, x = 0, z = 0): boolean {
+  if (ownedCount(world) >= MAX_OWNED) return false;
+  chassisToRig(world, chassis, x, z);
+  markOwned(world, chassis);
+  return true;
 }

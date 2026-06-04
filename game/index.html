@@ -7,11 +7,54 @@
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1a1a; }
       canvas { display: block; }
-      /* Rig stat readout, top-left. White on the dark scene; ignores the mouse so it never
-         intercepts the build drag / camera controls underneath it. */
-      #stats {
+      /* Chassis bar, top-left: one chip per owned chassis (its 1/2 hotkey + size); the active one is
+         highlighted. Click a chip — or press its number — to switch which chassis you control. Sits
+         above the rig stat readout. Interactive (clickable), unlike the readouts. */
+      #chassis-bar {
         position: fixed;
         top: 12px;
+        left: 14px;
+        display: flex;
+        gap: 6px;
+        user-select: none;
+      }
+      .chassis-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border: 1px solid #2c343a;
+        border-radius: 7px;
+        background: rgba(20, 24, 28, 0.82);
+        color: #8b97a0;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+      }
+      .chassis-chip:hover { background: rgba(34, 42, 47, 0.92); color: #c7ced3; }
+      .chassis-chip.active {
+        border-color: #59ff9f;
+        color: #59ff9f;
+        background: rgba(89, 255, 159, 0.1);
+      }
+      /* The hotkey cap — a dark square with the number, glow-green on the active chip. */
+      .chassis-chip .cc-key {
+        display: inline-grid;
+        place-items: center;
+        min-width: 15px;
+        padding: 2px 3px;
+        border: 1px solid #3a444b;
+        border-radius: 4px;
+        background: #101214;
+        color: #8b97a0;
+        font-size: 10px;
+      }
+      .chassis-chip.active .cc-key { border-color: #59ff9f; color: #59ff9f; }
+      /* Rig stat readout, top-left under the chassis bar. White on the dark scene; ignores the mouse
+         so it never intercepts the build drag / camera controls underneath it. */
+      #stats {
+        position: fixed;
+        top: 48px;
         left: 14px;
         margin: 0;
         color: #f2f2f2;
@@ -677,6 +720,7 @@
   </head>
   <body>
     <canvas id="view"></canvas>
+    <div id="chassis-bar"></div>
     <pre id="stats"></pre>
     <pre id="wallet"></pre>
     <button id="workshop-tab" class="hud-prompt hidden" type="button">🔧 Open Workshop<kbd>E</kbd></button>
