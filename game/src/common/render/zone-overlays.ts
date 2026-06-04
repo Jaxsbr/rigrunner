@@ -28,14 +28,16 @@ export interface ZoneDisc {
   active: boolean;
 }
 
-const FADE_IN_RATE = 6;        // opacity units/sec when lighting up (≈0.17 s) — matches the hints
-const FADE_OUT_RATE = 3;       // half-speed when going dormant, so the disc lingers (≈0.33 s, twice the fade-in)
+const FADE_IN_RATE = 12;       // opacity units/sec when lighting up (≈0.08 s) — snaps to full fast, so even a
+                               // brief drive-through fully lights rather than flickering a faint partial disc
+const FADE_OUT_RATE = 1.5;     // much slower when going dormant (≈0.67 s) — the disc lingers and eases out, so a
+                               // momentary activation reads as "lit then slowly faded", never an instant blink
 const FILL_COLOR = 0x59ff9f;   // glow_green — the lit fill
 const BORDER_COLOR = 0x4c8f3a; // nature_green — a darker rim around the fill
 const FILL_OPACITY = 0.25;     // fully-lit fill opacity (the disc has always been faint)
 const BORDER_OPACITY = 0.7;    // fully-lit border opacity — crisper than the fill so the outline reads
-const BORDER_FRAC = 0.08;      // ring thickness as a fraction of radius — a chunky outline
-const MIN_BORDER = 0.35;       // metres, so even a small zone keeps a visible border
+const BORDER_FRAC = 0.04;      // ring thickness as a fraction of radius — a slim outline
+const MIN_BORDER = 0.175;      // metres, so even a small zone keeps a visible border
 
 interface Disc {
   fill: THREE.Mesh;
