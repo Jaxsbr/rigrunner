@@ -11,6 +11,105 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-04 — Chassis tiers as the cap that makes part-tiers safe (+ refined energy identity, multiple rigs, cross-type viability)
+
+**Mode:** design session, firming. Sparked by the drivetrain rebalance (milestone MD) and the worry
+that the part-identity **tier** work (MP / [`part-identity-spec.md`](part-identity-spec.md)) would
+either be too weak to feel or strong enough to wreck the slow, deliberate pace we want. The shape
+below feels like the missing constraint — but the open forks are real, so this stays **candidate,
+not committed.**
+
+### The worry that started it
+Once parts have material **tiers** (rusty rim → iron shell → …), every tier wants to improve the rig
+— including its **driving performance**. That's a trap: make the per-tier driving benefit **small**
+enough not to wreck the gentle-scaling feel and the upgrade is boring; make it **large** enough to
+feel rewarding and it breaks playability (back to snail→rocket). Tiers toward driving perf can't be
+both meaningful and safe — *unless something caps the ceiling.*
+
+### The resolution — the **chassis** is the envelope (the cap)
+Introduce the **chassis** as a real, tiered thing that sets a **min/max number of engines** it can
+run. The chassis — not the engine count — defines what's physically possible. Move the scaling lever
+off **quantity** (how many engines) and onto **quality** (part tier), with the chassis as the hard
+ceiling. Two equivalences pin the model:
+
+- **1×-wide chassis + 1 engine  ==  2×-wide chassis + 2 engines** (same engine tier) → *same driving
+  performance.* Going bigger and adding engines to match **does not** raise per-unit performance —
+  the bigger rig just needs more engines to achieve the *same* feel (and in return carries more).
+  Quantity/size doesn't multiply speed.
+- **1×-wide chassis + 1 _iron_ engine  >  1×-wide chassis + 1 _rusty_ engine** → **tier (quality) is
+  the dial.** Same chassis, same count, better part = better performance.
+
+So a bigger chassis **requires** more engines just to operate (the "requirement for a larger rig");
+engine **count scales with size to maintain** performance, it doesn't stack it; and **part tier** is
+what actually moves the needle — capped by the chassis's "sensible maximum" for acceleration /
+steering / top speed. This kills exponential engine-stacking and brings improvement back to *what
+parts you fit*, not *how many*. It's also the piece that **unblocks MP** (tiers were dangerous
+precisely because nothing capped their effect on driving — the chassis ceiling **is** that cap), and
+it reframes MD's agreed "gentle, tunable diminishing returns" as **saturation toward a chassis
+ceiling** — a more principled version of the same curve.
+
+> On the earlier A/B fork (does engine *count* add performance, or is it just a requirement?): the
+> equivalences answer it — count basically **scales with chassis size to hold performance flat**;
+> it's a power *requirement*, not a speed multiplier. Tier is the lever. (Within one chassis, more
+> engines still help up to its max — you need enough to move it.)
+
+### Balance ranges — later, once tiers exist
+Tune the **min/max rig driving performance** to stay in **realistic ranges for the game's vibe**
+(slow, deliberate, time-to-think). Target: **entry-level driving = acceptable**, **max-tier = really
+pleasurable** — a satisfying span, but both ends inside the deliberate-pace envelope. **Defer the
+actual numbers** until more part tiers exist (can't tune the curve before the tiers it runs over
+exist — and weight is still parked, see MD / Option A).
+
+### Energy identity, refined (the two classes)
+- **⛽ Mechanical = the hauler.** Heavy-load, **large** chassis; **low** acceleration and **low** top
+  speed; **heavy energy user.** The build for **big haul trips** where **fuel is carefully planned.**
+- **⚡ Electrical = the scout.** **Low-load** chassis; **high** acceleration and **high** top speed;
+  **high mileage** (efficient / long-legged). The build for **fast offensive or scout** runs.
+
+(Sharpens the 2026-06-02 "energy-as-class" thread: each type is a *class* with a chassis-size bias,
+not just a stat tweak.)
+
+### Multiple rigs vs. choose-one — leaning **multiple**
+Leaning toward **letting the player own multiple rigs** (so they can experience both classes) rather
+than forcing an up-front either/or. **This reverses the lean of the 2026-06-02 session**, which
+floated *choose-a-class-from-the-start* as a clean replayability mechanism. Not decided — but the
+current instinct is that a hauler *and* a scout in the stable is the more enjoyable shape (the
+2026-05-30 "second chassis later" idea already points this way).
+
+### Open question — can a type cross over? (electric hauler / mechanical scout)
+If electric is "low-load / fast" and mechanical is "heavy / slow," can you ever make a viable
+**electric hauler** or **mechanical scout** — and should you? Candidate answers (all raw):
+- **Gold (special) engines** patch the weakness: a **gold electric** engine ships a **torque boost**
+  (→ electric can haul); a **gold mechanical** engine ships a **fuel-efficiency boost** (→ mechanical
+  can range/scout). Ties straight into MP's "specials = rare *gold parts*, not recipes."
+- **Special fuel / energy** overcomes the shortcoming, at the cost of being **more expensive / more
+  complicated to manufacture** (the tradeoff): **high-discharge batteries** for electric,
+  **polished steam valves** for mechanical.
+- Either way the principle is the same: the cross-over is **earned and costed**, never free — you pay
+  (rarity or manufacture complexity) to break your class's natural limit.
+
+### Housekeeping
+- **Current rig is 2×3, not 3×3.** In this tier scheme 2×3 is a **large** chassis — the *starter*
+  would be the smallest (size 1). (A stray "3×3" in the dev-seed comment is corrected in this PR.)
+
+### Where this plugs in
+- **Unblocks / reshapes MP** — the chassis cap is what makes tiered driving stats safe; gold-engine
+  cross-over is MP's gold-part idea applied to engines.
+- **Reframes MD** — the gentle diminishing-returns curve becomes saturation toward the chassis ceiling.
+- **Pairs with** footprint-reclaim (2026-05-30 — better tier = same job, fewer cells), multiple
+  chassis (2026-05-30), energy-as-class (2026-06-02), and the deferred fuel/energy-source economy
+  (MW deferred / 2026-06-01).
+
+### Open forks (flagged, not answered)
+- **What unlocks the next chassis tier?** scrap cost · a restoration milestone · a found/salvaged
+  chassis? (This is what makes it *progression*, not a shop SKU.)
+- **Does cross-type viability exist at all**, and if so via gold engines, special fuel, or both?
+- **Multiple rigs vs. choose-one** — leaning multiple, not locked.
+- **The "flat near the cap" trap** — tiers must buy a *new* envelope (next chassis / freed cells /
+  another axis), not just inch toward a ceiling already hit.
+
+---
+
 ## 2026-06-03 — Part naming & lore: rarity-as-material tiers (rebrand the sub-parts)
 
 **Mode:** raw idea, sparked by the workshop-UI density observation (`observations.md` #10) — the

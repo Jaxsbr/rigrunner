@@ -120,7 +120,7 @@ world.add(playerStore, Inventory, { items: [] });
 // can be felt without grinding or buying — 6 electric + 6 mechanical engines to mount 1..6 of either
 // type and watch top speed / acceleration scale linearly, plus 4 storage containers to swap in. These
 // are normal composed products (unplaced, browsable in the workshop), exactly what the bench / Parts
-// Shop grant. Note: the deck is 3×3, so free the pre-mounted storage + Reclaimer cells to fit six.
+// Shop grant. Note: the deck is 2×3 (6 cells), so free the pre-mounted storage + Reclaimer cells to fit six.
 for (let i = 0; i < 6; i++) {
   addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('electric')));
   addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('mechanical')));
