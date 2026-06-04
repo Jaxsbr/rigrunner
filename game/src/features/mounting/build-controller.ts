@@ -312,7 +312,7 @@ export function createBuildController(
       const pose = cell
         ? cellWorldPose(targetT, grid, cell.col + (fp.cols - 1) / 2, cell.row + (fp.rows - 1) / 2)
         : null;
-      view.showCellHighlight(pose);
+      view.showCellHighlight(pose, fp); // sized to the footprint so a 2×2 kit lights all four cells
 
       // Float a fixed clearance above the deck below (the chosen target's, or the rig's when none),
       // so the hover gap is constant across decks and the part drops as it crosses to the lower
