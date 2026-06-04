@@ -2,11 +2,14 @@
 
 **What this is:** the design + phased implementation plan for making the **chassis** a first-class,
 composed, sized part of the rig — the plan of record for the feature requested 2026-06-04. It is the
-home for the whole feature; PR1 (the foundation) is built, PR2–PR3 are committed follow-ups.
+home for the whole feature; PR1–PR2 are built, PR3a is in progress, and PR3b–PR5 are committed
+follow-ups.
 
 > **Status:** **PR1 + PR2 are built.** PR3 is split: **PR3a** (multi-chassis ownership + selection +
-> a visible deploy) is in progress; **PR3b** (the authored unfold animation) is planned — gated
-> behind feeling PR3a, true to "build by discovery."
+> a visible deploy) is in progress and **PR3b** (the authored unfold animation) is planned. **PR4**
+> (pack-up: fold a chassis back into a kit) and **PR5** (ownership-cap feedback) are planned
+> skeletons capturing the chassis-lifecycle follow-ups — each gated behind feeling the earlier work,
+> true to "build by discovery."
 
 ---
 
@@ -48,7 +51,7 @@ here. When the tier system lands, chassis sub-parts gain tiers for free.
 
 ---
 
-## 2. The 3-PR phasing
+## 2. The phased plan
 
 ### PR1 — Foundation *(built)*
 The chassis becomes a real, composed, sized part, wired end-to-end except for driving behaviour.
@@ -94,6 +97,47 @@ The player owns **1–2** chassis and switches which one they control. Split in 
 mechanical unfold (wheels roll out, body rises) — an articulated "deploying" chassis + a deploy
 animator. The deploy seam (`deployChassis`) stays; only the visual is upgraded. Camera target-easing
 on a `1`/`2` switch (PR3a retargets instantly) rides along here.
+
+### PR4 — Pack-up: fold a deployed chassis back into a kit *(planned — skeleton)*
+The inverse of deploy, so a chassis isn't a one-way commitment — the player can retire one to make
+room for (or rework) another. While the player controls a chassis that has **no parts mounted**
+(strip it first — packing a loaded chassis would orphan its parts), a contextual **`E` prompt**
+appears — the same fixed HUD-prompt pattern as the scrap-pile "Hold E" / workshop tab — reading e.g.
+*"Pack up chassis."* Confirming folds it back into a **chassis-kit** crate (the inverse of
+`chassisToRig`: drop the drive/world components, restore the 2×2 `Part.footprint`, swap the
+Renderable back to `chassis-kit`), which the player then hauls onto the workshop deck like any kit.
+
+To design (skeleton):
+- **Empty-only gate** — the prompt shows only on a controlled chassis with zero mounted parts;
+  hinting the requirement when it isn't empty is TBD.
+- **Control hand-off** — you can't control a kit, so packing up the active rig must hand control to
+  another owned chassis (or leave none active until the player selects one).
+- **Where the kit goes** — see the ownership state model below.
+- A `chassisToKit` seam mirroring `chassisToRig`, beside it in `@features/mounting/rig.ts`.
+
+### PR5 — Ownership-cap feedback (notification) *(planned — skeleton)*
+Today a 3rd chassis at the cap is refused **silently** (the kit just glides back to the workshop
+deck), which reads as a bug. A player may have deliberately built a different-size or
+differently-configured 3rd chassis and won't understand why it won't deploy. Surface a clear
+**notification** at the refusal — e.g. *"You can only field 2 chassis at once — pack up or dismantle
+one first"* — pointing them at PR4's pack-up.
+
+To design (skeleton):
+- A lightweight **transient notification / toast** HUD primitive — the game has only *fixed* HUD
+  prompts (`.hud-prompt`) and modal overlays today; a brief auto-dismissing message is new. (Distinct
+  from PR4's contextual `E` prompt, which reuses the fixed-prompt pattern.)
+- **When to warn** — at deploy-refusal for sure; consider a heads-up at *build* time too (assembling
+  a kit you can't currently field), so the disappointment lands earlier. Depends on PR4 for the
+  call-to-action ("pack up") to be actionable.
+
+### Ownership state model (to settle in PR4)
+PR4/PR5 force a distinction PR3a doesn't make: **fielded** chassis (deployed, drivable — the ones the
+`MAX_OWNED = 2` cap and the `1`/`2` bar count) vs **packed kits** (a chassis you own but haven't
+deployed — a crate). The lean: **only fielded chassis count toward the cap**, so a packed kit is "in
+storage" and doesn't — pack-up genuinely frees a slot to deploy a different chassis. Open question
+Jaco flagged: a kit left **loose in the world** is messy, so likely **kits must live on the workshop**
+(moved there, not littering the field), with the world only ever holding a kit *transiently* while
+it's carried. Not committed — settle when PR4 is built.
 
 ---
 
