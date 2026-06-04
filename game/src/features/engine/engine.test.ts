@@ -7,8 +7,8 @@ import { EngineSpec } from '@common/components/engine-spec';
 import type { EngineSpec as EngineSpecData } from '@common/components/engine-spec';
 import { aggregateEngineOutput } from './engine';
 
-const MK1: EngineSpecData = { power: 8, torque: 11 };
-const MK2: EngineSpecData = { power: 13, torque: 19 };
+const ELECTRIC: EngineSpecData = { power: 13, torque: 8 };   // high power, low torque
+const MECHANICAL: EngineSpecData = { power: 8, torque: 19 };  // low power, high torque
 
 function mount(world: World, rig: EntityId, spec: EngineSpecData): EntityId {
   const p = world.createEntity();
@@ -28,62 +28,45 @@ describe('aggregateEngineOutput', () => {
   it('passes a single engine through unchanged', () => {
     const w = new World();
     const rig = w.createEntity();
-    mount(w, rig, MK2);
-    expect(aggregateEngineOutput(w, rig)).toEqual({ power: 13, torque: 19 });
+    mount(w, rig, ELECTRIC);
+    expect(aggregateEngineOutput(w, rig)).toEqual({ power: 13, torque: 8 });
   });
 
-  it('adds a second engine with diminishing returns, not a full sum', () => {
+  it('sums engines linearly — two engines are exactly twice one (no diminishing returns)', () => {
     const w = new World();
     const rig = w.createEntity();
-    mount(w, rig, MK2);
-    mount(w, rig, MK2);
-    const out = aggregateEngineOutput(w, rig);
-    // Strongest at full weight + the next at the 0.4 falloff: 13 + 13*0.4 = 18.2.
-    expect(out.power).toBeCloseTo(18.2);
-    expect(out.torque).toBeCloseTo(26.6); // 19 + 19*0.4
-    // Better than one, but far short of doubling.
-    expect(out.power).toBeGreaterThan(13);
-    expect(out.power).toBeLessThan(26);
+    mount(w, rig, ELECTRIC);
+    mount(w, rig, ELECTRIC);
+    expect(aggregateEngineOutput(w, rig)).toEqual({ power: 26, torque: 16 });
   });
 
-  it('lets the strongest engine count fully regardless of mount order', () => {
-    const a = new World();
-    const ra = a.createEntity();
-    mount(a, ra, MK1);
-    mount(a, ra, MK2);
-
-    const b = new World();
-    const rb = b.createEntity();
-    mount(b, rb, MK2);
-    mount(b, rb, MK1);
-
-    // Order-independent: MK2 (stronger) takes full weight either way → 13 + 8*0.4 = 16.2.
-    expect(aggregateEngineOutput(a, ra).power).toBeCloseTo(16.2);
-    expect(aggregateEngineOutput(b, rb)).toEqual(aggregateEngineOutput(a, ra));
+  it('keeps scaling with every added engine — six give the most, never a detriment', () => {
+    const w = new World();
+    const rig = w.createEntity();
+    let prev = 0;
+    for (let n = 1; n <= 6; n++) {
+      mount(w, rig, ELECTRIC);
+      const out = aggregateEngineOutput(w, rig);
+      expect(out.power).toBeGreaterThan(prev); // strictly more each time
+      prev = out.power;
+    }
+    expect(aggregateEngineOutput(w, rig).power).toBe(78); // 6 × 13
   });
 
-  it('Mk1+Mk2 beats Mk2 alone, but not dramatically', () => {
-    const both = new World();
-    const r1 = both.createEntity();
-    mount(both, r1, MK1);
-    mount(both, r1, MK2);
-
-    const solo = new World();
-    const r2 = solo.createEntity();
-    mount(solo, r2, MK2);
-
-    const combined = aggregateEngineOutput(both, r1);
-    const single = aggregateEngineOutput(solo, r2);
-    expect(combined.power).toBeGreaterThan(single.power);
-    expect(combined.power).toBeLessThan(single.power * 1.5); // modest gain, not a doubling
+  it('sums each attribute independently', () => {
+    const w = new World();
+    const rig = w.createEntity();
+    mount(w, rig, ELECTRIC);    // 13 / 8
+    mount(w, rig, MECHANICAL);  // 8 / 19
+    expect(aggregateEngineOutput(w, rig)).toEqual({ power: 21, torque: 27 });
   });
 
   it('only counts engines mounted on the asked-for rig', () => {
     const w = new World();
     const rigA = w.createEntity();
     const rigB = w.createEntity();
-    mount(w, rigA, MK2);
-    mount(w, rigB, MK1);
-    expect(aggregateEngineOutput(w, rigA)).toEqual({ power: 13, torque: 19 });
+    mount(w, rigA, ELECTRIC);
+    mount(w, rigB, MECHANICAL);
+    expect(aggregateEngineOutput(w, rigA)).toEqual({ power: 13, torque: 8 });
   });
 });

@@ -5,27 +5,26 @@ import { Mount } from '@common/components/mount';
 import { EngineSpec } from '@common/components/engine-spec';
 
 /**
- * Aggregating engine power. A rig can carry more than one engine, so the drive system asks here
- * for the *combined* output of everything mounted on it — and the answer is deliberately NOT a
- * plain sum.
+ * Aggregating engine power. A rig can carry more than one engine, so the drive system asks here for
+ * the *combined* output of everything mounted on it — and the answer is a plain per-attribute sum.
  *
- * Diminishing returns: bolting on a second engine must not double your output. We sort each
- * attribute's contributions high→low and weight them 1, f, f², … (f = ADDED_ENGINE_FALLOFF). So
- * the strongest engine always counts in full and each extra one adds a shrinking slice — a stand-in
- * for the physical reality that you can't usefully stack power without limit. It still respects
- * what each engine brings: a bigger engine contributes more, wherever it sits in the order.
+ * Linear scaling, on purpose: every engine contributes its full power and torque, so two engines are
+ * twice one and six give the most. An earlier build damped each extra engine on a falloff curve;
+ * combined with each engine's own weight dragging on mobility (see drive.ts history), that made the
+ * 4th–6th engine a net *loss* — bolting on more drive made you slower. That whole algorithm is gone:
+ * more engines are now strictly more performance, never a detriment.
  *
- * The aggregation is per-attribute, so an engine that's strong in torque but weak in power lends
- * its torque at full weight even if another engine outranks it on power.
+ * With the masking removed, the only thing distinguishing a build is the engines' own profiles —
+ * electric (high power / low torque) tops out faster, mechanical (the reverse) accelerates harder.
+ *
+ * The sum is per-attribute, so an engine that's strong in torque but weak in power lends its torque
+ * in full regardless of what else is mounted.
  */
 
 export interface EngineOutput {
   power: number;  // combined top-speed contribution (units/s); 0 means no engine → can't drive
   torque: number; // combined acceleration contribution (units/s^2)
 }
-
-/** Each engine beyond the strongest contributes this fraction of the previous one's weight. */
-const ADDED_ENGINE_FALLOFF = 0.4;
 
 /** Every engine part currently mounted on `rig`. The shared basis for output + the stat readout. */
 export function mountedEngines(world: World, rig: EntityId): EntityId[] {
@@ -36,23 +35,11 @@ export function mountedEngines(world: World, rig: EntityId): EntityId[] {
   return engines;
 }
 
-/** Combined output of every engine mounted on `rig`, with diminishing returns. Zero if none. */
+/** Combined output of every engine mounted on `rig` — a straight per-attribute sum. Zero if none. */
 export function aggregateEngineOutput(world: World, rig: EntityId): EngineOutput {
   const specs = mountedEngines(world, rig).map((e) => world.get(e, EngineSpec)!);
   return {
-    power: diminishingSum(specs.map((s) => s.power)),
-    torque: diminishingSum(specs.map((s) => s.torque)),
+    power: specs.reduce((sum, s) => sum + s.power, 0),
+    torque: specs.reduce((sum, s) => sum + s.torque, 0),
   };
-}
-
-/** Sum values with the strongest at full weight and each next one scaled by the falloff. */
-function diminishingSum(values: number[]): number {
-  const sorted = [...values].sort((a, b) => b - a);
-  let total = 0;
-  let weight = 1;
-  for (const v of sorted) {
-    total += v * weight;
-    weight *= ADDED_ENGINE_FALLOFF;
-  }
-  return total;
 }

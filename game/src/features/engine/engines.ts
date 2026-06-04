@@ -13,10 +13,11 @@ import { ENGINE_RECIPE } from '@common/parts/recipes';
  * produces the same thing from parts the player dragged in.
  *
  * Two energy types ⇒ two profiles (the suggested, tunable numbers from the spec):
- *   - electric   ≈ power 13 / torque 8 / weight 4 — snappy, high top speed, light.
- *   - mechanical ≈ power 8 / torque 19 / weight 8 — torquey hauler, heavy, slower to respond.
- * The contrast is emergent from those profiles through `systems/drive.ts` (weight drags, torque
- * fights back); the `EngineSpec` contract downstream is untouched.
+ *   - electric   ≈ power 13 / torque 8 / weight 4 — high top speed, modest acceleration, light.
+ *   - mechanical ≈ power 8 / torque 19 / weight 8 — strong acceleration, lower top speed, heavy.
+ * Engines now scale linearly (no diminishing returns) and weight is parked, so the contrast comes
+ * straight from these profiles through `drive.ts`: at equal engine counts electric out-runs on top
+ * speed and mechanical out-accelerates. The `EngineSpec` contract downstream is untouched.
  */
 
 /** The four catalog parts that compose an engine of `type`, in the engine recipe's slot order. */

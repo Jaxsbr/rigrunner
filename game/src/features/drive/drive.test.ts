@@ -17,7 +17,7 @@ function rig(world: World, weight: number): EntityId {
   return e;
 }
 
-function mountEngine(world: World, r: EntityId, spec: EngineSpecData, weight: number): EntityId {
+function mountEngine(world: World, r: EntityId, spec: EngineSpecData, weight = 0): EntityId {
   const p = world.createEntity();
   world.add(p, Part, { kind: 'engine' });
   world.add(p, Mount, { rig: r, col: 0, row: 0, yaw: 0 });
@@ -26,6 +26,8 @@ function mountEngine(world: World, r: EntityId, spec: EngineSpecData, weight: nu
   return p;
 }
 
+// Weight is parked (not consumed by drive yet) but still computed — this is the seam the felt-weight
+// feature (Option A) reattaches to. Keep it correct so that re-wiring stays a one-line change.
 describe('totalRigWeight', () => {
   it('sums the chassis weight and every mounted part', () => {
     const w = new World();
@@ -50,48 +52,62 @@ describe('rigPerformance', () => {
     const w = new World();
     const r = rig(w, 10);
     const perf = rigPerformance(w, r);
-    expect(perf.mobility).toBe(0);
     expect(perf.topSpeed).toBe(0);
     expect(perf.acceleration).toBe(0);
+    expect(perf.reverse).toBe(0);
   });
 
-  it('weight drags top speed and acceleration below the raw engine figures', () => {
+  it('top speed and acceleration are the engine output directly', () => {
     const w = new World();
     const r = rig(w, 10);
-    mountEngine(w, r, { power: 13, torque: 19 }, 7);
+    mountEngine(w, r, { power: 13, torque: 8 });
     const perf = rigPerformance(w, r);
-    expect(perf.power).toBe(13);
-    expect(perf.torque).toBe(19);
-    expect(perf.mobility).toBeGreaterThan(0);
-    expect(perf.mobility).toBeLessThan(1);
-    expect(perf.topSpeed).toBeLessThan(13); // weight bit into the raw power
-    expect(perf.acceleration).toBeLessThan(19);
-    expect(perf.topSpeed).toBeCloseTo(13 * perf.mobility);
+    expect(perf.topSpeed).toBe(13); // = power
+    expect(perf.acceleration).toBe(8); // = torque
+    expect(perf.reverse).toBe(6.5); // 13 × reverseFactor 0.5
   });
 
-  it('a heavier rig is slower with the same engine', () => {
+  it('weight does not drag performance (parked) — a heavy and a light rig perform identically', () => {
     const light = new World();
     const rl = rig(light, 10);
-    mountEngine(light, rl, { power: 13, torque: 19 }, 7);
+    mountEngine(light, rl, { power: 13, torque: 8 }, 4);
 
     const heavy = new World();
-    const rh = rig(heavy, 40); // much heavier chassis
-    mountEngine(heavy, rh, { power: 13, torque: 19 }, 7);
+    const rh = rig(heavy, 400); // vastly heavier chassis
+    mountEngine(heavy, rh, { power: 13, torque: 8 }, 4);
 
-    expect(rigPerformance(heavy, rh).topSpeed).toBeLessThan(rigPerformance(light, rl).topSpeed);
+    expect(rigPerformance(heavy, rh).topSpeed).toBe(rigPerformance(light, rl).topSpeed);
+    expect(rigPerformance(heavy, rh).acceleration).toBe(rigPerformance(light, rl).acceleration);
   });
 
-  it('more torque shrugs off the same weight (better mobility)', () => {
-    const lowT = new World();
-    const rlo = rig(lowT, 20);
-    mountEngine(lowT, rlo, { power: 10, torque: 8 }, 0);
+  it('more engines means more performance — never a detriment, even though each adds weight', () => {
+    const w = new World();
+    const r = rig(w, 10);
+    let prevTop = 0;
+    let prevAcc = 0;
+    for (let n = 1; n <= 6; n++) {
+      mountEngine(w, r, { power: 13, torque: 8 }, 4); // each adds full weight, but weight is parked
+      const perf = rigPerformance(w, r);
+      expect(perf.topSpeed).toBeGreaterThan(prevTop);
+      expect(perf.acceleration).toBeGreaterThan(prevAcc);
+      prevTop = perf.topSpeed;
+      prevAcc = perf.acceleration;
+    }
+  });
 
-    const highT = new World();
-    const rhi = rig(highT, 20);
-    mountEngine(highT, rhi, { power: 10, torque: 24 }, 0);
+  it('the two energy-type profiles give distinct character at equal engine counts', () => {
+    const elec = new World();
+    const re = rig(elec, 10);
+    mountEngine(elec, re, { power: 13, torque: 8 }); // electric profile
 
-    // Same weight + same power, but the high-torque rig keeps more of its top speed.
-    expect(rigPerformance(highT, rhi).mobility).toBeGreaterThan(rigPerformance(lowT, rlo).mobility);
-    expect(rigPerformance(highT, rhi).topSpeed).toBeGreaterThan(rigPerformance(lowT, rlo).topSpeed);
+    const mech = new World();
+    const rm = rig(mech, 10);
+    mountEngine(mech, rm, { power: 8, torque: 19 }); // mechanical profile
+
+    // Electric out-tops mechanical; mechanical out-accelerates electric.
+    expect(rigPerformance(elec, re).topSpeed).toBeGreaterThan(rigPerformance(mech, rm).topSpeed);
+    expect(rigPerformance(mech, rm).acceleration).toBeGreaterThan(
+      rigPerformance(elec, re).acceleration,
+    );
   });
 });
