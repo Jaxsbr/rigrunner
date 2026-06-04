@@ -13,6 +13,7 @@ import { chassisRecipeForSize } from '@common/parts/recipes';
 import { composeProduct } from '@common/sim/assembly';
 import { chassisParts } from '@features/chassis/chassis';
 import { markOwned, ownedCount, MAX_OWNED } from '@features/chassis/ownership';
+import { Deploying } from '@features/chassis/deploying';
 
 /**
  * A rig is not a class; it is a SET of capabilities a chassis carries once it's drivable. New entity
@@ -68,10 +69,16 @@ export function spawnRig(world: World, x = 0, z = 0, size: ChassisSize = '1x3'):
  * at `MAX_OWNED` (the cap the build interaction enforces at drop). Control is NOT switched: the new
  * chassis is owned and parked, switchable from the chassis bar. The convert+own pair lives here
  * (with `chassisToRig`) so the one-way `mounting → chassis` import stays acyclic.
+ *
+ * The new rig is marked `Deploying`, kicking off the authored unfold: it converts to a drivable rig
+ * up front (this seam is unchanged) but the deploy animator poses its model from a packed crouch out
+ * to its deployed stance over `DEPLOY_DURATION`, retired by `advanceDeploying`. Control staying on
+ * the current rig means the unfold plays in full before the player ever drives the new chassis.
  */
 export function deployChassis(world: World, chassis: EntityId, x = 0, z = 0): boolean {
   if (ownedCount(world) >= MAX_OWNED) return false;
   chassisToRig(world, chassis, x, z);
   markOwned(world, chassis);
+  world.add(chassis, Deploying, { since: 0 });
   return true;
 }

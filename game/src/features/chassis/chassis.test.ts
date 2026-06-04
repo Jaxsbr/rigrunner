@@ -18,6 +18,7 @@ import { engineParts } from '@features/engine/engines';
 import { mountPart, withinEngineCapacity } from '@features/mounting/mounting';
 import { chassisParts } from './chassis';
 import { ownedChassis, getActiveRig, markOwned, MAX_OWNED } from './ownership';
+import { Deploying } from './deploying';
 import { spawnRig, chassisToRig, deployChassis } from '@features/mounting/rig';
 
 const engine = (w: World) => composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
@@ -153,6 +154,7 @@ describe('deployChassis', () => {
     expect(w.get(kit, Renderable)).toMatchObject({ assetId: 'chassis-1x3' });
     expect(ownedChassis(w)).toContain(kit); // registered as owned
     expect(getActiveRig(w)).toBeNull(); // deploying does NOT move control to the new chassis
+    expect(w.get(kit, Deploying)).toMatchObject({ since: 0 }); // marked for the unfold animation
   });
 
   it('refuses to deploy past MAX_OWNED, leaving the kit unconverted', () => {

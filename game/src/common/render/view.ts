@@ -48,7 +48,9 @@ export class RenderView {
 
   // ── per-frame projection ────────────────────────────────────────────────────────────────────
   sync(world: World): void { this.views.sync(world); }
-  follow(t: Transform, intent: CameraIntent, dt: number): void { this.orbit.follow(t, intent, dt); }
+  follow(t: Transform, intent: CameraIntent, dt: number, retarget = false): void {
+    this.orbit.follow(t, intent, dt, retarget);
+  }
   render(): void { this.stage.render(this.orbit.camera); }
 
   // ── build interaction (queried/toggled by the build controller) ─────────────────────────────

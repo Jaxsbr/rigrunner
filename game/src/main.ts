@@ -1,4 +1,5 @@
 import { World } from '@core/world';
+import type { EntityId } from '@core/types';
 import { spawnRig } from '@features/mounting/rig';
 import { engineParts } from '@features/engine/engines';
 import { spawnWorkshop } from '@features/workshop/workshop';
@@ -26,6 +27,8 @@ import { createDriveInput } from '@common/input/drive-input';
 import { createCameraInput } from '@common/input/camera-input';
 import { createBuildController } from '@features/mounting/build-controller';
 import { markOwned, setActiveRig, getActiveRig } from '@features/chassis/ownership';
+import { advanceDeploying } from '@features/chassis/deploying';
+import { animateChassisDeploy } from '@features/chassis/deploy-animator';
 import { ChassisBar } from '@features/chassis/chassis-bar';
 import { activeStagingTargets } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
@@ -220,6 +223,7 @@ function anyZoneActive(): boolean {
 }
 
 let last = performance.now();
+let prevActiveRig: EntityId | null = null; // last frame's active rig — a change drives the camera pan
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05); // clamp to avoid jumps on refocus
   last = now;
@@ -255,6 +259,9 @@ function frame(now: number): void {
     // it, so a part dropped this frame snaps onto the workshop only when it's lit.
     workshopZoneSystem(world, activeRig);
     build.update(dt);
+    // advance any in-progress chassis deploy (a kit the build interaction just hauled out and
+    // converted): ticks the unfold's timeline and retires the Deploying marker when it completes.
+    advanceDeploying(world, dt);
 
     // scrap piles: recompute each pile's capability+facing gate (after mounting has ridden the
     // Reclaimer to its cell, so its aim is current), then turn a held work key over an active pile
@@ -284,7 +291,12 @@ function frame(now: number): void {
   // render (reads state; owns no truth) — always runs so the frozen scene stays drawn. The
   // sim-driven animators (wheel spin, storage fill) are skipped while paused: the rig coasts, so
   // its Velocity survives the freeze and the wheels would otherwise keep spinning.
-  view.follow(world.get(activeRig, Transform)!, cameraInput.poll(), dt);
+  // A change of active rig (the 1/2 switch) tells the camera to EASE to the new rig rather than
+  // teleport; during normal driving it stays glued. prevActiveRig starts null, so the boot frame is
+  // not treated as a switch.
+  const retarget = prevActiveRig !== null && activeRig !== prevActiveRig;
+  prevActiveRig = activeRig;
+  view.follow(world.get(activeRig, Transform)!, cameraInput.poll(), dt, retarget);
   view.sync(world);
   // proximity discs (workshop + scrap): each feature contributes its gated disc entries and main
   // concatenates them for the shared render tier. Each feature's "what key does this" prompt is a
@@ -297,6 +309,7 @@ function frame(now: number): void {
   stains.sync(world, dt);
   if (!paused) {
     animateWheels(view.entityViews, world, dt);
+    animateChassisDeploy(view.entityViews, world, dt);
     animateStorageFill(view.entityViews, world, dt);
     animateReclaimer(view.entityViews, world, dt);
     animateScrapPile(view.entityViews, world, dt);

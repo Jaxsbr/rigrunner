@@ -21,6 +21,13 @@ export class OrbitCamera {
   private camRadiusTarget: number;
   private camYaw: number;
   private camYawTarget: number;
+  // The point on the ground the camera is trained on. It tracks the followed rig exactly while
+  // driving, but on a `1`/`2` chassis switch the follow target teleports across the field — so
+  // instead of snapping, the focus EASES from the old rig to the new one for a smooth pan.
+  private focusX = 0;
+  private focusZ = 0;
+  private focusSeeded = false;
+  private panning = false;
 
   constructor() {
     // Derive the spherical camera params from the authored offset: radius = its length,
@@ -42,8 +49,12 @@ export class OrbitCamera {
    * Zoom is clamped between a closer-than-default floor and an out cap; rotate orbits freely
    * (no clamp — full 360° around the rig). Both ease toward their targets so input feels
    * smooth rather than instant. Pitch is fixed (no tilt control).
+   *
+   * `retarget` is set the frame the followed rig changes (a `1`/`2` switch). It begins an eased pan
+   * of the focus point to the new rig instead of teleporting; until then the focus stays glued to the
+   * followed transform, so normal driving keeps the rig dead-centre.
    */
-  follow(t: Transform, intent: CameraIntent, dt: number): void {
+  follow(t: Transform, intent: CameraIntent, dt: number, retarget = false): void {
     this.camRadiusTarget = clamp(
       this.camRadiusTarget + intent.zoom * 0.02, this.camRadiusMin, this.camRadiusMax,
     );
@@ -53,14 +64,28 @@ export class OrbitCamera {
     this.camRadius += (this.camRadiusTarget - this.camRadius) * k;
     this.camYaw += (this.camYawTarget - this.camYaw) * k;
 
+    if (retarget) this.panning = true;
+    if (!this.focusSeeded) {
+      this.focusX = t.x; this.focusZ = t.z; this.focusSeeded = true; // first follow: no pan from origin
+    } else if (this.panning) {
+      const fk = Math.min(1, dt * FOCUS_EASE);
+      this.focusX += (t.x - this.focusX) * fk;
+      this.focusZ += (t.z - this.focusZ) * fk;
+      if (Math.hypot(t.x - this.focusX, t.z - this.focusZ) < FOCUS_SNAP) {
+        this.focusX = t.x; this.focusZ = t.z; this.panning = false; // arrived — glue to the rig again
+      }
+    } else {
+      this.focusX = t.x; this.focusZ = t.z; // glued to the rig during normal driving
+    }
+
     const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch);
     const cy = Math.cos(this.camYaw), sy = Math.sin(this.camYaw);
     this.camera.position.set(
-      t.x + cy * cp * this.camRadius,
+      this.focusX + cy * cp * this.camRadius,
       sp * this.camRadius,
-      t.z + sy * cp * this.camRadius,
+      this.focusZ + sy * cp * this.camRadius,
     );
-    this.camera.lookAt(t.x, 0, t.z);
+    this.camera.lookAt(this.focusX, 0, this.focusZ);
   }
 
   resize(): void {
@@ -68,6 +93,11 @@ export class OrbitCamera {
     this.camera.updateProjectionMatrix();
   }
 }
+
+// Focus-pan tuning for a chassis switch: ease rate (per second) and the distance at which the pan
+// snaps shut and the focus re-glues to the rig.
+const FOCUS_EASE = 6;
+const FOCUS_SNAP = 0.05;
 
 function aspect(): number {
   return window.innerWidth / window.innerHeight;
