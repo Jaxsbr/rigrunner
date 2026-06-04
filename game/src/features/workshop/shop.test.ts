@@ -19,9 +19,12 @@ function setup(scrap: number): World {
 describe('part shop stock', () => {
   it('keeps the configurable cost list complete and valid', () => {
     const costIds = PART_COSTS.map((item) => item.partId).sort();
-    const catalogIds = PARTS_CATALOG.map((part) => part.id).sort();
+    // Every catalog part is shop-stocked EXCEPT chassis sub-parts: a chassis is built through its
+    // own kit flow, not bought as a loose part and slotted on the rig, so it carries no shop cost.
+    const sellableIds = PARTS_CATALOG.filter((p) => p.category !== 'chassis').map((p) => p.id).sort();
 
-    expect(costIds).toEqual(catalogIds);
+    expect(costIds).toEqual(sellableIds);
+    expect(PART_COSTS.some((c) => partDef(c.partId)?.category === 'chassis')).toBe(false);
     for (const item of PART_COSTS) {
       expect(partDef(item.partId)).toBeDefined();
       expect(item.buyCost).toBeGreaterThan(0);

@@ -10,7 +10,11 @@
  * `blender-asset` skill does both steps for you.
  */
 export const MODEL_ASSETS: Record<string, string> = {
-  'rig': '/assets/rig.glb',
+  // The player's rig foundation, in two chassis sizes (the 1×3 scout is the starter; the 3×5 is the
+  // hauler). Both keep unjoined `wheel_*` nodes the render layer spins, and a deck top of 0.66 that
+  // matches each chassis recipe's MountGrid.deckY so mounted parts sit on the visible deck.
+  'chassis-1x3': '/assets/chassis-1x3.glb',
+  'chassis-3x5': '/assets/chassis-3x5.glb',
   'scrap-pile': '/assets/scrap-pile.glb',
   'loose-scrap': '/assets/loose-scrap.glb',
   'storage': '/assets/storage.glb',

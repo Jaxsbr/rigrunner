@@ -17,6 +17,7 @@ import {
   mountPart,
   unmountPart,
   canMountPartOn,
+  withinEngineCapacity,
 } from '@features/mounting/mounting';
 
 /**
@@ -96,18 +97,20 @@ export function createBuildController(
    * its cells never highlight and a part dropped over it glides to the ground instead — the gate
    * that makes "park to transfer" mean something. workshopZoneSystem owns the `active` flag.
    *
-   * The no-hybrid type-lock applies ONLY to the rig: a chassis is committed to a single energy
-   * type, so a cross-type engine can't snap onto it — the rig drops out of the target list, leaving
-   * it no free cell, so the drop returns to origin / settles loose (the tactile "won't snap"
-   * refusal, identical to dropping over no free cell). A workshop is NOT a chassis — it's a
-   * type-agnostic staging surface that must accept any and all parts at once (e.g. an electric AND
-   * a mechanical engine side by side, while you swap which one is on the rig) — so it is never
-   * type-gated.
+   * Two policies gate the rig as a target (and ONLY the rig — a workshop is a type-agnostic,
+   * uncapped staging surface that must accept any and all parts at once, e.g. an electric AND a
+   * mechanical engine side by side while you swap which is on the rig):
+   *   - the no-hybrid type-lock (`canMountPartOn`): a chassis commits to one energy type, so a
+   *     cross-type engine can't snap onto it;
+   *   - the engine-capacity cap (`withinEngineCapacity`): the deck accepts at most `engineMax`
+   *     engines (2 on a 1×3, 6 on a 3×5).
+   * Either failing drops the rig from the target list, leaving the carried part no free cell, so the
+   * drop returns to origin / settles loose — the tactile "won't snap" refusal.
    */
   function mountTargets(part: EntityId): EntityId[] {
     const targets: EntityId[] = [];
-    if (canMountPartOn(world, rig, part)) targets.push(rig);
-    for (const w of stagingTargets()) targets.push(w); // staging accepts any part — no type-lock
+    if (canMountPartOn(world, rig, part) && withinEngineCapacity(world, rig, part)) targets.push(rig);
+    for (const w of stagingTargets()) targets.push(w); // staging accepts any part — no locks
     return targets;
   }
 
@@ -194,7 +197,10 @@ export function createBuildController(
 
   const onPointerDown = (e: PointerEvent): void => {
     if (e.button !== 0) return; // left-button only; middle is the camera orbit
-    const hit = view.pickEntity(e.clientX, e.clientY, world.query(Part));
+    // Grab any part EXCEPT a chassis: a chassis carries `Part` (it's a composed product) but it IS
+    // the rig's foundation, not a module you lift off it — clicking the rig body must not pick it up.
+    const grabbable = world.query(Part).filter((p) => world.get(p, Part)!.kind !== 'chassis');
+    const hit = view.pickEntity(e.clientX, e.clientY, grabbable);
     if (hit === null) return;
     e.preventDefault();
     beginCarry(hit);

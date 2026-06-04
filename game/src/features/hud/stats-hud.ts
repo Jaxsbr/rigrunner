@@ -1,6 +1,9 @@
 import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Assembly } from '@common/components/assembly';
+import { Chassis } from '@common/components/chassis';
+import { Weight } from '@common/components/weight';
+import { totalRigWeight } from '@common/sim/weight';
 import { mountedEngines } from '@features/engine/engine';
 import { rigPerformance } from '@features/drive/drive';
 
@@ -45,7 +48,29 @@ export class StatsHud {
       `  acceleration  ${fmt(perf.acceleration)} u/s²`,
       `  top speed     ${fmt(perf.topSpeed)} u/s`,
       `  reverse       ${fmt(perf.reverse)} u/s`,
+      ...this.chassisLines(world, rig, labels.length),
     ].join('\n');
+  }
+
+  /**
+   * The chassis readout: its size, how many engines are mounted against the size's allowed range
+   * (flagged when under the minimum — a legal but under-powered build), and the live carried load
+   * against the rated capacity. Capacity is a READOUT only — nothing refuses an overload yet (weight
+   * is parked); the chassis's own top-speed/turning stats don't affect driving yet either, so they're
+   * left off the readout rather than shown as inert numbers. Empty when the rig has no Chassis.
+   */
+  private chassisLines(world: World, rig: EntityId, engineCount: number): string[] {
+    const chassis = world.get(rig, Chassis);
+    if (!chassis) return [];
+    const ownWeight = world.get(rig, Weight)?.value ?? 0;
+    const load = totalRigWeight(world, rig) - ownWeight; // mounted parts only — what's loaded ON the chassis
+    const under = engineCount < chassis.engineMin ? ' (under)' : '';
+    return [
+      'CHASSIS',
+      `  size          ${chassis.size.replace('x', '×')}`,
+      `  engines       ${engineCount} / ${chassis.engineMin}–${chassis.engineMax}${under}`,
+      `  load          ${fmt(load)} / ${fmt(chassis.loadCapacity)}`,
+    ];
   }
 }
 

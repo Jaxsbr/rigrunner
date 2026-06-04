@@ -34,12 +34,15 @@ export type StoragePartSlot = 'shell' | 'rim';
 /** A Reclaimer part role (Option C) — the first NON-engine socket grammar: a base `arm` plus the
  * `head` socket the bucket slots into (mirrors the articulation contract's `socket_wrist`). */
 export type ReclaimerPartSlot = 'arm' | 'head';
+/** A chassis part role — the three sub-parts a chassis is composed from: the wheel/axle set (top
+ * speed), the suspension/steering set (turning), and the frame (load capacity). */
+export type ChassisPartSlot = 'wheel-axle' | 'suspension-steering' | 'frame';
 /** Any part role, across all recipes — the role a bench slot matches a part against. */
-export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot;
+export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot;
 export type EnergyType = 'electric' | 'mechanical';
 /** What a part is for — groups the catalog and drives the chip/portrait tint when there's no
- * energy type (storage and reclaimer parts aren't electric/mechanical). */
-export type PartCategory = 'engine' | 'storage' | 'reclaimer';
+ * energy type (storage, reclaimer and chassis parts aren't electric/mechanical). */
+export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis';
 
 /**
  * A part's contribution to the engine it's assembled into. `power`/`torque`/`weight` feed the
@@ -52,6 +55,13 @@ export interface PartAttributes {
   weight: number;
   durability: number; // reserved (casing toughness) — not consumed in MW
   burst: number;      // reserved (regulator boost/overdrive magnitude) — not consumed in MW
+  // Chassis sub-part contributions — summed into a `Chassis` at assembly. Omitted (≡ 0) on every
+  // non-chassis part, the same way `capacity` is planned to ride only on storage parts
+  // (docs/part-identity-spec.md §4c). topSpeed/turning are inert until the laden-weight milestone;
+  // loadCapacity is the rated carry weight the HUD reads.
+  topSpeed?: number;
+  turning?: number;
+  loadCapacity?: number;
 }
 
 export interface PartDef {
@@ -184,6 +194,65 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     displayName: 'Unearthing Bucket',
     attributes: { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
     assetId: 'reclaimer-bucket',
+  },
+
+  // 🛞 Chassis sub-parts — the foundation a rig is built on, composed from three slots (wheel/axle,
+  // suspension/steering, frame) like an engine is from four. No energy type (it does no engine work).
+  // Each slot owns one chassis attribute plus its own weight; power/torque/durability/burst stay 0.
+  // There is a set PER SIZE: the 3×5 parts are heavier and rated higher than the 1×3's — a bigger
+  // foundation. (Tier — scrap/iron/… — is a separate, not-yet-built axis that will ride on the part
+  // INSTANCE and multiply these base values uniformly; see docs/part-identity-spec.md §4a.)
+
+  // 1×3 — the light scout foundation.
+  {
+    id: 'wheel-axle-1x3',
+    slot: 'wheel-axle',
+    category: 'chassis',
+    displayName: 'Wheel & Axle Set',
+    attributes: { power: 0, torque: 0, weight: 3, durability: 0, burst: 0, topSpeed: 12 },
+    assetId: 'wheel-axle',
+  },
+  {
+    id: 'suspension-steering-1x3',
+    slot: 'suspension-steering',
+    category: 'chassis',
+    displayName: 'Suspension & Steering Set',
+    attributes: { power: 0, torque: 0, weight: 2, durability: 0, burst: 0, turning: 8 },
+    assetId: 'suspension-steering',
+  },
+  {
+    id: 'frame-1x3',
+    slot: 'frame',
+    category: 'chassis',
+    displayName: 'Chassis Frame',
+    attributes: { power: 0, torque: 0, weight: 6, durability: 0, burst: 0, loadCapacity: 24 },
+    assetId: 'chassis-frame',
+  },
+
+  // 3×5 — the heavy hauler foundation: more capacity, lower nimbleness, heavier.
+  {
+    id: 'wheel-axle-3x5',
+    slot: 'wheel-axle',
+    category: 'chassis',
+    displayName: 'Wheel & Axle Set',
+    attributes: { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, topSpeed: 16 },
+    assetId: 'wheel-axle',
+  },
+  {
+    id: 'suspension-steering-3x5',
+    slot: 'suspension-steering',
+    category: 'chassis',
+    displayName: 'Suspension & Steering Set',
+    attributes: { power: 0, torque: 0, weight: 5, durability: 0, burst: 0, turning: 5 },
+    assetId: 'suspension-steering',
+  },
+  {
+    id: 'frame-3x5',
+    slot: 'frame',
+    category: 'chassis',
+    displayName: 'Chassis Frame',
+    attributes: { power: 0, torque: 0, weight: 14, durability: 0, burst: 0, loadCapacity: 60 },
+    assetId: 'chassis-frame',
   },
 ];
 
