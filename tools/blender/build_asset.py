@@ -9,7 +9,8 @@ define `build()` returning the finished object. This runner resets the scene, ru
 build, applies the origin/orientation conventions, and exports a GLB.
 
 Default output: game/public/assets/<asset-name>.glb  (underscores → hyphens = the assetId).
-After it writes, register the assetId in game/src/content/assets.ts.
+After it writes, register the assetId in shared/assets.ts (the assetId -> GLB URL registry shared
+by the game and the viewer).
 """
 
 import importlib
@@ -56,7 +57,7 @@ def main() -> None:
         rr_style.finalize_and_export(obj, out_path)
 
     print(f"[build_asset] wrote {out_path}")
-    print(f"[build_asset] register in game/src/content/assets.ts as '{asset_id}'")
+    print(f"[build_asset] register in shared/assets.ts as '{asset_id}'")
 
 
 if __name__ == "__main__":

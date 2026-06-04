@@ -30,6 +30,13 @@ stale-branch and push-race failures we hit before. The flow below is mandatory.
    if one exists, and the code you're touching. Match the surrounding style. Honour the
    architecture (ECS: data-only components, pure systems over `World`, render reads state and
    never mutates it). Keep `EngineSpec` and similar contracts intact.
+   - **Where new code goes** ([ADR-003](../../../docs/architecture/adr-003-feature-first-src-structure.md)):
+     `game/src/` is feature-first. Put new code in `features/<mechanic>/` (the slice it serves — a
+     mechanic's component/system/content/render/UI live together). Promote to `common/` only when ≥2
+     *features* need it and it carries no feature-specific semantics (otherwise duplicate — Rule of
+     Three). `core/`+`common/` must never import `features/`; dispatch per-frame feature work from
+     `main.ts`. Imports use aliases `@core`/`@common`/`@features`/`@shared` (cross-tier) and `./`
+     (same-feature). Read any `features/<x>/CLAUDE.md` for that slice's single-owner rules.
 
 3. **Build it to the project's standard** (Phase 2 = high standard: testable, maintainable).
    Let mechanics earn their place — don't add speculative complexity.

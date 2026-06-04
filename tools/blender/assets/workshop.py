@@ -11,7 +11,7 @@ but a static fixture rather than a vehicle, so it is deliberately built to read 
 
 Footprint: 3 m × 3 m = a 3×3 grid of 1 m cells (cellSize 1, matching the rig). Centred on X/Y,
 lowest point on Z=0, deck surface at Z=0.20 — this MUST equal the MountGrid.deckY the game spawns
-the workshop with (see game/src/content/workshop.ts), so mounted parts rest exactly on the deck.
+the workshop with (see game/src/features/workshop/workshop.ts), so mounted parts rest exactly on the deck.
 
 Front faces Blender +Y (→ −Z in three.js) by convention; a platform has no real "front", but the
 convention keeps origin/orientation handling identical to every other asset.
