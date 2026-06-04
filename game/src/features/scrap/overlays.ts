@@ -9,9 +9,9 @@ import { ScrapPile } from './scrap-pile';
  * them to the render-tier `ZoneOverlays`, so the feature owns "where a pile's disc sits" while the
  * render machinery stays feature-agnostic.
  *
- * The pile's "Hold E" prompt is NOT a floating world-space bubble: anchored over the heap it sits on
- * top of the scrap from some camera angles. It's the fixed bottom-centre HUD prompt instead (see
- * `scrap-prompt.ts` + `#scrap-prompt` in `index.html`), which advertises the key without obstructing.
+ * The pile's "Hold E" prompt itself is a fixed bottom-centre HUD element (see `scrap-prompt.ts` +
+ * `#scrap-prompt` in `index.html`) — it advertises the rummage key in screen space, so it never sits
+ * over the heap. This file only feeds the ground disc.
  */
 
 /** The proximity discs for every scrap pile (lit only once a mounted Reclaimer is aimed in range). */

@@ -9,10 +9,9 @@ import { WorkshopZone } from './workshop-zone';
  * hands them to the render-tier `ZoneOverlays`, so the feature owns "where a workshop's disc sits"
  * while the render machinery stays feature-agnostic.
  *
- * Unlike scrap piles, the workshop does NOT emit a floating world-space "Press E" bubble: any bubble
- * anchored over the deck centre sits on top of the parts being loaded from some camera angles. The
- * workshop's open-prompt is the fixed bottom-centre HUD button (`#workshop-tab`, see `index.html` +
- * `workshop-overlay.ts`), which advertises the `E` key without ever touching the play area.
+ * The workshop's open-prompt itself is a fixed bottom-centre HUD button (`#workshop-tab`, see
+ * `index.html` + `workshop-overlay.ts`) — it advertises the `E` key in screen space, so it never sits
+ * over the parts being loaded onto the deck. This file only feeds the ground disc.
  */
 
 /** The proximity discs for every workshop zone (lit only while the rig is parked in range). */

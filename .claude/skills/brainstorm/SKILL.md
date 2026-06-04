@@ -31,9 +31,16 @@ workflow"). The whole flow below is mandatory, not optional.
    - **Concrete finding from playing/building** → `docs/observations.md`.
    - **A candidate that has firmed up enough to aim at** → `docs/milestones.md`.
    - **A real decision / commitment / spec** → update `CLAUDE.md` (source of truth) and/or
-     write a dedicated `docs/<feature>-spec.md`. Record the *why*.
+     write a dedicated `docs/<feature>-spec.md`. Record the *why*. **State the current truth
+     directly — don't frame it against the idea it supersedes** (*"we no longer do X"*, *"unlike
+     the old plan"*). The decided docs describe where we *are*; how we got there lives in the dated
+     `ideas.md` session + the PR. (This is the **tombstone** smell — see `implement-feature`.)
    - If one message mixes modes, **split it** — firm parts to the decided docs, loose parts
      to ideas/observations.
+
+   The tombstone rule is **only** for the *decided* docs (`CLAUDE.md` / spec). The dated
+   `ideas.md` / `observations.md` logs are append-only history — preserving past thinking there
+   (even superseded threads) is the whole point, so leave it.
 
 3. **Also capture to the memory store** (per ~/Jaxs/CLAUDE.md) — a `note` tagged
    `brainstorm` + `status:raw` for raw ideas, or a `decision`/`learning` for commitments.
@@ -60,4 +67,6 @@ workflow"). The whole flow below is mandatory, not optional.
 ## Don'ts
 - Don't enshrine a ramble as committed direction. Raw stays raw in `ideas.md`.
 - Don't edit the decided parts of `CLAUDE.md` for a mere idea.
+- Don't **tombstone** superseded ideas in the *decided* docs (`CLAUDE.md` / spec) — state the
+  present; the dated `ideas.md` log + PR hold the history. (The append-only logs are exempt.)
 - Don't commit or push to `main` (the pre-push hook + server ruleset will reject it anyway).

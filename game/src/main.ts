@@ -191,8 +191,8 @@ const loot = new LootOverlay(
   },
 );
 
-// The bottom-centre scrap-pile prompt: the screen-space "Hold E" cue that replaces the old floating
-// bubble. Main pushes the live pile-gate state into it each frame (the prompt never touches the World).
+// The bottom-centre scrap-pile prompt: the fixed screen-space "Hold E" cue. Main pushes the live
+// pile-gate state into it each frame (the prompt never touches the World).
 const scrapPrompt = new ScrapPrompt(document.querySelector<HTMLElement>('#scrap-prompt')!);
 
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
@@ -266,10 +266,10 @@ function frame(now: number): void {
   view.follow(world.get(player, Transform)!, cameraInput.poll(), dt);
   view.sync(world);
   // proximity discs (workshop + scrap): each feature contributes its gated disc entries and main
-  // concatenates them for the shared render tier. Both features' "what key does this" prompts are
-  // fixed bottom-centre HUD elements (the workshop tab + the scrap prompt) rather than floating
-  // bubbles, so a prompt never sits over the deck or the heap. Runs always (even paused) so the discs
-  // stay put behind an overlay rather than popping on resume.
+  // concatenates them for the shared render tier. Each feature's "what key does this" prompt is a
+  // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
+  // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
+  // overlay rather than popping on resume.
   zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.

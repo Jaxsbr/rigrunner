@@ -40,6 +40,16 @@ stale-branch and push-race failures we hit before. The flow below is mandatory.
 
 3. **Build it to the project's standard** (Phase 2 = high standard: testable, maintainable).
    Let mechanics earn their place — don't add speculative complexity.
+   - **Comment the present, not the diff.** Write every comment for a reader who has never seen the
+     previous version. Describe what the code *is* and why — never what it *was*, what it *replaced*,
+     or what it is *NOT*. Lines like *"the HUD prompt that replaced the old floating bubble"* or
+     *"this is NOT a world-space label"* are **tombstone comments**: they only land for someone who
+     saw the change, and decay into noise for everyone after. The migration story (what changed and
+     why) belongs in the commit message / PR / ADR — that's what those are *for*; don't duplicate it
+     into long-lived code. Keep *forward*-looking guards (*"don't switch to `display:none` — it
+     pops"*): they help a fresh reader who might reach for that next. Cut *backward*-looking ones.
+     **Test:** would the line make sense to someone reading the file cold? If it only lands if you
+     remember the old code, delete it. (Same smell in `brainstorm`, for decided docs.)
 
 4. **Verify before claiming done.** Run the tests and, where it matters, the app:
    ```sh
@@ -79,3 +89,5 @@ git push --force-with-lease
 - Don't commit or push to `main` (the pre-push hook + server ruleset reject it anyway).
 - Don't reach across apps (game/ ↔ viewer/) — share only via `shared/`.
 - Don't leave merged branches lying around — they cause the stale confusion we're fixing.
+- Don't leave **tombstone comments** — code describes the present, not what it replaced or is *not*;
+  the migration story goes in the commit/PR/ADR (see step 3).

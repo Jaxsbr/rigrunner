@@ -36,9 +36,9 @@
         user-select: none;
       }
       /* Bottom-centre proximity prompt — the fixed screen-space "what key does this" cue, shared by
-         the workshop tab and the scrap-pile prompt (it replaced the old floating world-space bubbles
-         so a prompt never sits over the deck/heap). Shown only while the rig is in range; the .hidden
-         class slides/fades it off rather than display:none so it never pops. Both sit in the same slot,
+         the workshop tab and the scrap-pile prompt. A HUD element (not a world-space label), so it
+         never sits over the deck/heap. Shown only while the rig is in range; the .hidden class
+         slides/fades it off rather than display:none so it never pops. Both sit in the same slot,
          which is safe because their zones never coincide (workshop alone at +Z, piles scattered far). */
       .hud-prompt {
         position: fixed;
@@ -64,8 +64,8 @@
         transform: translateX(-50%) translateY(14px);
         pointer-events: none;
       }
-      /* "E" keycap — mirrors the keycap that used to ride the floating bubble (dark cap, glow-green
-         border + letter) so the keyboard shortcut reads at a glance without obstructing the play area. */
+      /* "E" keycap — a dark cap with a glow-green border + letter so the keyboard shortcut reads at a
+         glance; the green ties it to the lit proximity disc. */
       .hud-prompt kbd {
         display: inline-grid;
         place-items: center;
