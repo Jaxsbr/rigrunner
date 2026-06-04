@@ -34,9 +34,21 @@ export class EntityViews {
   /** Reconcile objects with the current set of renderable entities, then update them. */
   sync(world: World): void {
     for (const e of world.query(Transform, Renderable)) {
+      const r = world.get(e, Renderable)!;
+      const sig = renderSig(r);
       let obj = this.cache.get(e);
+      // Rebuild when the Renderable itself changed (not just the Transform): a chassis kit deploying
+      // into a rig swaps its model `chassis-kit` → `chassis-1x3`, so the cached crate object must be
+      // discarded and recreated from the new Renderable — otherwise the deck would render as a crate
+      // forever. assetId is otherwise stable per entity, so this is a no-op the rest of the time.
+      if (obj && obj.userData['renderSig'] !== sig) {
+        this.scene.remove(obj);
+        this.cache.delete(e);
+        obj = undefined;
+      }
       if (!obj) {
-        obj = this.createObject(world.get(e, Renderable)!);
+        obj = this.createObject(r);
+        obj.userData['renderSig'] = sig;
         this.scene.add(obj);
         this.cache.set(e, obj);
       }
@@ -123,6 +135,17 @@ export class EntityViews {
 
     return group;
   }
+}
+
+/**
+ * A stable signature of a Renderable — changes only when the *drawing* changes (model swap/resize,
+ * or a box's size/colour), not when the entity merely moves. `sync` rebuilds an entity's object when
+ * its signature changes, so a live assetId swap (the chassis-kit → chassis deploy) is reflected.
+ */
+function renderSig(r: Renderable): string {
+  return r.shape === 'model'
+    ? `model:${r.assetId}:${r.scale ?? 1}`
+    : `box:${r.color}:${r.size.x},${r.size.y},${r.size.z}`;
 }
 
 /** Magenta wireframe cube = "asset loading or missing" — an obvious dev signal. */
