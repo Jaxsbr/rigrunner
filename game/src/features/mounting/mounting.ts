@@ -72,7 +72,16 @@ export function isOverDeck(grid: MountGrid, lx: number, lz: number): boolean {
   );
 }
 
-/** The part currently mounted in a rig's (col, row), or undefined if the cell is free. */
+/** A part's deck footprint (cells it occupies), defaulting to a single 1×1 cell when unset. */
+export function partFootprint(world: World, part: EntityId): { cols: number; rows: number } {
+  return world.get(part, Part)?.footprint ?? { cols: 1, rows: 1 };
+}
+
+/**
+ * The part occupying a rig's (col, row), or undefined if the cell is free. A part's footprint is
+ * anchored at its Mount cell and spans right/back, so a 2×2 chassis kit answers for all four of its
+ * cells; a 1×1 part (the common case) covers only its own.
+ */
 export function partAtCell(
   world: World,
   rig: EntityId,
@@ -81,9 +90,36 @@ export function partAtCell(
 ): EntityId | undefined {
   for (const p of world.query(Part, Mount)) {
     const m = world.get(p, Mount)!;
-    if (m.rig === rig && m.col === col && m.row === row) return p;
+    if (m.rig !== rig) continue;
+    const fp = partFootprint(world, p);
+    if (col >= m.col && col < m.col + fp.cols && row >= m.row && row < m.row + fp.rows) return p;
   }
   return undefined;
+}
+
+/**
+ * Is the whole footprint region [col, col+fcols) × [row, row+frows) on `platform` in-grid AND clear?
+ * The multi-cell occupancy test staging and the snap use to place a footprint part (a 2×2 chassis
+ * kit): every covered cell must be inside the deck and unoccupied. A 1×1 region reduces to a single
+ * `partAtCell` check.
+ */
+export function regionFree(
+  world: World,
+  platform: EntityId,
+  col: number,
+  row: number,
+  fcols: number,
+  frows: number,
+): boolean {
+  const grid = world.get(platform, MountGrid);
+  if (!grid) return false;
+  if (col < 0 || row < 0 || col + fcols > grid.cols || row + frows > grid.rows) return false;
+  for (let c = col; c < col + fcols; c++) {
+    for (let r = row; r < row + frows; r++) {
+      if (partAtCell(world, platform, c, r)) return false;
+    }
+  }
+  return true;
 }
 
 /** Does this rig have at least one mounted part of the given kind? (Drives the engine gate.) */
@@ -169,6 +205,11 @@ export function canMountPartOn(world: World, target: EntityId, part: EntityId): 
  * caller already holding a local point — the workshop deck view, which raycasts in deck-local space —
  * passes it straight in. `maxDist` defaults to no bound for those local callers; the carried-part
  * snap passes a real reach so a drop far from any deck misses.
+ *
+ * `footprint` is the size of the part being placed (default 1×1): the scan considers only ANCHORS
+ * where the whole region fits free (`regionFree`), and measures distance to the region's CENTRE, so
+ * a 2×2 chassis kit snaps under the cursor and never half-off the deck. The returned (col, row) is
+ * the region's anchor (min corner).
  */
 export function closestFreeCellLocal(
   world: World,
@@ -176,15 +217,16 @@ export function closestFreeCellLocal(
   lx: number,
   lz: number,
   maxDist = Infinity,
+  footprint: { cols: number; rows: number } = { cols: 1, rows: 1 },
 ): { col: number; row: number; dist: number } | null {
   const grid = world.get(platform, MountGrid);
   if (!grid) return null;
   let best: { col: number; row: number; dist: number } | null = null;
   let bestD = maxDist;
-  for (let col = 0; col < grid.cols; col++) {
-    for (let row = 0; row < grid.rows; row++) {
-      if (partAtCell(world, platform, col, row)) continue;
-      const off = cellLocalOffset(grid, col, row);
+  for (let col = 0; col + footprint.cols <= grid.cols; col++) {
+    for (let row = 0; row + footprint.rows <= grid.rows; row++) {
+      if (!regionFree(world, platform, col, row, footprint.cols, footprint.rows)) continue;
+      const off = cellLocalOffset(grid, col + (footprint.cols - 1) / 2, row + (footprint.rows - 1) / 2);
       const d = Math.hypot(off.lx - lx, off.lz - lz);
       if (d < bestD) {
         bestD = d;
@@ -206,11 +248,12 @@ function nearestFreeCellOn(
   wx: number,
   wz: number,
   maxDist: number,
+  footprint: { cols: number; rows: number } = { cols: 1, rows: 1 },
 ): { col: number; row: number; dist: number } | null {
   const platformT = world.get(platform, Transform);
   if (!platformT) return null;
   const { lx, lz } = worldToRigLocal(platformT, wx, wz);
-  return closestFreeCellLocal(world, platform, lx, lz, maxDist);
+  return closestFreeCellLocal(world, platform, lx, lz, maxDist, footprint);
 }
 
 /**
@@ -219,6 +262,10 @@ function nearestFreeCellOn(
  * snap onto either the rig or an active workshop: the build controller passes every valid target
  * and the globally closest empty cell wins, so the player just drops near whichever deck they mean.
  * For a single deck, pass a one-element target list — there is no separate single-deck snap.
+ *
+ * `footprint` is the carried part's size (default 1×1), threaded through to `closestFreeCellLocal`:
+ * each target reports the nearest anchor where the whole region fits free, and the globally closest
+ * wins. The returned (col, row) is the region's anchor.
  */
 export function nearestMountTarget(
   world: World,
@@ -226,10 +273,11 @@ export function nearestMountTarget(
   wx: number,
   wz: number,
   maxDist: number,
+  footprint: { cols: number; rows: number } = { cols: 1, rows: 1 },
 ): { target: EntityId; col: number; row: number } | null {
   let best: { target: EntityId; col: number; row: number; dist: number } | null = null;
   for (const target of targets) {
-    const hit = nearestFreeCellOn(world, target, wx, wz, maxDist);
+    const hit = nearestFreeCellOn(world, target, wx, wz, maxDist, footprint);
     if (hit && (!best || hit.dist < best.dist)) {
       best = { target, col: hit.col, row: hit.row, dist: hit.dist };
     }
@@ -329,7 +377,10 @@ export function mountingSystem(world: World): void {
     const grid = world.get(m.rig, MountGrid);
     if (!rigT || !grid) continue;
 
-    const pose = cellWorldPose(rigT, grid, m.col, m.row);
+    // Ride to the footprint's CENTRE (a 1×1 part's centre is its own cell), so a 2×2 kit sits
+    // squarely over its four cells rather than anchored to one corner.
+    const fp = partFootprint(world, part);
+    const pose = cellWorldPose(rigT, grid, m.col + (fp.cols - 1) / 2, m.row + (fp.rows - 1) / 2);
     const t = world.get(part, Transform)!;
     t.x = pose.x;
     t.z = pose.z;

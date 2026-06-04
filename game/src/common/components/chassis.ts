@@ -30,3 +30,11 @@ export interface Chassis {
 }
 
 export const Chassis = defineComponent<Chassis>('Chassis');
+
+/**
+ * The packed-kit footprint: a built-but-not-yet-deployed chassis stages and is carried as a 2×2
+ * block (both sizes), distinct from the unfolded deck it becomes (1×3 / 3×5). The chassis case in
+ * `attachCapability` stamps it on the product's `Part`, so mounting reserves the whole 2×2 region on
+ * the workshop deck. `chassisToRig` clears it — a rig stands on the ground and is never mounted.
+ */
+export const CHASSIS_KIT_FOOTPRINT = { cols: 2, rows: 2 } as const;

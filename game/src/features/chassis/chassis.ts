@@ -10,13 +10,14 @@ import type { ChassisSize } from '@common/components/chassis';
  * drivable.
  *
  * There is one sub-part per slot per size (`wheel-axle-1x3` … `frame-3x5`), so this picks the three
- * catalog entries whose id ends in the size — the same shape the bench will enforce by slot.
+ * catalog entries of that `chassisSize` in the recipe's slot order — the same shape the bench
+ * enforces, where its size-match guard refuses a sub-part of the wrong `chassisSize`.
  */
 
 /** The three catalog sub-parts that compose a chassis of `size`, in the chassis recipe's slot order. */
 export function chassisParts(size: ChassisSize): PartDef[] {
   return chassisRecipeForSize(size).slots.map((s) => {
-    const def = PARTS_CATALOG.find((p) => p.category === 'chassis' && p.slot === s.slot && p.id.endsWith(size));
+    const def = PARTS_CATALOG.find((p) => p.category === 'chassis' && p.slot === s.slot && p.chassisSize === size);
     if (!def) throw new Error(`no ${size} chassis part for slot '${s.slot}'`);
     return def;
   });

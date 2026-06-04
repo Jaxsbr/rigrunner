@@ -15,6 +15,9 @@ export const MODEL_ASSETS: Record<string, string> = {
   // matches each chassis recipe's MountGrid.deckY so mounted parts sit on the visible deck.
   'chassis-1x3': '/assets/chassis-1x3.glb',
   'chassis-3x5': '/assets/chassis-3x5.glb',
+  // The packed 2×2 chassis-kit — how a built-but-not-yet-deployed chassis shows on the workshop deck
+  // and while it's carried; `chassisToRig` swaps it for the unfolded chassis GLB once it's hauled out.
+  'chassis-kit': '/assets/chassis-kit.glb',
   'scrap-pile': '/assets/scrap-pile.glb',
   'loose-scrap': '/assets/loose-scrap.glb',
   'storage': '/assets/storage.glb',

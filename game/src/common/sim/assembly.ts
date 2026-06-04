@@ -6,7 +6,7 @@ import { Part } from '@common/components/part';
 import { Weight } from '@common/components/weight';
 import { EngineSpec } from '@common/components/engine-spec';
 import { Storage, CONTAINER_CAPACITY } from '@common/components/storage';
-import { Chassis } from '@common/components/chassis';
+import { Chassis, CHASSIS_KIT_FOOTPRINT } from '@common/components/chassis';
 import { MountGrid } from '@common/components/mount-grid';
 import {
   partDef,
@@ -110,6 +110,9 @@ function attachCapability(world: World, product: EntityId, recipe: Recipe, stats
         loadCapacity: stats.loadCapacity ?? 0,
       });
       world.add(product, MountGrid, { cols: c.cols, rows: c.rows, cellSize: 1, deckY: c.deckY });
+      // A chassis is built as a packed 2×2 kit: it stages and is carried as a 2×2 block until it's
+      // hauled out and assembles into a rig (whose deck is the 1×3 / 3×5 above, not this footprint).
+      world.get(product, Part)!.footprint = { ...CHASSIS_KIT_FOOTPRINT };
       break;
     }
   }

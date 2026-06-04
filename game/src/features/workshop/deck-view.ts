@@ -37,6 +37,8 @@ export interface DeckPart {
   col: number;
   row: number;
   yaw: number;
+  /** Cells the part occupies, anchored at (col, row) — a 2×2 chassis kit; 1×1 otherwise. */
+  footprint: { cols: number; rows: number };
 }
 
 export interface DeckSnapshot {
@@ -52,8 +54,13 @@ export interface DeckView {
   render(snapshot: DeckSnapshot): void;
   /** Raycast a screen point onto the deck plane → deck-local {lx, lz}, or null if it misses. */
   localPointAt(clientX: number, clientY: number): { lx: number; lz: number } | null;
-  /** Show a drop highlight on a cell (green when ok, rust when refused), or clear with null. */
-  highlight(cell: { col: number; row: number } | null, ok?: boolean): void;
+  /** Show a drop highlight over a region (green when ok, rust when refused), sized to `footprint`
+   *  (default 1×1), or clear with null. */
+  highlight(
+    cell: { col: number; row: number } | null,
+    ok?: boolean,
+    footprint?: { cols: number; rows: number },
+  ): void;
   resize(): void;
   start(): void;
   stop(): void;
@@ -96,8 +103,14 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
   let grid: DeckGrid = { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 };
   let framed = false;
 
-  function cellCenter(col: number, row: number): { x: number; z: number } {
-    const off = cellLocalOffset(grid, col, row);
+  const UNIT_FOOTPRINT = { cols: 1, rows: 1 };
+
+  /**
+   * Deck-local centre of a footprint anchored at (col, row) — for a 1×1 part its own cell, for a 2×2
+   * kit the middle of its block — so a multi-cell part sits squarely over its region.
+   */
+  function regionCenter(col: number, row: number, fp = UNIT_FOOTPRINT): { x: number; z: number } {
+    const off = cellLocalOffset(grid, col + (fp.cols - 1) / 2, row + (fp.rows - 1) / 2);
     return { x: off.lx, z: off.lz };
   }
 
@@ -173,17 +186,18 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
 
     addModel(snapshot.workshopAssetId, 0, 0, 0); // the deck itself, at the origin
     for (const p of snapshot.parts) {
-      const c = cellCenter(p.col, p.row);
+      const c = regionCenter(p.col, p.row, p.footprint);
       addModel(p.assetId, c.x, grid.deckY, c.z, p.yaw, p.entity);
     }
 
-    // Selected staged product → a soft blue highlight on its cell (distinct from the drop highlight).
+    // Selected staged product → a soft blue highlight over its region (distinct from the drop
+    // highlight), sized to its footprint so a 2×2 kit's whole block lights, not one cell.
     const sel = snapshot.selected;
     const selPart = sel !== null ? snapshot.parts.find((p) => p.entity === sel) : undefined;
     if (selPart) {
-      const c = cellCenter(selPart.col, selPart.row);
+      const c = regionCenter(selPart.col, selPart.row, selPart.footprint);
       highlightMat.color.setHex(0x2f6f9f);
-      highlightMesh.scale.set(grid.cellSize, 1, grid.cellSize);
+      highlightMesh.scale.set(grid.cellSize * selPart.footprint.cols, 1, grid.cellSize * selPart.footprint.rows);
       highlightMesh.position.set(c.x, grid.deckY + 0.04, c.z);
       highlightMesh.visible = true;
     } else {
@@ -193,14 +207,18 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     if (!framed) frame();
   }
 
-  function highlight(cell: { col: number; row: number } | null, ok = true): void {
+  function highlight(
+    cell: { col: number; row: number } | null,
+    ok = true,
+    footprint = UNIT_FOOTPRINT,
+  ): void {
     if (!cell) {
       highlightMesh.visible = false;
       return;
     }
-    const c = cellCenter(cell.col, cell.row);
+    const c = regionCenter(cell.col, cell.row, footprint);
     highlightMat.color.setHex(ok ? 0x59ff9f : 0x8a4b2f);
-    highlightMesh.scale.set(grid.cellSize, 1, grid.cellSize);
+    highlightMesh.scale.set(grid.cellSize * footprint.cols, 1, grid.cellSize * footprint.rows);
     highlightMesh.position.set(c.x, grid.deckY + 0.04, c.z);
     highlightMesh.visible = true;
   }

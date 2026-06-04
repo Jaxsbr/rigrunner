@@ -55,6 +55,18 @@ export function acceptsType(world: World, type: EnergyType | undefined): boolean
   return current === null || current === type;
 }
 
+/**
+ * The size-match rule for a chassis build: a chassis recipe accepts a chassis sub-part only when
+ * their sizes agree (1×3 parts build a 1×3 chassis, never a 3×5) — the size counterpart to the
+ * no-hybrid energy rule. Non-chassis recipes, and non-chassis parts (already gated by slot role),
+ * are unconstrained, so this is a no-op for the engine/container/Reclaimer benches.
+ */
+export function acceptsChassisPart(recipe: Recipe, def: PartDef): boolean {
+  if (!recipe.chassis) return true;
+  if (def.category !== 'chassis') return true;
+  return def.chassisSize === recipe.chassis.size;
+}
+
 /** Every slot of the active recipe is filled. */
 export function isBenchComplete(world: World, recipe: Recipe): boolean {
   const slots = benchSlots(world);
@@ -71,6 +83,12 @@ export function assembleVerdict(world: World, recipe: Recipe): { ok: boolean; re
   }
   if (resolveEnergyType(benchPartDefs(world)).mismatch) {
     return { ok: false, reason: 'Parts don’t match — one energy type only' };
+  }
+  // Chassis builds are size-locked the way engine builds are type-locked: every sub-part must match
+  // the recipe's size. The drop guard (`acceptsChassisPart`) keeps mismatches off the bench, so this
+  // is a belt-and-braces backstop for any other path that fills the slots.
+  if (recipe.chassis && benchPartDefs(world).some((d) => !acceptsChassisPart(recipe, d))) {
+    return { ok: false, reason: `Parts must all be ${recipe.chassis.size.replace('x', '×')} size` };
   }
   return { ok: true, reason: '' };
 }

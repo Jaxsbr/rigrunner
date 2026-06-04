@@ -21,6 +21,8 @@ import {
   resolveLocalYaw,
   worldToRigLocal,
   isOverDeck,
+  partFootprint,
+  regionFree,
   mountPart,
   unmountPart,
   mountingSystem,
@@ -163,6 +165,90 @@ describe('closestFreeCellLocal', () => {
       for (let row = 0; row < 3; row++) mountPart(w, enginePart(w), d, col, row);
     }
     expect(closestFreeCellLocal(w, d, 0, 0)).toBeNull();
+  });
+});
+
+describe('multi-cell footprint', () => {
+  /** A bare 3×3 deck (no Transform needed — the occupancy + scan are purely local). */
+  function deck(world: World): EntityId {
+    const e = world.createEntity();
+    world.add(e, MountGrid, { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 });
+    return e;
+  }
+
+  /** A 2×2 chassis kit — a Part with an explicit footprint, the multi-cell occupant. */
+  function chassisKit(world: World, x = 0, z = 0): EntityId {
+    const e = world.createEntity();
+    world.add(e, Transform, { x, z, rotationY: 0, y: 0 });
+    world.add(e, Part, { kind: 'chassis', footprint: { cols: 2, rows: 2 } });
+    return e;
+  }
+
+  it('defaults an unset footprint to a single 1×1 cell', () => {
+    const w = new World();
+    expect(partFootprint(w, enginePart(w))).toEqual({ cols: 1, rows: 1 });
+    expect(partFootprint(w, chassisKit(w))).toEqual({ cols: 2, rows: 2 });
+  });
+
+  it('a 2×2 part anchored at (0,0) occupies all four of its cells, and no others', () => {
+    const w = new World();
+    const d = deck(w);
+    const kit = chassisKit(w);
+    mountPart(w, kit, d, 0, 0);
+    for (const [c, r] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+      expect(partAtCell(w, d, c, r)).toBe(kit);
+    }
+    expect(partAtCell(w, d, 2, 2)).toBeUndefined(); // outside the block
+  });
+
+  it('regionFree is true on a clear region, false on overlap or off-grid', () => {
+    const w = new World();
+    const d = deck(w);
+    expect(regionFree(w, d, 0, 0, 2, 2)).toBe(true);
+    expect(regionFree(w, d, 2, 2, 2, 2)).toBe(false); // 2×2 spills off the 3×3 deck
+    mountPart(w, enginePart(w), d, 1, 1); // occupy the centre
+    expect(regionFree(w, d, 0, 0, 2, 2)).toBe(false); // the block would overlap the engine
+    expect(regionFree(w, d, 1, 1, 1, 1)).toBe(false); // the occupied cell itself
+  });
+
+  it('closestFreeCellLocal places a 2×2 only where the whole block fits free', () => {
+    const w = new World();
+    const d = deck(w);
+    // Back-right corner occupied: the front-left 2×2 (anchor 0,0) is the nearest block that clears
+    // it. (Every 2×2 on a 3×3 includes the centre, so an occupied CENTRE would block all four.)
+    mountPart(w, enginePart(w), d, 2, 2);
+    const cell = closestFreeCellLocal(w, d, -1, -1, Infinity, { cols: 2, rows: 2 });
+    expect(cell).toMatchObject({ col: 0, row: 0 });
+    expect(regionFree(w, d, cell!.col, cell!.row, 2, 2)).toBe(true);
+  });
+
+  it('returns null when the centre is occupied (no 2×2 on a 3×3 avoids the centre)', () => {
+    const w = new World();
+    const d = deck(w);
+    mountPart(w, enginePart(w), d, 1, 1);
+    expect(closestFreeCellLocal(w, d, 0, 0, Infinity, { cols: 2, rows: 2 })).toBeNull();
+  });
+
+  it('returns null when no 2×2 fits the deck', () => {
+    const w = new World();
+    const e = w.createEntity();
+    w.add(e, MountGrid, { cols: 1, rows: 3, cellSize: 1, deckY: 0.66 }); // a 1×3 deck — too narrow
+    expect(closestFreeCellLocal(w, e, 0, 0, Infinity, { cols: 2, rows: 2 })).toBeNull();
+  });
+
+  it('rides a 2×2 part to its block centre, not its anchor corner', () => {
+    const w = new World();
+    const d = w.createEntity();
+    w.add(d, Transform, { x: 0, z: 0, rotationY: 0 });
+    w.add(d, MountGrid, { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 });
+    const kit = chassisKit(w, 9, 9);
+    mountPart(w, kit, d, 0, 0);
+    mountingSystem(w);
+    const t = w.get(kit, Transform)!;
+    // Anchor (0,0) on a centred 3×3 → block centre is the fractional cell (0.5, 0.5) → (-0.5, -0.5).
+    expect(t.x).toBeCloseTo(-0.5);
+    expect(t.z).toBeCloseTo(-0.5);
+    expect(t.y).toBeCloseTo(0.2);
   });
 });
 
