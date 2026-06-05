@@ -173,3 +173,56 @@ export const PRODUCT_GROUPS: readonly ProductGroup[] = [
 export function productGroup(id: string): ProductGroup | undefined {
   return PRODUCT_GROUPS.find((g) => g.id === id);
 }
+
+// ── Product composition (how the sub-parts snap into a positioned whole) ────────────────────────────
+
+/**
+ * How a product's sub-parts physically compose into one positioned whole (`docs/part-identity-spec.md`
+ * §2b "composition via assembly sockets"). One sub-part is the HOST — its GLB carries `socket_<slot>`
+ * empties (see `docs/asset-style.md` "Assembly sockets") — and the others snap onto those sockets. The
+ * shared assembler (`shared/assembler.ts`) reads this and is used by BOTH the game and the viewer, so a
+ * composed product reads identically in both (that parity is the whole point of the descriptor living in
+ * `shared/`).
+ */
+export interface ProductComposition {
+  /** The sub-part id that hosts the others — its GLB carries the `socket_*` empties. */
+  host: string;
+  /**
+   * Each non-host sub-part id → the host socket node its origin snaps to. A plain socket name
+   * (`'socket_rim'`) is a single attach; a name whose family the host repeats as `socket_<x>_<i>`
+   * (`'socket_axle'` → `socket_axle_0`, `socket_axle_1`, …) means "instance this one model at every
+   * numbered socket the host exposes" — the assembler resolves which by looking the nodes up by name.
+   */
+  children: Readonly<Record<string, string>>;
+}
+
+/**
+ * The products that render as composed sub-parts through the shared assembler. Two product families are
+ * deliberately ABSENT:
+ *  - **Reclaimer** composes too (its bucket rides the arm's `socket_wrist`), but it also ANIMATES, so it
+ *    keeps its specialised driver (`ReclaimerRig` in each app) rather than the static assembler — the
+ *    same socket convention, a richer driver.
+ *  - **Chassis** is a functional rig in-game (its GLB carries the mounting deck/grid, spinnable `wheel_*`
+ *    nodes and the deploy unfold the chassis sub-part models don't have), so it renders as its whole GLB
+ *    in both apps for now; composing it from sub-parts is a separate, deck-aware step.
+ */
+export const PRODUCT_COMPOSITION: Readonly<Record<string, ProductComposition>> = {
+  'electric-engine': {
+    host: 'e-casing',
+    children: { 'e-core': 'socket_core', 'e-coupling': 'socket_coupling', 'e-regulator': 'socket_regulator' },
+  },
+  'steam-engine': {
+    host: 's-boiler',
+    children: { 's-piston': 'socket_piston', 's-driveshaft': 'socket_driveshaft', 's-throttle': 'socket_throttle' },
+  },
+  storage: {
+    host: 'container-shell',
+    children: { 'container-rim': 'socket_rim' },
+  },
+};
+
+/** The composition descriptor for a product group, or `undefined` when it doesn't compose via the
+ *  assembler (the Reclaimer and chassis — see `PRODUCT_COMPOSITION`). */
+export function productComposition(groupId: string): ProductComposition | undefined {
+  return PRODUCT_COMPOSITION[groupId];
+}

@@ -1,27 +1,27 @@
 import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
-import type { PartKind } from '@common/components/part';
+import { Part, type PartKind } from '@common/components/part';
+import { Assembly } from '@common/components/assembly';
+import { EnginePart } from '@common/parts/engine-part';
 import type { EnergyType } from '@common/parts/parts-catalog';
-import { tierOf } from '@common/parts/tiers';
+import { tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
+import { partIdentity, productComposition } from '@shared/part-identity';
 import { assetTier } from '@common/sim/assembly';
 import { isArticulated, BUCKET_ASSET } from '@common/render/articulation';
 
 /**
- * Which GLB previews/renders a composed product — the ONE place that maps a product to its asset, so
- * the workshop portrait, the inventory chip, and the model placed in the world all agree.
+ * The single whole-product GLB for a product that draws as ONE model — the chassis and the Reclaimer.
+ * Engines and containers no longer come through here: they COMPOSE from their sub-parts via the shared
+ * assembler (`productRenderSpec` → `shape: 'assembly'`), so a build reads as its located, per-tier pieces
+ * (§2b). This stays the resolver for the single-GLB kinds, and a fallback for any product without a
+ * composition descriptor.
  *
- * There are no bespoke composed-engine assets yet, so an engine reuses the two existing engine
- * models by energy type: mk2 (the brighter, more-illuminated build) stands in for the clean/glowing
- * ELECTRIC engine, mk1 (the plainer starter) for the grimier STEAM one. Swap these for
- * dedicated assets when they land. The Reclaimer renders its articulated ARM GLB (the render layer
- * parents the bucket head onto its wrist socket — see render/articulation.ts), so its `reclaimer`
- * recipe id maps to `reclaimer-arm`. Any other product previews via its recipe id — the storage
- * container's `storage` recipe id already resolves to the container GLB. Unregistered ids fall back
- * to a tinted placeholder downstream.
- *
- * A chassis product is the packed `chassis-kit` crate — how a built chassis shows in inventory, on
- * the workshop deck, and while carried. `chassisToRig` swaps in the unfolded `chassis-1x3`/`-3x5`
- * GLB the moment the kit is hauled out and becomes a rig, so the kit→rig transformation is visible.
+ * The Reclaimer renders its articulated ARM GLB (the render layer parents the bucket head onto its wrist
+ * socket — see render/articulation.ts). A chassis product is the packed `chassis-kit` crate — how a built
+ * chassis shows in inventory, on the workshop deck, and while carried; `chassisToRig` swaps in the
+ * unfolded `chassis-1x3`/`-3x5` GLB the moment the kit is hauled out and becomes a rig. An engine/storage
+ * id reaching here (only via the fallback) resolves to the legacy whole-product GLB by energy type / recipe
+ * id; unregistered ids fall back to a tinted placeholder downstream.
  */
 const ENGINE_PREVIEW_ASSET: Record<EnergyType, string> = {
   electric: 'engine-mk2',
@@ -59,4 +59,55 @@ export function productTints(world: World, product: EntityId, assetId: string): 
     if (head) tints.headTint = tierOf(head).finishColor;
   }
   return tints;
+}
+
+/**
+ * The tier each sub-part of a product wears, keyed by its sub-part (catalog) id — the input the shared
+ * assembler composes from (`@shared/assembler`). Empty for a product with no `Assembly` (a directly-
+ * spawned one supplies its own defaults).
+ */
+export function productSubPartTiers(world: World, product: EntityId): Record<string, TierId> {
+  const asm = world.get(product, Assembly);
+  const tiers: Record<string, TierId> = {};
+  if (!asm) return tiers;
+  for (const e of asm.parts) {
+    const ep = world.get(e, EnginePart);
+    if (ep) tiers[ep.id] = ep.tier;
+  }
+  return tiers;
+}
+
+/**
+ * How a product is drawn, resolved in ONE place so every surface agrees: the world entity, the workshop
+ * deck preview, and the inspect portrait. A product either COMPOSES through the shared assembler — engine
+ * and storage, the SAME path the viewer renders by, so a build reads identically in both (§2b) — or it
+ * draws as a single whole-product GLB (the chassis's functional rig, the Reclaimer's articulated arm).
+ *
+ * For a composed product `assetId` is the HOST GLB (the piece a single-GLB surface loads and then
+ * composes the rest onto) and `tint` is the host sub-part's grade; `groupId` + `tiers` drive the
+ * assembler. For a single-GLB product it's the whole-product asset + its uniform-tier finishes, exactly
+ * as `productAssetId`/`productTints` give them.
+ */
+export type ProductRenderSpec =
+  | { compose: true; groupId: string; tiers: Record<string, TierId>; assetId: string; tint: number }
+  | { compose: false; assetId: string; tint?: number; headTint?: number };
+
+export function productRenderSpec(world: World, product: EntityId): ProductRenderSpec {
+  const asm = world.get(product, Assembly);
+  const comp = asm ? productComposition(asm.recipeId) : undefined;
+  if (asm && comp) {
+    const tiers = productSubPartTiers(world, product);
+    const hostTier = tiers[comp.host] ?? DEFAULT_TIER;
+    return {
+      compose: true,
+      groupId: asm.recipeId,
+      tiers,
+      assetId: partIdentity(comp.host)!.assetId,
+      tint: tierOf(hostTier).finishColor,
+    };
+  }
+  const kind = world.get(product, Part)?.kind ?? 'engine';
+  const assetId = productAssetId(kind, asm?.recipeId ?? '', asm?.type);
+  const { tint, headTint } = productTints(world, product, assetId);
+  return { compose: false, assetId, ...(tint !== undefined ? { tint } : {}), ...(headTint !== undefined ? { headTint } : {}) };
 }

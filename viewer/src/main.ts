@@ -13,8 +13,10 @@ import {
   partIdentity,
   PRODUCT_GROUPS,
   productGroup,
+  productComposition,
   type ProductGroup,
 } from '../../shared/part-identity';
+import { assembleProduct } from '../../shared/assembler';
 import paletteData from '../../shared/palette.json';
 import { ReclaimerRig, isArticulated } from './articulation';
 import { viewFor } from './part-views';
@@ -306,21 +308,6 @@ async function loadGraded(
   return { obj: ph, isRealModel: false, tris: 0 };
 }
 
-/** Lay objects out left→right on the floor, centred about the origin — the provisional compose layout
- *  (real per-product placement is Phase 2b; this is enough for spacing/cohesion feedback). */
-function arrangeRow(objs: THREE.Object3D[], gap = 0.4): void {
-  const widths = objs.map((o) => new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).x || 1);
-  const total = widths.reduce((a, b) => a + b, 0) + gap * Math.max(0, objs.length - 1);
-  let x = -total / 2;
-  objs.forEach((o, i) => {
-    const box = new THREE.Box3().setFromObject(o);
-    const cx = box.getCenter(new THREE.Vector3()).x;
-    o.position.x += x + widths[i]! / 2 - cx; // slide its centre to this slot's centre
-    x += widths[i]! + gap;
-    restOnFloor(o);
-  });
-}
-
 // ── Selection entry points (also the scripting hook's programmatic API) ───────────────────
 
 /** Begin a selection: bump the token (so stale loads bail), clear the stage, return this token. */
@@ -418,12 +405,13 @@ async function selectProduct(groupId: string, tiers: Map<string, TierId>): Promi
   mode = 'product';
   viewId = groupId;
   const members = group.subPartIds.map((sid) => partIdentity(sid)!).filter(Boolean);
+  const view = viewFor(groupId);
   hud.innerHTML = `<b>${group.emoji} ${group.label}</b> — loading…`;
 
-  // The Reclaimer is the one product whose sub-parts already compose physically: the bucket head rides
-  // on the arm's wrist socket. Render it as that articulated whole (held static), each piece graded by
-  // its own tier — the rest of the products lay their sub-parts out in a row until Phase 2b places them.
   if (groupId === 'reclaimer') {
+    // The Reclaimer composes too — the bucket rides the arm's wrist socket — but it ALSO animates, so it
+    // keeps its own `ReclaimerRig` driver (held static here) rather than the static assembler. Each piece
+    // is graded by its own tier.
     const armTier = tiers.get('reclaimer-arm') ?? DEFAULT_TIER;
     const headTier = tiers.get('reclaimer-bucket') ?? DEFAULT_TIER;
     const arm = await loadGraded('reclaimer-arm', armTier);
@@ -436,26 +424,43 @@ async function selectProduct(groupId: string, tiers: Map<string, TierId>): Promi
       { assetId: 'reclaimer-arm', tier: armTier, isRealModel: arm.isRealModel, tris: arm.tris },
       { assetId: 'reclaimer-bucket', tier: headTier, isRealModel: head.isRealModel, tris: head.tris },
     ];
-  } else {
-    const loaded = await Promise.all(
-      members.map((m) => loadGraded(m.assetId, tiers.get(m.id) ?? DEFAULT_TIER)),
-    );
-    if (t !== token) return;
-    arrangeRow(loaded.map((l) => l.obj));
-    for (const l of loaded) holder.add(l.obj);
-    rendered = members.map((m, i) => ({
-      assetId: m.assetId,
-      tier: tiers.get(m.id) ?? DEFAULT_TIER,
-      isRealModel: loaded[i]!.isRealModel,
-      tris: loaded[i]!.tris,
+  } else if (productComposition(groupId)) {
+    // Engine + storage compose through the SHARED assembler — the SAME path the game renders them by, so
+    // a build reads identically in the viewer and in the world. The host carries the sockets; each
+    // sub-part snaps on at its own tier.
+    const tierMap = Object.fromEntries(members.map((m) => [m.id, tiers.get(m.id) ?? DEFAULT_TIER]));
+    const assembled = await assembleProduct(groupId, tierMap, models);
+    if (t !== token || !assembled) return;
+    applyFacing(assembled.group, view.facing);
+    restOnFloor(assembled.group);
+    holder.add(assembled.group);
+    rendered = assembled.items.map((it) => ({
+      assetId: it.assetId,
+      tier: it.tier,
+      isRealModel: it.isRealModel,
+      tris: it.tris,
     }));
+  } else {
+    // The chassis renders as its whole functional GLB (the deployed chassis: its mounting deck/grid,
+    // spinnable wheels and deploy unfold live in that one model), matching the game — sub-part
+    // composition is the deck-aware follow-up. Washed by the uniform tier when the sub-parts share one,
+    // else the GLB's own colours — exactly how the game grades a one-GLB product. The group id is the
+    // deployed chassis assetId.
+    const subTiers = members.map((m) => tiers.get(m.id) ?? DEFAULT_TIER);
+    const uniform = subTiers.every((tt) => tt === subTiers[0]) ? subTiers[0]! : null;
+    const whole = await loadGraded(groupId, uniform);
+    if (t !== token) return;
+    applyFacing(whole.obj, view.facing);
+    restOnFloor(whole.obj);
+    holder.add(whole.obj);
+    rendered = [{ assetId: groupId, tier: uniform, isRealModel: whole.isRealModel, tris: whole.tris }];
   }
 
   renderProductCtl(group, tiers);
-  finishSelect();
+  finishSelect(view.zoom);
   const missing = rendered.filter((r) => !r.isRealModel).length;
   hud.innerHTML =
-    `<b>${group.emoji} ${group.label}</b> &nbsp; ${rendered.length} sub-parts` +
+    `<b>${group.emoji} ${group.label}</b> &nbsp; ${rendered.length} ${rendered.length === 1 ? 'model' : 'sub-parts'}` +
     ` &nbsp; ${rendered.reduce((a, r) => a + r.tris, 0).toLocaleString()} tris` +
     (missing ? ` &nbsp; <span class="artic">${missing} placeholder</span>` : '');
 }

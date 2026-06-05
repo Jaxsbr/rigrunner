@@ -1,11 +1,12 @@
 """
-container-shell — the storage container's BODY sub-part (the cargo hold itself).
+container-shell — the storage container's BODY sub-part AND the container's assembly HOST.
 
 A "Small part" on the size ladder (docs/asset-style.md): a 1×1-cell, ~0.85 m-tall open-top box. The
 read is the signature `rig_blue` cargo hold — the §3 "rig_blue = containers/player-built" cue — a
 thick-walled tub with an open mouth (so the scrap inside is visible in game) and dark_metal corner
-posts + base skids. Its partner `container-rim` crowns this mouth; together they compose the whole
-container (Phase 2b), so this piece is the body WITHOUT the rim collar.
+posts + base skids. It is the assembly HOST: its GLB carries a `socket_rim` empty at the mouth, and the
+shared assembler snaps the partner `container-rim` collar onto it at its own tier (`docs/asset-style.md`
+"Assembly sockets") — together they compose the whole container. This piece is the body WITHOUT the rim.
 
 Built as one solid block with the cavity BOOLEAN-cut out (open from the floor up through the top),
 then beveled once so only true edges round — the continuous tub surface, the same technique the
@@ -62,4 +63,10 @@ def build():
     parts.append(rr.beveled_box("skid_l", (0.16, 0.90, 0.10), "dark_metal", (-0.34, 0.0, 0.05)))
     parts.append(rr.beveled_box("skid_r", (0.16, 0.90, 0.10), "dark_metal", (0.34, 0.0, 0.05)))
 
-    return rr.join(parts, "container-shell")
+    body = rr.join(parts, "container-shell")
+
+    # Assembly socket — the mouth, where the Rim collar's base seats (its origin snaps here at runtime).
+    # The body is base-centred (skid bottoms on Z=0), so the base-centre re-origin is a no-op and this
+    # top-level sibling empty keeps its position (the `chassis_common` pattern).
+    rr.empty("socket_rim", (0.0, 0.0, HEIGHT))
+    return body

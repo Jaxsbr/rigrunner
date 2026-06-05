@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { ModelLoader } from '@shared/model-loader';
 import { MODEL_ASSETS } from '@shared/assets';
 import { tintModel } from '@shared/model-tint';
+import { assembleProduct } from '@shared/assembler';
 import { createThreeCanvas, disposeObject } from '@shared/three-canvas';
 import type { EntityId } from '@core/types';
+import type { TierId } from '@common/parts/tiers';
 import { cellLocalOffset } from '@features/mounting/mounting';
 import { attachStaticHead } from '@common/render/articulation';
 
@@ -34,7 +36,13 @@ export interface DeckGrid {
 
 export interface DeckPart {
   entity: EntityId;
-  assetId: string;
+  /** A single whole-product GLB to load (the chassis/Reclaimer path). Omitted for a COMPOSED product,
+   *  which carries `groupId` + `tiers` instead. */
+  assetId?: string;
+  /** A COMPOSED product (engine/storage) drawn through the shared assembler — group id + tier per
+   *  sub-part, the same path the world and viewer compose by. Mutually exclusive with `assetId`. */
+  groupId?: string;
+  tiers?: Record<string, TierId>;
   col: number;
   row: number;
   yaw: number;
@@ -184,6 +192,35 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
       });
   }
 
+  /** Add a COMPOSED product (engine/storage) at a deck position, drawn through the shared assembler so
+   *  it reads identically to the world and the viewer. Tagged with its entity for picking. */
+  function addComposed(
+    groupId: string,
+    tiers: Record<string, TierId>,
+    x: number,
+    y: number,
+    z: number,
+    yaw: number,
+    entity: EntityId,
+  ): void {
+    const myToken = token;
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.rotation.y = yaw;
+    group.userData['entity'] = entity;
+    holder.add(group);
+    void assembleProduct(groupId, tiers, models)
+      .then((assembled) => {
+        if (myToken !== token || !assembled) return; // superseded, or not a composing product
+        group.add(assembled.group);
+      })
+      .catch(() => {
+        const block = placeholder(0.7, 0x6b6b6b);
+        ownedRoots.add(block);
+        group.add(block);
+      });
+  }
+
   /** Frame the orbit camera on the whole deck — angled top-down, like the in-world workshop shot. */
   function frame(): void {
     const extent = Math.max(grid.cols, grid.rows) * grid.cellSize;
@@ -203,7 +240,8 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     addModel(snapshot.workshopAssetId, 0, 0, 0); // the deck itself, at the origin
     for (const p of snapshot.parts) {
       const c = regionCenter(p.col, p.row, p.footprint);
-      addModel(p.assetId, c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint, p.headTint);
+      if (p.groupId) addComposed(p.groupId, p.tiers ?? {}, c.x, grid.deckY, c.z, p.yaw, p.entity);
+      else addModel(p.assetId ?? '', c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint, p.headTint);
     }
 
     // Selected staged product → a soft blue highlight over its region (distinct from the drop
