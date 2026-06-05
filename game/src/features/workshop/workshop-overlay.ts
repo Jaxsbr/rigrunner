@@ -92,6 +92,13 @@ const COLOR_BY_KEY: Record<string, number> = {
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** A shop card's role-tag span — omitted when the slot just repeats the part's name (since the strip,
+ *  "Shell" / slot "shell"); a part whose name still differs from its role keeps the tag. */
+const slotTag = (def: { slot: string; displayName: string }): string =>
+  def.slot.toLowerCase() === def.displayName.toLowerCase()
+    ? ''
+    : `<span class="wk-shop-tag">${def.slot}</span>`;
+
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
 /** Which centre-workspace tab is showing. */
@@ -358,10 +365,14 @@ export class WorkshopOverlay {
       `wk-chip ${view.colorKey}` + (view.isProduct ? ' product' : '') + (opts.disabled ? ' disabled' : '');
     chip.dataset['entity'] = String(view.entity);
     if (!opts.disabled && view.entity === this.selected) chip.classList.add('selected');
+    // Drop the role tag when it just repeats the name — since the strip, a part's name IS its slot
+    // noun ("Shell" / slot "shell"), so the tag would read "Shell shell". A name that still differs
+    // from its role (a chassis part: "Wheel & Axle Set" / "wheel-axle", or a product's kind) keeps it.
+    const showTag = view.tag.toLowerCase() !== view.displayName.toLowerCase();
     chip.innerHTML =
       `<span class="wk-dot"></span>` +
       `<span class="wk-name">${view.displayName}</span>` +
-      `<span class="wk-slot-tag">${view.tag}</span>`;
+      (showTag ? `<span class="wk-slot-tag">${view.tag}</span>` : '');
     if (!opts.disabled) chip.addEventListener('pointerdown', (e) => this.beginDrag(e, view));
     return chip;
   }
@@ -531,7 +542,7 @@ export class WorkshopOverlay {
         `<div class="wk-shop-name-row">` +
         `<span class="wk-shop-dot"></span>` +
         `<span class="wk-shop-name">${def.displayName}</span>` +
-        `<span class="wk-shop-tag">${def.slot}</span>` +
+        slotTag(def) +
         `</div>` +
         `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
         `</div>` +
@@ -578,7 +589,7 @@ export class WorkshopOverlay {
         `<div class="wk-shop-name-row">` +
         `<span class="wk-shop-dot"></span>` +
         `<span class="wk-shop-name">${def.displayName}</span>` +
-        `<span class="wk-shop-tag">${def.slot}</span>` +
+        slotTag(def) +
         `</div>` +
         `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
         `</div>` +
@@ -1007,11 +1018,13 @@ export class WorkshopOverlay {
     if (asm) {
       const recipe = recipeById(asm.recipeId);
       const kind = this.world.get(entity, Part)?.kind ?? 'engine';
+      // The recipe name already carries the energy type (e.g. "Electric Engine"), so it stands alone
+      // as the product's name — no type prefix to compose.
       const output = recipe?.output ?? cap(kind);
       const key = asm.type ?? kind;
       return {
         entity,
-        displayName: asm.type ? `${cap(asm.type)} ${output}` : output,
+        displayName: output,
         colorKey: key,
         tag: kind,
         sub: asm.type ? `${asm.type} · ${kind}` : kind,
