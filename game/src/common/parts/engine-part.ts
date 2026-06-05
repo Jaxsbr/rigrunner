@@ -17,7 +17,7 @@ import type { TierId } from './tiers';
  * the material grade that multiplies the catalog's base attributes at resolve time
  * (`docs/part-identity-spec.md` §4a). A rusty Shell and an iron Shell share one `PartDef` but resolve
  * to different stats because their instances carry different tiers. (`special` — the rare gold buff —
- * is the next per-instance field this vessel grows, in Phase 3.)
+ * is the next per-instance field this vessel grows, in a later part-identity phase.)
  */
 export interface EnginePart {
   /** The catalog id (e.g. `'e-core'`) — look up the full base definition with `partDef()`. */
