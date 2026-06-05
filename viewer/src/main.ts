@@ -620,9 +620,15 @@ window.addEventListener('hashchange', () => {
 // ── Scripting hook — drive the viewer from an agent / Playwright ──────────────────────────
 
 /**
- * Sample a dominant-palette signature of the current render: the average colour of the part pixels
- * (scene helpers hidden so ground/grid don't swamp the signal). A cheap, GPU/AA-tolerant signal a
- * baseline can be approved against and later drift checked, per `docs/part-identity-spec.md` Phase 1.5.
+ * Sample a dominant-palette signature of the current render: the characteristic colour of the part's
+ * lit faces (scene helpers hidden so ground/grid don't swamp the signal). A cheap, GPU/AA-tolerant
+ * signal a baseline can be approved against and later drift checked, per `docs/part-identity-spec.md`
+ * Phase 1.5.
+ *
+ * Pixels are averaged weighted by luminance², so the bright faces that carry the tier finish dominate
+ * over the part's many dark grey-box / shadow pixels — a flat mean is pulled to near-black by those and
+ * barely separates one tier from another. The weighting makes a rusty part read brown and an iron part
+ * blue-grey with real contrast (the signal a drift check keys off), not a near-background smudge.
  */
 function sampleSignature(): string {
   const hidden = sceneHelpers.filter((h) => h.visible);
@@ -641,21 +647,23 @@ function sampleSignature(): string {
   let r = 0;
   let g = 0;
   let b = 0;
-  let n = 0;
+  let wsum = 0;
   for (let i = 0; i < data.length; i += 4) {
     const R = data[i]!;
     const G = data[i + 1]!;
     const B = data[i + 2]!;
     if (Math.abs(R - bgR) < 8 && Math.abs(G - bgG) < 8 && Math.abs(B - bgB) < 8) continue; // skip bg
-    r += R;
-    g += G;
-    b += B;
-    n++;
+    const lum = 0.299 * R + 0.587 * G + 0.114 * B;
+    const w = lum * lum; // favour lit faces (tier colour) over dark grey-box shadow
+    r += R * w;
+    g += G * w;
+    b += B * w;
+    wsum += w;
   }
   for (const h of hidden) h.visible = true;
   renderer.render(scene, camera);
-  if (n === 0) return '#000000';
-  const hex = (v: number): string => Math.round(v / n).toString(16).padStart(2, '0');
+  if (wsum === 0) return '#000000';
+  const hex = (v: number): string => Math.round(v / wsum).toString(16).padStart(2, '0');
   return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
