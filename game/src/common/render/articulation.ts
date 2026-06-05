@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ModelLoader } from '@shared/model-loader';
+import { tintModel } from '@shared/model-tint';
 
 /**
  * The Reclaimer motion rig, game-side — drives the articulated `reclaimer-arm` GLB and parents
@@ -64,14 +65,19 @@ export function isArticulated(assetId: string): boolean {
  * the live in-world path (render/entity-views): the bucket is loaded (cached) via the same loader
  * and cloned onto the wrist socket. Those live views animate the rig per frame; these don't, so a
  * single resting `stow()` is enough here.
+ *
+ * `headTint` washes the bucket toward its own sub-part's tier finish (§3) — so a composed Reclaimer
+ * shows its head's grade independently of its arm's (an iron arm + rusty bucket reads as such).
  */
 export async function attachStaticHead(
   assetId: string,
   arm: THREE.Object3D,
   loader: ModelLoader,
+  headTint?: number,
 ): Promise<void> {
   if (!isArticulated(assetId)) return;
   const bucket = (await loader.load(BUCKET_ASSET)).clone(true);
+  if (headTint !== undefined) tintModel(bucket, headTint);
   new ReclaimerRig(arm, bucket).stow();
 }
 

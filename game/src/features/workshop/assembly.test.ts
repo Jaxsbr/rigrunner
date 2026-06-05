@@ -20,6 +20,7 @@ import {
   resolveEnergyType,
   composeProduct,
   isProduct,
+  assetTier,
 } from '@common/sim/assembly';
 import {
   benchEnergyType,
@@ -134,6 +135,46 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     expect(w.get(container, Storage)).toEqual({ amount: 0, capacity: 9 });
     // The mixed/rusty baseline is CONTAINER_CAPACITY (4), so the iron one more than doubles it.
     expect(w.get(container, Storage)!.capacity).toBeGreaterThan(CONTAINER_CAPACITY);
+  });
+});
+
+describe('assembly — assetTier picks each composed piece its own grade', () => {
+  function placeOnSlotAtTier(world: World, id: string, tier: 'rusty' | 'iron') {
+    const def = partDef(id)!;
+    const e = spawnCatalogPart(world, def, tier);
+    placeOnBench(world, def.slot, e);
+    return e;
+  }
+
+  it('washes a Reclaimer arm and bucket by their OWN sub-part tiers (the mixed-build fix)', () => {
+    const w = setup();
+    loadRecipe(w, RECLAIMER_RECIPE.id, RECLAIMER_RECIPE.slots.map((s) => s.slot));
+    placeOnSlotAtTier(w, 'reclaimer-arm', 'iron');   // arm GLB: reclaimer-arm
+    placeOnSlotAtTier(w, 'reclaimer-bucket', 'rusty'); // bucket GLB: reclaimer-bucket
+    const reclaimer = assemble(w, RECLAIMER_RECIPE)!;
+
+    // Each rendered sub-asset resolves to the tier of the sub-part whose asset it is — so the arm
+    // shows iron, the bucket rusty, rather than collapsing to one finish or none.
+    expect(assetTier(w, reclaimer, 'reclaimer-arm')).toBe('iron');
+    expect(assetTier(w, reclaimer, 'reclaimer-bucket')).toBe('rusty');
+  });
+
+  it('falls back to the uniform tier for a single-asset product (its GLB is no sub-part)', () => {
+    const w = setup();
+    loadRecipe(w, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+    placeOnSlotAtTier(w, 'container-shell', 'iron');
+    placeOnSlotAtTier(w, 'container-rim', 'iron');
+    const iron = assemble(w, STORAGE_RECIPE)!;
+    // 'storage' is not any sub-part's asset, so a uniform-iron container resolves to iron…
+    expect(assetTier(w, iron, 'storage')).toBe('iron');
+
+    const wm = setup();
+    loadRecipe(wm, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+    placeOnSlotAtTier(wm, 'container-shell', 'rusty');
+    placeOnSlotAtTier(wm, 'container-rim', 'iron');
+    const mixed = assemble(wm, STORAGE_RECIPE)!;
+    // …and a mixed-tier single-GLB container has no one grade for that lone asset.
+    expect(assetTier(wm, mixed, 'storage')).toBeNull();
   });
 });
 

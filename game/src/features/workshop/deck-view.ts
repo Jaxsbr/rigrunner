@@ -42,6 +42,8 @@ export interface DeckPart {
   footprint: { cols: number; rows: number };
   /** The tier finish to wash the model toward (§3), or omitted for the GLB's own colours. */
   tint?: number;
+  /** The tier finish for an articulated asset's socket head (the Reclaimer's bucket). */
+  headTint?: number;
 }
 
 export interface DeckSnapshot {
@@ -146,6 +148,7 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     yaw = 0,
     entity?: EntityId,
     tint?: number,
+    headTint?: number,
   ): void {
     const myToken = token;
     const group = new THREE.Group();
@@ -169,8 +172,9 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
         group.add(instance);
         // An articulated arm (the Reclaimer) gets its bucket head parented onto the wrist socket in
         // a static stow pose — mirroring the live world (render/entity-views), so a staged Reclaimer
-        // reads as the whole tool here too, not a bare headless arm. A no-op for any other asset.
-        void attachStaticHead(assetId, instance, models);
+        // reads as the whole tool here too, not a bare headless arm. A no-op for any other asset. The
+        // head wears its own sub-part's tier finish, independent of the arm's.
+        void attachStaticHead(assetId, instance, models, headTint);
       })
       .catch(() => {
         if (myToken !== token) return;
@@ -199,7 +203,7 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     addModel(snapshot.workshopAssetId, 0, 0, 0); // the deck itself, at the origin
     for (const p of snapshot.parts) {
       const c = regionCenter(p.col, p.row, p.footprint);
-      addModel(p.assetId, c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint);
+      addModel(p.assetId, c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint, p.headTint);
     }
 
     // Selected staged product → a soft blue highlight over its region (distinct from the drop

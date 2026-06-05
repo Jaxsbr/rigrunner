@@ -7,10 +7,9 @@ import { Renderable } from '@common/components/renderable';
 import { Collider } from '@common/components/collider';
 import { MountFacing } from '@common/components/mount-facing';
 import type { PartDef, EnergyType } from '@common/parts/parts-catalog';
-import { tierOf } from '@common/parts/tiers';
 import type { Recipe } from '@common/parts/recipes';
-import { defOf, resolveEnergyType, buildProduct, productTier } from '@common/sim/assembly';
-import { productAssetId } from './product-visual';
+import { defOf, resolveEnergyType, buildProduct } from '@common/sim/assembly';
+import { productAssetId, productTints } from './product-visual';
 import { getBench, benchSlots, clearBenchSlot } from './bench';
 import { addToInventory, removeFromInventory } from '@features/economy/inventory';
 
@@ -132,15 +131,16 @@ export function placeProductInWorld(world: World, product: EntityId, x: number, 
   const part = world.get(product, Part);
   if (!part) return;
   const asm = world.get(product, Assembly);
-  // A uniform-tier product wears that tier's finish in the world; a mixed-tier one has no single
-  // finish, so it shows the GLB's own colours.
-  const tier = asm ? productTier(world, asm.parts) : null;
-  const tint = tier ? tierOf(tier).finishColor : undefined;
+  // Each rendered piece wears its own sub-part's tier finish: a single-GLB product takes its uniform
+  // tier (none when mixed), a composed Reclaimer washes its arm and bucket each by their own grade.
+  const assetId = productAssetId(part.kind, asm?.recipeId ?? '', asm?.type);
+  const { tint, headTint } = productTints(world, product, assetId);
   world.add(product, Transform, { x, z, y: 0, rotationY: 0 });
   world.add(product, Renderable, {
     shape: 'model',
-    assetId: productAssetId(part.kind, asm?.recipeId ?? '', asm?.type),
+    assetId,
     ...(tint !== undefined ? { tint } : {}),
+    ...(headTint !== undefined ? { headTint } : {}),
   });
   world.add(product, Collider, { radius: 0.5 });
   if (part.kind === 'engine' || part.kind === 'reclaimer') {

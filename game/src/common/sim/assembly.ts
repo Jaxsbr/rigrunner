@@ -117,6 +117,25 @@ export function productTier(world: World, parts: readonly EntityId[]): TierId | 
 }
 
 /**
+ * The tier a specific sub-ASSET of a product should wear — so a product that renders as a composition
+ * of several GLBs shows each piece at its own sub-part's grade (an iron-arm + rusty-bucket Reclaimer
+ * reads iron arm, rusty bucket). It is the tier of the sub-part whose OWN asset is `assetId`; failing
+ * that — a single-asset product whose one GLB stands for all its parts, e.g. an engine or container
+ * with no per-sub-part assets yet — it falls back to the product's uniform tier (null when mixed, so
+ * that lone GLB shows no one grade). This generalises cleanly: as more parts gain their own assets and
+ * a product composes them, each sub-asset starts matching a sub-part and wears that part's grade.
+ */
+export function assetTier(world: World, product: EntityId, assetId: string): TierId | null {
+  const asm = world.get(product, Assembly);
+  if (!asm) return null;
+  for (const e of asm.parts) {
+    const ep = world.get(e, EnginePart);
+    if (ep && partDef(ep.id)?.assetId === assetId) return ep.tier;
+  }
+  return productTier(world, asm.parts);
+}
+
+/**
  * The single energy type shared by a set of part defs, with a mismatch flag — the generic no-hybrid
  * rule. Untyped parts (storage) are ignored, so:
  *   - no typed parts            → { type: null, mismatch: false }  (an untyped product, e.g. storage)

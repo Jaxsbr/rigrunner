@@ -70,7 +70,7 @@ export class EntityViews {
   }
 
   private createObject(r: Renderable): THREE.Object3D {
-    return r.shape === 'model' ? this.createModel(r.assetId, r.scale ?? 1, r.tint) : this.createBox(r);
+    return r.shape === 'model' ? this.createModel(r.assetId, r.scale ?? 1, r.tint, r.headTint) : this.createBox(r);
   }
 
   private createBox(r: Extract<Renderable, { shape: 'box' }>): THREE.Mesh {
@@ -87,7 +87,7 @@ export class EntityViews {
    * waits on I/O). A placeholder fills it until the GLB loads; on success the real model
    * swaps in. Origin convention: base-centre → restY 0 (the model sits on the ground).
    */
-  private createModel(assetId: string, scale = 1, tint?: number): THREE.Object3D {
+  private createModel(assetId: string, scale = 1, tint?: number, headTint?: number): THREE.Object3D {
     const group = new THREE.Group();
     group.userData['restY'] = 0;
     group.userData['wheels'] = []; // populated on load; animateWheels reads it (safe when empty)
@@ -124,7 +124,10 @@ export class EntityViews {
           void this.models
             .load(BUCKET_ASSET)
             .then((bucketTemplate) => {
-              const rig = new ReclaimerRig(instance, bucketTemplate.clone(true));
+              const bucket = bucketTemplate.clone(true);
+              // The head wears its OWN sub-part's tier finish, independent of the arm's.
+              if (headTint !== undefined) tintModel(bucket, headTint);
+              const rig = new ReclaimerRig(instance, bucket);
               rig.idle(0); // hold the resting idle pose until the first animator tick
               group.userData['reclaimer'] = rig;
             })
@@ -148,7 +151,7 @@ export class EntityViews {
  */
 function renderSig(r: Renderable): string {
   return r.shape === 'model'
-    ? `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}`
+    ? `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}:${r.headTint ?? ''}`
     : `box:${r.color}:${r.size.x},${r.size.y},${r.size.z}`;
 }
 
