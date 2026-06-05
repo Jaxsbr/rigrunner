@@ -61,9 +61,21 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.autoRotate = true;
 controls.autoRotateSpeed = 1.6;
 controls.target.set(0, 0.5, 0);
+
+// Turntable spin is OPT-IN (off by default) via the #spin checkbox. An articulated asset playing its
+// dig (asset mode, `rig` non-null) always holds still so the motion reads, regardless of the toggle.
+let spinEnabled = false;
+function updateAutoRotate(): void {
+  controls.autoRotate = spinEnabled && !rig;
+}
+const spinCb = document.querySelector<HTMLInputElement>('#spin-cb')!;
+spinCb.checked = spinEnabled;
+spinCb.addEventListener('change', () => {
+  spinEnabled = spinCb.checked;
+  updateAutoRotate();
+});
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -182,7 +194,7 @@ function clearRig(): void {
     pedestalRef = null;
   }
   animBar.hidden = true;
-  controls.autoRotate = true;
+  updateAutoRotate(); // rig is now null → spin follows the toggle again
 }
 
 function resize(): void {
@@ -322,7 +334,7 @@ async function selectAsset(assetId: string): Promise<void> {
         pedestalRef = makePedestal(lift);
         holder.add(pedestalRef);
       }
-      controls.autoRotate = false;
+      updateAutoRotate(); // rig is set → hold still so the dig reads, regardless of the toggle
       animBar.hidden = false;
       setArmState('dig');
     } else {
