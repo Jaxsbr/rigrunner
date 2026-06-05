@@ -291,3 +291,38 @@ weight penalty. **Weight is parked** — `totalRigWeight` stays as the seam the 
 electric tops faster, mechanical accelerates harder. Side effect to tune: absolute speeds rose (the
 old mobility was secretly ~halving them); per-engine catalog `power`/`torque` are the knob for final
 feel.
+
+---
+
+## 12. A flat tier *tint* reads clearly — but a built part should look like the parts it's made of
+
+**Context:** MP **Phase 1** tiers ([`part-identity-spec.md`](part-identity-spec.md)). Each part wears a
+tier finish: a loose part, and each rendered sub-asset of a composed product, is washed toward its tier's
+colour (rusty → brown, iron → grey). Tested on the Reclaimer, whose product renders as two real assets —
+the arm and the bucket on its wrist socket.
+
+**Observation:** The flat tint **works and reads well**. Rusty vs iron is obvious at a glance on chips,
+portraits, and world models, and on the Reclaimer you can see an **iron arm beside a rusty bucket** —
+the per-piece grade comes straight through. It was cheap to build and it gives the tier system a real,
+felt visual.
+
+But the tint is a **stopgap**, not the target. Where a product is **one GLB standing in for several
+parts** (the engine = `engine-mk2`, the container = `storage`), a *mixed-tier* build has no single grade,
+so that lone model just shows its default colours — you can't see that it's made of differently-graded
+pieces. The thing I actually want: a built product that **looks like the parts it's composed of** — each
+sub-part its own model, positioned and scaled inside the whole, each wearing its own tier finish, so you
+read the build's bill-of-materials straight off the model (an open engine *frame* with iron + green-metal
+internals visible through it). See the **2026-06-05** ideas session for the full target.
+
+**Why it matters:** "you can see your whole build in the visuals of the parts" is, per Jaco, a really
+important part of the game — it's the **physical-composition** pillar applied to a product, and the
+top rung of the §3 tier-visual ladder. The Reclaimer proves the direction; the engine is the same idea
+with more pieces.
+
+**Action taken:** none yet — **deliberately**. The flat tint is the accepted current rung (easy, ships
+progression). The per-sub-part composed visual is a later **art-pipeline** activity: it needs a model per
+sub-part and an authored interior layout (where each piece sits, at what scale) for every product, plus a
+direction for what a composed engine should even look like. The render seam already resolves a tier *per
+sub-asset* (`assetTier` / `productTints`), so the data path is ready when the assets + layout exist;
+until then a tinted placeholder block for a missing sub-part asset is fine. Continues observation **#3**
+(parts read as random blocks; adjacency should *connect*).
