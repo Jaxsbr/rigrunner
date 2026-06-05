@@ -5,16 +5,17 @@ came out of the 2026-06-03 brainstorm (sparked by `observations.md` #10 "the wor
 text-heavy" and `ideas.md` 2026-06-03 "Part naming & lore: rarity-as-material tiers"). It supersedes
 that raw `ideas.md` entry as the structured version.
 
-> **Status:** Phase 0 (vocabulary + naming strip) and Phase 1 (tiers as a data axis, rusty → iron)
-> are **built and merged**, and **Phase 1.5 — asset-viewer upgrade** (the verification tool — view any
-> sub-part at any tier and assemble arbitrary tier combinations to check fit) is **built**. The
-> committed next step is **Phase 2 — sub-part asset completeness** (every sub-part the
-> game has *today* gets its own 3D model, fully visible/usable in the game and the viewer). Phase 2 is
-> where the tier **tint stopgap retires**: from there on every new part — and each tier as it's added —
-> ships as a real authored asset in both the game and the viewer, never a tinted placeholder. Phase 2
-> is the **gate** for the remaining mechanic phases — we do not add the set bonus, gold, or another
-> tier (Phases 3–5) until every current part is modelled and reads as itself. The later phases stay
-> **earn-their-place gated**; numbers here are strawmen, tuned to feel.
+> **Status:** Phase 0 (vocabulary + naming strip), Phase 1 (tiers as a data axis, rusty → iron) and
+> **Phase 1.5 — asset-viewer upgrade** (the verification tool) are **built and merged**. **Phase 2a —
+> sub-part model coverage (the gate)** is now **built**: all 13 missing sub-parts (8 engine + 2 storage
+> + 3 chassis) have a real authored GLB, registered in `shared/assets.ts`, and each reads as itself in
+> the viewer (every sub-part × every tier passes `check:assets` and renders a real model) and in the
+> game's inventory inspect. **The tint stand-in is retired**: from here every new part — and each tier
+> as it's added — ships as a real authored asset in both the game and the viewer, never a tinted
+> placeholder. With 2a's gate closed, the remaining work is **Phase 2b** (compose a product from its
+> positioned, scaled sub-parts — the bigger art + per-product-layout lift) and then the **earn-their-
+> place gated** mechanic phases: set bonus, gold, more tiers (Phases 3–5). Numbers here are strawmen,
+> tuned to feel.
 
 ---
 
@@ -250,7 +251,7 @@ it fails (exit 1) listing the 13 GLBs Phase 2 must author. The per-part×tier **
 foundationed (the signature is exposed) but not yet captured: baselining 13 identical placeholders is
 pointless, so baselines get approved in Phase 2 as each real model lands.
 
-### Phase 2 — Sub-part asset completeness (the gate) · *foundational, after Phase 1.5*
+### Phase 2 — Sub-part asset completeness (the gate) · 2a ✅ built · 2b pending
 
 Every sub-part the game has **today** gets its own 3D model and is fully visible/usable in the game and
 the **asset viewer** (the verification surface built in Phase 1.5) — no catalog sub-part still rendering

@@ -28,6 +28,27 @@ export const MODEL_ASSETS: Record<string, string> = {
   // point) and its swappable unearthing-bucket head. See docs/asset-style.md "Articulated assets".
   'reclaimer-arm': '/assets/reclaimer-arm.glb',
   'reclaimer-bucket': '/assets/reclaimer-bucket.glb',
+
+  // Part-identity sub-parts (part-identity-spec.md Phase 2) — every catalog sub-part gets its own
+  // authored model, so a Core reads as a core and a Boiler as a boiler in the shop, inventory inspect,
+  // bench, and the asset viewer. Each id matches a PART_IDENTITIES.assetId in shared/part-identity.ts.
+  // ⚡ Electric engine — clean/cool cast (rig_blue + scrap_grey + glow_green).
+  'e-casing': '/assets/e-casing.glb',
+  'e-core': '/assets/e-core.glb',
+  'e-coupling': '/assets/e-coupling.glb',
+  'e-regulator': '/assets/e-regulator.glb',
+  // ♨ Steam engine — warm/industrial cast (rust + scrap_grey + dark_metal + hazard_yellow).
+  's-boiler': '/assets/s-boiler.glb',
+  's-piston': '/assets/s-piston.glb',
+  's-driveshaft': '/assets/s-driveshaft.glb',
+  's-throttle': '/assets/s-throttle.glb',
+  // 📦 Storage container — the rig_blue cargo body + its hazard_yellow rim collar.
+  'container-shell': '/assets/container-shell.glb',
+  'container-rim': '/assets/container-rim.glb',
+  // 🛞 Chassis sub-parts — shared by both sizes (1×3 + 3×5) until products compose from sub-parts.
+  'wheel-axle': '/assets/wheel-axle.glb',
+  'suspension-steering': '/assets/suspension-steering.glb',
+  'chassis-frame': '/assets/chassis-frame.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

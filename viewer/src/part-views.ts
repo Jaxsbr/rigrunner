@@ -11,9 +11,10 @@
  * `DEFAULT_VIEW`. Keyed by id — a sub-part's catalog id in the Parts tab, or a GLB's `assetId` in the
  * Assets tab (for parts whose two ids coincide, one entry covers both).
  *
- * For now only the parts that have a real model are worth tuning; every other sub-part renders as the
- * same placeholder cube, so its framing can't be judged until its model lands — set those on review as
- * each model is created.
+ * Every catalog sub-part now has a real authored model (part-identity-spec.md Phase 2), so framing is
+ * tunable for all of them. Most read well at the default fit-to-frame 3/4-from-behind view; entries are
+ * added only where a part needs help — a control face that lives on the FRONT must yaw 180° to read, and
+ * a large part (a 1 m crate, a wide casing) wants a pull-back so it isn't cropped.
  */
 export interface PartView {
   /**
@@ -40,9 +41,23 @@ export const DEFAULT_VIEW: PartView = { zoom: 1, facing: 0 };
  * (a future 3×5 chassis) nearly fills the frame.
  */
 export const PART_VIEWS: Record<string, Partial<PartView>> = {
-  // Tuned against the real models via the Playwright review workflow. The rest default until modelled.
+  // Tuned against the real models via the Playwright review workflow.
   'reclaimer-bucket': { zoom: 0.35 }, // a small scoop — read it as small, not screen-filling
   'reclaimer-arm': { zoom: 0.7 }, // a mid-size tool, a touch pulled back from full-frame
+
+  // ⚡ Electric engine — the Casing and Regulator carry their identity on the FRONT face (panel +
+  // status light; dial + indicator lights), so yaw them to camera; both are wide enough to want a
+  // pull-back. The Core/Coupling read from the default angle.
+  'e-casing': { facing: 180, zoom: 0.7 },
+  'e-regulator': { facing: 180, zoom: 0.75 },
+  'e-coupling': { zoom: 0.82 },
+  // ♨ Steam engine — the Boiler is a chunky 0.8 m tank; pull back so the whole capsule reads. The
+  // Piston/Driveshaft/Throttle already fill the frame well.
+  's-boiler': { zoom: 0.85 },
+  // 📦 Storage — the Shell is a full 1 m crate, so pull well back to see the open hold; the Rim is
+  // a touch wide.
+  'container-shell': { zoom: 0.6 },
+  'container-rim': { zoom: 0.88 },
 };
 
 /** The view settings for an id — the per-id override merged over the defaults. */
