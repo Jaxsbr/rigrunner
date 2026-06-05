@@ -19,17 +19,18 @@ import rr_style as rr
 
 def build():
     parts = [
-        # Coil-spring damper — a scrap_grey shaft wrapped with rust coil rings, standing vertically.
-        rr.beveled_cylinder("damper", 0.06, 0.34, "scrap_grey", location=(0.0, 0.0, 0.23), verts=10),
+        # Coil-spring damper — a scrap_grey shaft wrapped with rust coil rings, standing tall enough to
+        # bridge the wheel up to the frame underside (~0.46) so it reads as connected running gear.
+        rr.beveled_cylinder("damper", 0.07, 0.46, "scrap_grey", location=(0.0, 0.0, 0.25), verts=10),
     ]
-    for i, z in enumerate((0.12, 0.20, 0.28, 0.36)):
-        parts.append(rr.beveled_cylinder(f"coil_{i}", 0.10, 0.035, "rust", location=(0.0, 0.0, z), verts=12))
+    for i, z in enumerate((0.12, 0.21, 0.30, 0.39, 0.46)):
+        parts.append(rr.beveled_cylinder(f"coil_{i}", 0.12, 0.04, "rust", location=(0.0, 0.0, z), verts=12))
     # Wheel-hub upright — a dark block at the base where the wheel mounts.
-    parts.append(rr.beveled_box("hub", (0.12, 0.14, 0.20), "dark_metal", (0.0, 0.0, 0.10)))
+    parts.append(rr.beveled_box("hub", (0.14, 0.16, 0.22), "dark_metal", (0.0, 0.0, 0.11)))
     # A-arm link — angling out + down from the damper toward the wheel hub.
-    arm = rr.beveled_box("arm", (0.30, 0.06, 0.06), "dark_metal", (0.0, 0.0, 0.18))
+    arm = rr.beveled_box("arm", (0.34, 0.07, 0.07), "dark_metal", (0.0, 0.0, 0.20))
     arm.rotation_euler = (0.0, math.radians(35), 0.0)
     parts.append(arm)
     # Steering tie-rod stub — the hazard_yellow cue on the FRONT (+Y) face.
-    parts.append(rr.beveled_box("tie_rod", (0.20, 0.05, 0.05), "hazard_yellow", (0.0, 0.14, 0.27)))
+    parts.append(rr.beveled_box("tie_rod", (0.22, 0.05, 0.05), "hazard_yellow", (0.0, 0.16, 0.30)))
     return rr.join(parts, "suspension-steering")

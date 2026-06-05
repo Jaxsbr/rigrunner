@@ -8,6 +8,10 @@ frame_common.build_frame, which owns the shared frame construction + the corner-
 
 from assets.frame_common import build_frame
 
+# The frame floats with ground clearance, so it's exported as-authored — no base-centre re-origin (which
+# would drop it to the floor). See frame_common's docstring.
+ARTICULATED = True
+
 
 def build():
     return build_frame(width=1.0, length=3.0, cols=1, rows=3, axle_ys=(-1.0, 0.0, 1.0))
