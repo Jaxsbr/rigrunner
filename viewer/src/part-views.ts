@@ -58,11 +58,15 @@ export const PART_VIEWS: Record<string, Partial<PartView>> = {
   // a touch wide.
   'container-shell': { zoom: 0.6 },
   'container-rim': { zoom: 0.88 },
+  // 🛞 Chassis Frames — each is a full mounting deck (1×3 / 3×5 m), so pull well back to see the whole
+  // deck + its corner stations; the 3×5 hauler is much larger.
+  'frame-1x3': { zoom: 0.5 },
+  'frame-3x5': { zoom: 0.32 },
 
   // Composed PRODUCTS (the Parts-tab product headers) — keyed by the product-group id. The engines yaw
   // their front to camera so the open frame's internals + status read; both are chunky open frames, so
-  // pull back. Storage shows the shell+rim head-on. The chassis renders as its whole functional GLB —
-  // the 3×5 hauler is large, so pull well back.
+  // pull back. Storage shows the shell+rim head-on. The chassis composes its Frame deck + per-corner
+  // wheels + suspension — the 3×5 hauler is large, so pull well back.
   'electric-engine': { facing: 180, zoom: 0.55 },
   'steam-engine': { facing: 180, zoom: 0.5 },
   storage: { zoom: 0.6 },

@@ -10,13 +10,9 @@
  * `blender-asset` skill does both steps for you.
  */
 export const MODEL_ASSETS: Record<string, string> = {
-  // The player's rig foundation, in two chassis sizes (the 1×3 scout is the starter; the 3×5 is the
-  // hauler). Both keep unjoined `wheel_*` nodes the render layer spins, and a deck top of 0.66 that
-  // matches each chassis recipe's MountGrid.deckY so mounted parts sit on the visible deck.
-  'chassis-1x3': '/assets/chassis-1x3.glb',
-  'chassis-3x5': '/assets/chassis-3x5.glb',
   // The packed 2×2 chassis-kit — how a built-but-not-yet-deployed chassis shows on the workshop deck
-  // and while it's carried; `chassisToRig` swaps it for the unfolded chassis GLB once it's hauled out.
+  // and while it's carried; `chassisToRig` composes the deployed rig from the chassis sub-parts (the
+  // per-size Frame + instanced Wheel/Suspension units) once it's hauled out.
   'chassis-kit': '/assets/chassis-kit.glb',
   'scrap-pile': '/assets/scrap-pile.glb',
   'loose-scrap': '/assets/loose-scrap.glb',
@@ -45,10 +41,13 @@ export const MODEL_ASSETS: Record<string, string> = {
   // 📦 Storage container — the rig_blue cargo body + its hazard_yellow rim collar.
   'container-shell': '/assets/container-shell.glb',
   'container-rim': '/assets/container-rim.glb',
-  // 🛞 Chassis sub-parts — shared by both sizes (1×3 + 3×5) until products compose from sub-parts.
+  // 🛞 Chassis sub-parts. The Frame splits per size — each is the host: a full mounting deck carrying the
+  // `socket_axle_<i>`/`socket_susp_<i>` corner stations. The Wheel + Suspension are one shared unit each,
+  // instanced at every station, so one model fits both the 1 m and 3 m tracks (the frame owns the spacing).
+  'frame-1x3': '/assets/frame-1x3.glb',
+  'frame-3x5': '/assets/frame-3x5.glb',
   'wheel-axle': '/assets/wheel-axle.glb',
   'suspension-steering': '/assets/suspension-steering.glb',
-  'chassis-frame': '/assets/chassis-frame.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

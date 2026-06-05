@@ -88,7 +88,8 @@ describe('spawnRig', () => {
     // Drive/world components bolted on to make it drivable.
     expect(w.get(rig, Drivetrain)).toBeDefined();
     expect(w.get(rig, DriveControl)).toBeDefined();
-    expect(w.get(rig, Renderable)).toMatchObject({ shape: 'model', assetId: 'chassis-1x3' });
+    // A deployed rig composes from its sub-parts (frame deck + instanced wheels/suspension), not one GLB.
+    expect(w.get(rig, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'chassis-1x3' });
     expect(w.get(rig, Part)!.footprint).toBeUndefined(); // a rig is not a 2×2 kit
   });
 
@@ -97,7 +98,7 @@ describe('spawnRig', () => {
     const rig = spawnRig(w, 0, 0, '3x5');
     expect(w.get(rig, Chassis)!.engineMax).toBe(6);
     expect(w.get(rig, MountGrid)).toMatchObject({ cols: 3, rows: 5 });
-    expect(w.get(rig, Renderable)).toMatchObject({ shape: 'model', assetId: 'chassis-3x5' });
+    expect(w.get(rig, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'chassis-3x5' });
   });
 });
 
@@ -143,7 +144,7 @@ describe('chassisToRig', () => {
     expect(w.get(chassis, DriveControl)).toBeDefined();
     expect(w.get(chassis, Velocity)).toBeDefined();
     expect(w.get(chassis, Collider)).toMatchObject({ radius: 1.0 });
-    expect(w.get(chassis, Renderable)).toMatchObject({ shape: 'model', assetId: 'chassis-1x3' });
+    expect(w.get(chassis, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'chassis-1x3' });
     expect(w.has(chassis, Mount)).toBe(false); // no longer staged
     expect(w.get(chassis, Part)!.footprint).toBeUndefined(); // a rig is never mounted on a grid
     // The chassis spec + deck survive — deploying is a transform, not a rebuild.
@@ -156,7 +157,7 @@ describe('chassisToRig', () => {
     const chassis = composeProduct(w, chassisRecipeForSize('3x5'), chassisParts('3x5'));
     chassisToRig(w, chassis, 0, 0);
     expect(w.get(chassis, Collider)).toMatchObject({ radius: 1.9 });
-    expect(w.get(chassis, Renderable)).toMatchObject({ shape: 'model', assetId: 'chassis-3x5' });
+    expect(w.get(chassis, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'chassis-3x5' });
   });
 });
 
@@ -167,7 +168,12 @@ describe('deployChassis', () => {
 
     expect(deployChassis(w, kit, 4, 5)).toBe(true);
     expect(w.get(kit, DriveControl)).toBeDefined(); // it's a drivable rig now
-    expect(w.get(kit, Renderable)).toMatchObject({ assetId: 'chassis-1x3' });
+    // The deployed rig composes from its sub-parts, each carrying its own tier (here all base/rusty).
+    expect(w.get(kit, Renderable)).toMatchObject({
+      shape: 'assembly',
+      groupId: 'chassis-1x3',
+      tiers: { 'frame-1x3': 'rusty', 'wheel-axle-1x3': 'rusty', 'suspension-steering-1x3': 'rusty' },
+    });
     expect(ownedChassis(w)).toContain(kit); // registered as owned
     expect(getActiveRig(w)).toBeNull(); // deploying does NOT move control to the new chassis
     expect(w.get(kit, Deploying)).toMatchObject({ since: 0 }); // marked for the unfold animation

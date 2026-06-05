@@ -12,13 +12,15 @@ that raw `ideas.md` entry as the structured version.
 > the viewer (every sub-part × every tier passes `check:assets` and renders a real model) and in the
 > game's inventory inspect. **The tint stand-in is retired**: from here every new part — and each tier
 > as it's added — ships as a real authored asset in both the game and the viewer, never a tinted
-> placeholder. **Phase 2b — composition via assembly sockets** is now **built** for the engine + storage
-> (and the Reclaimer, which already composed): a host GLB carries `socket_<slot>` empties and one shared
-> assembler (`shared/assembler.ts`, §2b) snaps the sub-parts on — each at its own tier — used by the game
-> AND the viewer, so a build reads identically in both. The **chassis** renders as its functional whole
-> GLB in both apps for now (parity preserved); composing it from sub-parts is a deck-aware follow-up
-> (§2b). With 2b's engine/storage composition landed, the remaining work is the **earn-their-place gated**
-> mechanic phases: set bonus, gold, more tiers (Phases 3–5). Numbers here are strawmen, tuned to feel.
+> placeholder. **Phase 2b — composition via assembly sockets** is now **built for every product**: a host
+> GLB carries `socket_<slot>` empties and one shared assembler (`shared/assembler.ts`, §2b) snaps the
+> sub-parts on — each at its own tier — used by the game AND the viewer, so a build reads identically in
+> both. Engine + storage compose onto their open-frame hosts; the **chassis** composes too — its per-size
+> **Frame** is the host (a full mounting deck), instancing one shared **Wheel** + **Suspension** unit at
+> every corner station, so the deployed driving rig is rebuilt from its sub-parts (its deck, spinnable
+> wheels and deploy unfold all re-derived from the composed structure) and reads as a graded mix. With 2b
+> fully landed, the remaining work is the **earn-their-place gated** mechanic phases: set bonus, gold, more
+> tiers (Phases 3–5). Numbers here are strawmen, tuned to feel.
 
 ---
 
@@ -254,7 +256,7 @@ it fails (exit 1) listing the 13 GLBs Phase 2 must author. The per-part×tier **
 foundationed (the signature is exposed) but not yet captured: baselining 13 identical placeholders is
 pointless, so baselines get approved in Phase 2 as each real model lands.
 
-### Phase 2 — Sub-part asset completeness (the gate) · 2a ✅ built · 2b ✅ built (engine + storage; chassis deferred)
+### Phase 2 — Sub-part asset completeness (the gate) · 2a ✅ built · 2b ✅ built (engine + storage + chassis)
 
 Every sub-part the game has **today** gets its own 3D model and is fully visible/usable in the game and
 the **asset viewer** (the verification surface built in Phase 1.5) — no catalog sub-part still rendering
@@ -288,12 +290,12 @@ item so future part work cannot ship a placeholder and call it done.
 | ♨ Steam engine | Boiler `s-boiler` · Piston `s-piston` · Driveshaft `s-driveshaft` · Throttle `s-throttle` | one per id | ✅ ×4 |
 | 📦 Storage container | Shell `container-shell` · Rim `container-rim` | `container-shell` / `container-rim` | ✅ ×2 |
 | 🦾 Reclaimer | Arm `reclaimer-arm` · Bucket `reclaimer-bucket` | `reclaimer-arm` / `reclaimer-bucket` | ✅ ×2 |
-| 🛞 Chassis 1×3 | Wheel & Axle `wheel-axle-1x3` · Suspension & Steering `suspension-steering-1x3` · Frame `frame-1x3` | `wheel-axle` / `suspension-steering` / `chassis-frame` | ✅ ×3 |
-| 🛞 Chassis 3×5 | Wheel & Axle `wheel-axle-3x5` · Suspension & Steering `suspension-steering-3x5` · Frame `frame-3x5` | *(shares the 1×3 ids above)* | ✅ shared |
+| 🛞 Chassis 1×3 | Wheel `wheel-axle-1x3` · Suspension `suspension-steering-1x3` · Frame `frame-1x3` | `wheel-axle` / `suspension-steering` / `frame-1x3` | ✅ ×3 |
+| 🛞 Chassis 3×5 | Wheel `wheel-axle-3x5` · Suspension `suspension-steering-3x5` · Frame `frame-3x5` | `wheel-axle` / `suspension-steering` / `frame-3x5` | ✅ ×3 |
 
-(Both chassis sizes currently point their sub-parts at the **same three** asset ids — `wheel-axle`,
-`suspension-steering`, `chassis-frame`. 2b splits the **frame** per size and keeps the axle + suspension
-shared and instanced — see the 2b design below.)
+(The **Frame** splits per size — `frame-1x3` / `frame-3x5` are distinct GLBs, each a full mounting deck
+carrying its own corner stations — while the **Wheel** + **Suspension** stay one shared unit each,
+instanced at every station, so one model fits both the 1 m and 3 m tracks. See the 2b design below.)
 
 **Two halves — model coverage first, then composition:**
 - **2a — Model every sub-part (the firm gate).** Author a GLB for each of the 13 via the
@@ -312,11 +314,11 @@ shared and instanced — see the 2b design below.)
   sub-part.** ✓ met.
 - **Done when (2b):** in the viewer **and** in-game, each product renders through the shared assembler as
   its positioned, tier-finished sub-parts — engine = open frame holding its internals, storage = shell +
-  rim — and a mixed-tier build reads as a mix. ✓ met for the **engine + storage** (world, workshop deck +
-  inspect portrait, and the viewer; the Reclaimer already composed). The **chassis** (frame + axle +
-  suspension) is **deferred** — see "What shipped vs deferred" below.
+  rim, chassis = per-size Frame deck holding wheels + suspension at every corner — and a mixed-tier build
+  reads as a mix. ✓ met for the **engine + storage + chassis** (world, workshop deck + inspect portrait,
+  and the viewer; the Reclaimer already composed). See "What shipped (2b)" below.
 
-##### What shipped vs deferred (2b, decided 2026-06-05)
+##### What shipped (2b)
 
 The driving requirement was **viewer↔game parity when composing** — what the viewer shows for a composed
 product must be what the game shows. One shared assembler (`shared/assembler.ts`) used by both apps gives
@@ -329,19 +331,21 @@ that by construction.
   resolves a product to compose-or-single-GLB in one place so every surface agrees.
 - **Reclaimer** already composed (bucket on the arm's `socket_wrist`) and keeps its `ReclaimerRig` (it
   also animates) — the same socket convention, a richer driver.
-- **Chassis is deferred.** Its in-game GLB is a *functional rig*: it carries the mounting deck + grid
-  (`deckY`, cell lips aligned to `mounting.ts`), spinnable `wheel_*` nodes, the kit↔rig swap, and the
-  deploy unfold — none of which the chassis *sub-part* models have. Composing it from sub-parts means
-  rebuilding the per-size frame into that functional deck and re-deriving wheel-spin + deploy from
-  instanced parts, plus a per-size track-width problem (one shared axle can't fit both a 1 m and a 3 m
-  deck) — a risky refactor of a working mechanic that the parity goal does **not** require for
-  engine/storage. So the chassis renders as its functional whole GLB in **both** apps (parity held),
-  **wearing its Frame sub-part's grade** (`chassisTier`) so it always reads as a graded chassis — the
-  starting rusty rig wears the rust finish, never the untinted blue GLB, even when its sub-parts are
-  mixed (only the Frame's grade shows until composition lands). The frame split + station sockets +
-  instanced axle/suspension are a focused follow-up; the assembly-socket convention (incl. the
-  `socket_axle_<i>`/`socket_susp_<i>` instanced family) is documented and the assembler already supports
-  instancing, so the follow-up is additive.
+- **Chassis composes, both apps (shipped 2026-06-06).** Its in-game GLB was a *functional rig* — the
+  mounting deck + grid (`deckY`, cell lips aligned to `mounting.ts`), spinnable `wheel_*` nodes, the kit↔rig
+  swap, and the deploy unfold — so composing it meant rebuilding that working rig from sub-parts. Decided
+  as one PR doing exactly that. The **Frame** became the per-size host: `frame-1x3` / `frame-3x5` are
+  distinct GLBs, each a full mounting deck carrying `socket_axle_<i>` + `socket_susp_<i>` corner stations
+  (rig-body + sockets are siblings, so the deploy's deck un-squash never moves the wheels). The
+  track-width fork was resolved by making the **Wheel** one single hub-origin unit, instanced at every
+  corner station — the Frame owns the spacing, so one model fits both the 1 m scout and 3 m hauler
+  tracks; **Suspension** is likewise one corner unit, instanced. The deployed rig composes at the deploy
+  seam (`chassisToRig` → a `shape: 'assembly'` Renderable); a *staged* chassis still shows the packed
+  `chassis-kit` crate (it only composes once hauled out). Wheel-spin + the deploy unfold were re-derived
+  from the composed structure (the wheels are collected from the assembled group; deploy splays the
+  corner sockets, spins the instanced wheels, and un-squashes the `rig-body` deck). The old whole-rig
+  GLBs (`chassis-1x3` / `chassis-3x5` / `chassis-frame`) are retired. Each sub-part still wears its own
+  grade, so a mixed-tier chassis now reads as a mix in the world, not just a flat Frame tint.
 
 #### 2b design — composition via assembly sockets (decided 2026-06-05)
 
@@ -374,24 +378,25 @@ construction* because the part that owns the geometry also places the socket.
   snaps each child (instancing across the `_<i>` families), returning the composed group. It generalizes
   the viewer's `ReclaimerRig` / the game's `attachStaticHead`.
 - **Viewer:** the Parts-tab product view renders through the assembler — the real assembled whole, not a
-  provisional row. **Game:** the whole-product GLBs for the **engine** (`engine-mk1/2`) and **storage**
-  (`storage`) are replaced by the assembler output, so an in-game engine/container reads as its located
-  sub-parts at their own tiers (the chassis keeps its functional GLB — see the deferral above). *(Built as:
-  a `Renderable` `assembly` variant; `productRenderSpec` is the one place a product resolves to
-  compose-or-single-GLB, shared by the world entity, the workshop deck + inspect portrait.)*
+  provisional row. **Game:** the whole-product GLBs for the **engine** (`engine-mk1/2`), **storage**
+  (`storage`) and the **chassis** (`chassis-1x3`/`-3x5`, retired) are replaced by the assembler output, so
+  an in-game engine/container/rig reads as its located sub-parts at their own tiers. *(Built as: a
+  `Renderable` `assembly` variant; `productRenderSpec` is the one place a product resolves to
+  compose-or-single-GLB, shared by the world entity, the workshop deck + inspect portrait — and the
+  chassis composes at its own deploy seam, `chassisToRig`, since a staged chassis stays the kit crate.)*
 - **No manipulator needed.** Sockets are placed **procedurally by the generators**, so the chassis needs
   zero hand-placement and engine/storage need only a few socket offsets eyeballed in the viewer. A full
   transform-gizmo manipulator is **out of scope**; if hand-tuning engine internals proves painful, a
   *light* "nudge + read-out the transform" mode is the fallback, not a gizmo.
 
-**New asset work 2b introduces (built):** sockets added to the Casing/Boiler/Shell generators (the Casing
-+ Boiler reworked into open frames that hold their internals). The **chassis frame split** (`chassis-frame`
-→ `frame-1x3` / `frame-3x5` with station sockets) + instanced axle/suspension are the **deferred follow-up**
-above — wheel-axle and suspension are unchanged when it lands.
+**New asset work 2b introduced (built):** sockets added to the Casing/Boiler/Shell generators (the Casing
++ Boiler reworked into open frames that hold their internals); and the **chassis frame split**
+(`chassis-frame` → `frame-1x3` / `frame-3x5`, each a full mounting deck with `socket_axle_<i>` +
+`socket_susp_<i>` corner stations) with the **Wheel** re-authored as one hub-origin unit and the
+**Suspension** as one corner unit, both instanced per station.
 
 **Still open (art tuning, not blocking):** the exact internal placement + per-slot scale inside each
-engine frame, and how many axle stations each chassis size carries — both settled by eye in the viewer as
-2b is built.
+engine frame, and the per-corner placement of the chassis wheels/suspension — settled by eye in the viewer.
 
 ### Phase 3 — Matched-set bonus + steep-curve tuning
 - Uniform-tier detection → set-bonus multiplier in `buildProduct` (§4b).

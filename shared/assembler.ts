@@ -19,10 +19,11 @@ import {
  * function, a build reads identically in the viewer and in the world (the parity the descriptor in
  * `shared/part-identity.ts` exists to guarantee).
  *
- * It generalises the Reclaimer's `socket_wrist` head-attach to every product. The Reclaimer itself keeps
- * its own `ReclaimerRig` (it also animates), and the chassis renders as its whole functional GLB for now
- * — both are intentionally NOT in `PRODUCT_COMPOSITION`, so `assembleProduct` returns null for them and
- * the caller falls back to a single GLB.
+ * It generalises the Reclaimer's `socket_wrist` head-attach to every product, including the chassis (its
+ * per-size Frame hosts a single Wheel + Suspension unit instanced across the numbered `socket_axle_<i>` /
+ * `socket_susp_<i>` corner stations). The Reclaimer itself is the one product intentionally NOT in
+ * `PRODUCT_COMPOSITION` — it also animates, so it keeps its specialised `ReclaimerRig` driver and
+ * `assembleProduct` returns null for it, letting the caller fall back to its arm GLB.
  */
 
 /** One sub-part in a composed product — what it is, the grade it wears, and whether a real GLB loaded. */
@@ -143,7 +144,7 @@ export async function attachSubParts(
 /**
  * Compose a whole product from its sub-parts: load the host, wash it to its tier, snap on every child.
  * Returns the composed group + an item per rendered piece — or `null` when the group has no composition
- * descriptor (the Reclaimer and chassis), so the caller can fall back to a single whole-product GLB.
+ * descriptor (the Reclaimer), so the caller can fall back to a single whole-product GLB.
  *
  * `tiers` maps each sub-part id to its grade; an absent sub-part defaults to the base tier.
  */

@@ -2,11 +2,10 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Part, type PartKind } from '@common/components/part';
 import { Assembly } from '@common/components/assembly';
-import { EnginePart } from '@common/parts/engine-part';
 import type { EnergyType } from '@common/parts/parts-catalog';
 import { tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { partIdentity, productComposition } from '@shared/part-identity';
-import { assetTier, chassisTier } from '@common/sim/assembly';
+import { assetTier, chassisTier, productSubPartTiers } from '@common/sim/assembly';
 import { isArticulated, BUCKET_ASSET } from '@common/render/articulation';
 
 /**
@@ -18,10 +17,10 @@ import { isArticulated, BUCKET_ASSET } from '@common/render/articulation';
  *
  * The Reclaimer renders its articulated ARM GLB (the render layer parents the bucket head onto its wrist
  * socket — see render/articulation.ts). A chassis product is the packed `chassis-kit` crate — how a built
- * chassis shows in inventory, on the workshop deck, and while carried; `chassisToRig` swaps in the
- * unfolded `chassis-1x3`/`-3x5` GLB the moment the kit is hauled out and becomes a rig. An engine/storage
- * id reaching here (only via the fallback) resolves to the legacy whole-product GLB by energy type / recipe
- * id; unregistered ids fall back to a tinted placeholder downstream.
+ * chassis shows in inventory, on the workshop deck, and while carried; once hauled out it COMPOSES into a
+ * drivable rig from its sub-parts (`chassisToRig` emits a `shape: 'assembly'` Renderable). An
+ * engine/storage id reaching here (only via the fallback) resolves to the legacy whole-product GLB by
+ * energy type / recipe id; unregistered ids fall back to a tinted placeholder downstream.
  */
 const ENGINE_PREVIEW_ASSET: Record<EnergyType, string> = {
   electric: 'engine-mk2',
@@ -62,26 +61,11 @@ export function productTints(world: World, product: EntityId, assetId: string): 
 }
 
 /**
- * The tier each sub-part of a product wears, keyed by its sub-part (catalog) id — the input the shared
- * assembler composes from (`@shared/assembler`). Empty for a product with no `Assembly` (a directly-
- * spawned one supplies its own defaults).
- */
-export function productSubPartTiers(world: World, product: EntityId): Record<string, TierId> {
-  const asm = world.get(product, Assembly);
-  const tiers: Record<string, TierId> = {};
-  if (!asm) return tiers;
-  for (const e of asm.parts) {
-    const ep = world.get(e, EnginePart);
-    if (ep) tiers[ep.id] = ep.tier;
-  }
-  return tiers;
-}
-
-/**
  * How a product is drawn, resolved in ONE place so every surface agrees: the world entity, the workshop
  * deck preview, and the inspect portrait. A product either COMPOSES through the shared assembler — engine
  * and storage, the SAME path the viewer renders by, so a build reads identically in both (§2b) — or it
- * draws as a single whole-product GLB (the chassis's functional rig, the Reclaimer's articulated arm).
+ * draws as a single whole-product GLB (a staged chassis's packed kit crate, the Reclaimer's articulated
+ * arm). The chassis composes too, but only once DEPLOYED (`chassisToRig`), not while staged here.
  *
  * For a composed product `assetId` is the HOST GLB (the piece a single-GLB surface loads and then
  * composes the rest onto) and `tint` is the host sub-part's grade; `groupId` + `tiers` drive the
@@ -94,8 +78,13 @@ export type ProductRenderSpec =
 
 export function productRenderSpec(world: World, product: EntityId): ProductRenderSpec {
   const asm = world.get(product, Assembly);
+  const kind = world.get(product, Part)?.kind ?? 'engine';
   const comp = asm ? productComposition(asm.recipeId) : undefined;
-  if (asm && comp) {
+  // The chassis is the one composing product that does NOT take this generic path: a built chassis stages
+  // (and is carried/inspected) as the packed KIT crate, and only composes when it's hauled out and
+  // deployed (that seam is `chassisToRig`, which emits the `assembly` Renderable). So it falls through to
+  // the kit-crate branch below despite having a composition descriptor.
+  if (asm && comp && kind !== 'chassis') {
     const tiers = productSubPartTiers(world, product);
     const hostTier = tiers[comp.host] ?? DEFAULT_TIER;
     return {
@@ -106,10 +95,9 @@ export function productRenderSpec(world: World, product: EntityId): ProductRende
       tint: tierOf(hostTier).finishColor,
     };
   }
-  const kind = world.get(product, Part)?.kind ?? 'engine';
   const assetId = productAssetId(kind, asm?.recipeId ?? '', asm?.type);
-  // A chassis is one whole GLB (composition deferred) — it wears its Frame's grade, so it always reads as
-  // a graded chassis (never the untinted blue GLB), even with mixed sub-part tiers.
+  // A staged chassis is the packed kit crate — one whole GLB wearing its Frame's grade, so it always reads
+  // as a graded chassis (never the untinted crate), even with mixed sub-part tiers.
   if (kind === 'chassis') {
     const ct = chassisTier(world, product);
     return { compose: false, assetId, ...(ct ? { tint: tierOf(ct).finishColor } : {}) };

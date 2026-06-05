@@ -126,15 +126,18 @@ export const PART_IDENTITIES: readonly PartIdentity[] = [
   { id: 'reclaimer-arm', slot: 'arm', category: 'reclaimer', displayName: 'Arm', assetId: 'reclaimer-arm' },
   { id: 'reclaimer-bucket', slot: 'head', category: 'reclaimer', displayName: 'Bucket', assetId: 'reclaimer-bucket' },
 
-  // 🛞 Chassis 1×3 — the light scout foundation.
+  // 🛞 Chassis 1×3 — the light scout foundation. The Frame is the host: it carries the mounting deck +
+  // the per-corner sockets the shared Wheel and Suspension units instance onto (so it splits per size,
+  // while wheel-axle + suspension stay one shared unit each — `docs/part-identity-spec.md` §2b).
   { id: 'wheel-axle-1x3', slot: 'wheel-axle', category: 'chassis', chassisSize: '1x3', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle' },
   { id: 'suspension-steering-1x3', slot: 'suspension-steering', category: 'chassis', chassisSize: '1x3', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering' },
-  { id: 'frame-1x3', slot: 'frame', category: 'chassis', chassisSize: '1x3', displayName: 'Chassis Frame', assetId: 'chassis-frame' },
+  { id: 'frame-1x3', slot: 'frame', category: 'chassis', chassisSize: '1x3', displayName: 'Chassis Frame', assetId: 'frame-1x3' },
 
-  // 🛞 Chassis 3×5 — the heavy hauler foundation (shares the 1×3 sub-part asset ids).
+  // 🛞 Chassis 3×5 — the heavy hauler foundation. Its own per-size Frame (more cells, a wider track),
+  // instancing the SAME shared Wheel + Suspension units at its own station sockets.
   { id: 'wheel-axle-3x5', slot: 'wheel-axle', category: 'chassis', chassisSize: '3x5', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle' },
   { id: 'suspension-steering-3x5', slot: 'suspension-steering', category: 'chassis', chassisSize: '3x5', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering' },
-  { id: 'frame-3x5', slot: 'frame', category: 'chassis', chassisSize: '3x5', displayName: 'Chassis Frame', assetId: 'chassis-frame' },
+  { id: 'frame-3x5', slot: 'frame', category: 'chassis', chassisSize: '3x5', displayName: 'Chassis Frame', assetId: 'frame-3x5' },
 ];
 
 /** Resolve a sub-part id to its identity record, or `undefined` if the id isn't known. */
@@ -197,14 +200,16 @@ export interface ProductComposition {
 }
 
 /**
- * The products that render as composed sub-parts through the shared assembler. Two product families are
- * deliberately ABSENT:
- *  - **Reclaimer** composes too (its bucket rides the arm's `socket_wrist`), but it also ANIMATES, so it
- *    keeps its specialised driver (`ReclaimerRig` in each app) rather than the static assembler — the
- *    same socket convention, a richer driver.
- *  - **Chassis** is a functional rig in-game (its GLB carries the mounting deck/grid, spinnable `wheel_*`
- *    nodes and the deploy unfold the chassis sub-part models don't have), so it renders as its whole GLB
- *    in both apps for now; composing it from sub-parts is a separate, deck-aware step.
+ * The products that render as composed sub-parts through the shared assembler. The **Reclaimer** is the
+ * one product deliberately ABSENT: its bucket rides the arm's `socket_wrist` exactly like a host socket,
+ * but it also ANIMATES, so it keeps its specialised driver (`ReclaimerRig` in each app) rather than the
+ * static assembler — the same socket convention, a richer driver.
+ *
+ * The **chassis** composes here too: its per-size Frame is the host, instancing one shared Wheel unit at
+ * every `socket_axle_<i>` and one Suspension unit at every `socket_susp_<i>` the frame exposes (the
+ * instanced-stations case the §2b "family socket" convention is built for). In-game the deployed rig's
+ * deck, spinnable wheels and deploy unfold are derived from this composed structure (`chassisToRig`), and
+ * the viewer renders the same composition — so a chassis reads identically in both apps.
  */
 export const PRODUCT_COMPOSITION: Readonly<Record<string, ProductComposition>> = {
   'electric-engine': {
@@ -219,10 +224,21 @@ export const PRODUCT_COMPOSITION: Readonly<Record<string, ProductComposition>> =
     host: 'container-shell',
     children: { 'container-rim': 'socket_rim' },
   },
+  // Chassis — the per-size Frame hosts; the single Wheel + Suspension units instance across the frame's
+  // numbered `socket_axle_<i>` / `socket_susp_<i>` corner stations (one logical part each, placed once per
+  // corner). The frame owns the corner positions, so each size gets its own track width by construction.
+  'chassis-1x3': {
+    host: 'frame-1x3',
+    children: { 'wheel-axle-1x3': 'socket_axle', 'suspension-steering-1x3': 'socket_susp' },
+  },
+  'chassis-3x5': {
+    host: 'frame-3x5',
+    children: { 'wheel-axle-3x5': 'socket_axle', 'suspension-steering-3x5': 'socket_susp' },
+  },
 };
 
 /** The composition descriptor for a product group, or `undefined` when it doesn't compose via the
- *  assembler (the Reclaimer and chassis — see `PRODUCT_COMPOSITION`). */
+ *  assembler (the Reclaimer — see `PRODUCT_COMPOSITION`). */
 export function productComposition(groupId: string): ProductComposition | undefined {
   return PRODUCT_COMPOSITION[groupId];
 }

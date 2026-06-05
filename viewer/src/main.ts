@@ -13,7 +13,6 @@ import {
   partIdentity,
   PRODUCT_GROUPS,
   productGroup,
-  productComposition,
   type ProductGroup,
 } from '../../shared/part-identity';
 import { assembleProduct } from '../../shared/assembler';
@@ -424,10 +423,11 @@ async function selectProduct(groupId: string, tiers: Map<string, TierId>): Promi
       { assetId: 'reclaimer-arm', tier: armTier, isRealModel: arm.isRealModel, tris: arm.tris },
       { assetId: 'reclaimer-bucket', tier: headTier, isRealModel: head.isRealModel, tris: head.tris },
     ];
-  } else if (productComposition(groupId)) {
-    // Engine + storage compose through the SHARED assembler — the SAME path the game renders them by, so
-    // a build reads identically in the viewer and in the world. The host carries the sockets; each
-    // sub-part snaps on at its own tier.
+  } else {
+    // Every other product composes through the SHARED assembler — the SAME path the game renders them by,
+    // so a build reads identically in the viewer and in the world. The host carries the sockets; each
+    // sub-part snaps on at its own tier — and for the chassis the single Wheel + Suspension units instance
+    // across the per-size Frame's corner stations, so the deployed rig reads as its located, graded parts.
     const tierMap = Object.fromEntries(members.map((m) => [m.id, tiers.get(m.id) ?? DEFAULT_TIER]));
     const assembled = await assembleProduct(groupId, tierMap, models);
     if (t !== token || !assembled) return;
@@ -440,20 +440,6 @@ async function selectProduct(groupId: string, tiers: Map<string, TierId>): Promi
       isRealModel: it.isRealModel,
       tris: it.tris,
     }));
-  } else {
-    // The chassis renders as its whole functional GLB (the deployed chassis: its mounting deck/grid,
-    // spinnable wheels and deploy unfold live in that one model), matching the game — sub-part
-    // composition is the deck-aware follow-up. It wears its FRAME's grade (the structural host), the same
-    // rule the game uses (`chassisTier`): so it always reads as a graded chassis — never reverting to the
-    // untinted blue GLB — even when the sub-part tiers are mixed. The group id is the deployed chassis assetId.
-    const frameId = group.subPartIds.find((sid) => partIdentity(sid)?.slot === 'frame');
-    const chassisTierId = (frameId ? tiers.get(frameId) : undefined) ?? DEFAULT_TIER;
-    const whole = await loadGraded(groupId, chassisTierId);
-    if (t !== token) return;
-    applyFacing(whole.obj, view.facing);
-    restOnFloor(whole.obj);
-    holder.add(whole.obj);
-    rendered = [{ assetId: groupId, tier: chassisTierId, isRealModel: whole.isRealModel, tris: whole.tris }];
   }
 
   renderProductCtl(group, tiers);
