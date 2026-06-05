@@ -15,6 +15,7 @@ import {
   type EnergyType,
   type PartAttributes,
 } from '@common/parts/parts-catalog';
+import { tierOf, type TierId } from '@common/parts/tiers';
 import type { Recipe } from '@common/parts/recipes';
 
 /**
@@ -39,7 +40,7 @@ export type ProductStats = PartAttributes;
 
 const ZERO_STATS: ProductStats = {
   power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
-  topSpeed: 0, turning: 0, loadCapacity: 0,
+  topSpeed: 0, turning: 0, loadCapacity: 0, capacity: 0,
 };
 
 /** Resolve a part entity to its catalog definition, or null if it isn't a known catalog part. */
@@ -48,23 +49,71 @@ export function defOf(world: World, entity: EntityId): PartDef | null {
   return ep ? (partDef(ep.id) ?? null) : null;
 }
 
-/** Sum the attribute contributions of a set of part entities (unresolved parts contribute nothing). */
+/**
+ * The RESOLVED stats of one part instance — its catalog BASE attributes scaled by the multiplier of
+ * the tier its instance carries (`docs/part-identity-spec.md` §4a/b). This is the single seam the
+ * whole tier axis pivots on: a rusty (tier-1) part resolves to exactly its base (mult 1, an
+ * identity), while an iron part resolves to ~2.2× — so two parts sharing one `PartDef` differ purely
+ * by the tier on their instance. Each field is rounded to a whole number so capacity stays an integer
+ * (the scrap-fill gate counts whole pieces) and stats read clean. Null for a non-catalog entity.
+ */
+export function resolvePartStats(world: World, entity: EntityId): PartAttributes | null {
+  const ep = world.get(entity, EnginePart);
+  if (!ep) return null;
+  const def = partDef(ep.id);
+  if (!def) return null;
+  const mult = tierOf(ep.tier).mult;
+  const scale = (n: number | undefined): number => Math.round((n ?? 0) * mult);
+  return {
+    power: scale(def.attributes.power),
+    torque: scale(def.attributes.torque),
+    weight: scale(def.attributes.weight),
+    durability: scale(def.attributes.durability),
+    burst: scale(def.attributes.burst),
+    topSpeed: scale(def.attributes.topSpeed),
+    turning: scale(def.attributes.turning),
+    loadCapacity: scale(def.attributes.loadCapacity),
+    capacity: scale(def.attributes.capacity),
+  };
+}
+
+/**
+ * Sum the resolved (tier-scaled) attribute contributions of a set of part entities — unresolved parts
+ * contribute nothing. Because each part resolves through its own tier before being summed, per-part
+ * additive tiers fall out for free: a rusty-shell + iron-rim container is a valid mid-value between an
+ * all-rusty and an all-iron one, with no special blending logic (§2c/§4b).
+ */
 export function sumPartStats(world: World, parts: readonly EntityId[]): ProductStats {
   const acc: ProductStats = { ...ZERO_STATS };
   for (const e of parts) {
-    const def = defOf(world, e);
-    if (!def) continue;
-    acc.power += def.attributes.power;
-    acc.torque += def.attributes.torque;
-    acc.weight += def.attributes.weight;
-    acc.durability += def.attributes.durability;
-    acc.burst += def.attributes.burst;
-    // Chassis contributions are optional (≡ 0 on every non-chassis part), so coalesce them in.
-    acc.topSpeed = (acc.topSpeed ?? 0) + (def.attributes.topSpeed ?? 0);
-    acc.turning = (acc.turning ?? 0) + (def.attributes.turning ?? 0);
-    acc.loadCapacity = (acc.loadCapacity ?? 0) + (def.attributes.loadCapacity ?? 0);
+    const s = resolvePartStats(world, e);
+    if (!s) continue;
+    acc.power += s.power;
+    acc.torque += s.torque;
+    acc.weight += s.weight;
+    acc.durability += s.durability;
+    acc.burst += s.burst;
+    // The optional contributions are ≡ 0 on parts that don't carry them, so coalesce them in.
+    acc.topSpeed = (acc.topSpeed ?? 0) + (s.topSpeed ?? 0);
+    acc.turning = (acc.turning ?? 0) + (s.turning ?? 0);
+    acc.loadCapacity = (acc.loadCapacity ?? 0) + (s.loadCapacity ?? 0);
+    acc.capacity = (acc.capacity ?? 0) + (s.capacity ?? 0);
   }
   return acc;
+}
+
+/**
+ * The single tier shared by a set of part entities, or null when they're mixed (or none carry one).
+ * Drives the uniform finish tint a built product shows in the world/portrait — a mixed-tier product
+ * has no one material finish. (Phase 2's matched-set bonus keys off this same uniformity.)
+ */
+export function productTier(world: World, parts: readonly EntityId[]): TierId | null {
+  const tiers = new Set<TierId>();
+  for (const e of parts) {
+    const ep = world.get(e, EnginePart);
+    if (ep) tiers.add(ep.tier);
+  }
+  return tiers.size === 1 ? [...tiers][0]! : null;
 }
 
 /**
@@ -88,7 +137,11 @@ function attachCapability(world: World, product: EntityId, recipe: Recipe, stats
       world.add(product, EngineSpec, { power: stats.power, torque: stats.torque });
       break;
     case 'storage':
-      world.add(product, Storage, { amount: 0, capacity: CONTAINER_CAPACITY });
+      // Capacity is the tier-scaled sum of the Shell + Rim — the felt "iron container holds more"
+      // payoff. A rusty (tier-1) container sums to exactly CONTAINER_CAPACITY, so a directly-spawned
+      // container and a bench-built rusty one hold the same; the fallback only guards a storage
+      // recipe that somehow carried no capacity-bearing part.
+      world.add(product, Storage, { amount: 0, capacity: stats.capacity ?? CONTAINER_CAPACITY });
       break;
     case 'reclaimer':
       // The Reclaimer's capability is intrinsic to BEING MOUNTED — there's nothing to compute at

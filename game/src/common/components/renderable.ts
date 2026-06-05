@@ -11,10 +11,13 @@ import { defineComponent } from '@core/component';
  *             loads, caches, and clones it. By convention (see docs/asset-style.md) a model
  *             GLB has its origin at the *base-centre*, so it sits on the ground at y=0.
  *             `scale` uniformly resizes the model (default 1) — to reuse one authored asset at
- *             a different size without re-authoring the GLB.
+ *             a different size without re-authoring the GLB. `tint` washes the model's materials
+ *             toward a colour (the part's tier finish — docs/part-identity-spec.md §3), so the same
+ *             grey-box GLB reads as a different material grade by looking; omitted = the GLB's own
+ *             colours.
  */
 export type Renderable =
   | { shape: 'box'; size: { x: number; y: number; z: number }; color: number }
-  | { shape: 'model'; assetId: string; scale?: number };
+  | { shape: 'model'; assetId: string; scale?: number; tint?: number };
 
 export const Renderable = defineComponent<Renderable>('Renderable');

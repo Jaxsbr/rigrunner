@@ -1,4 +1,5 @@
 import { defineComponent } from '@core/component';
+import type { TierId } from './tiers';
 
 /**
  * Marks an entity as a single *engine sub-part* — one of the four pieces (casing, converter core,
@@ -10,14 +11,19 @@ import { defineComponent } from '@core/component';
  * its identity and any future per-part state survive moves between inventory ↔ bench ↔ engine
  * (`observations.md` #6–7: "parts are stateful vessels").
  *
- * The component is deliberately lean: it carries only the catalog `id`. Everything descriptive —
- * slot, energy type, display name, attribute contributions, asset — lives in the parts catalog
- * (`content/parts-catalog.ts`), resolved via `partDef(id)`. That keeps the catalog the single
- * source of truth and the entity a light, movable vessel.
+ * The vessel is deliberately lean. `id` keys the catalog (`parts-catalog.ts`), which holds everything
+ * descriptive and SHARED across every instance — slot, energy type, base attributes, asset. What the
+ * vessel carries on top is the per-instance state two otherwise-identical parts can DIFFER on: `tier`,
+ * the material grade that multiplies the catalog's base attributes at resolve time
+ * (`docs/part-identity-spec.md` §4a). A rusty Shell and an iron Shell share one `PartDef` but resolve
+ * to different stats because their instances carry different tiers. (`special` — the rare gold buff —
+ * is the next per-instance field this vessel grows, in Phase 3.)
  */
 export interface EnginePart {
-  /** The catalog id (e.g. `'e-core'`) — look up the full definition with `partDef()`. */
+  /** The catalog id (e.g. `'e-core'`) — look up the full base definition with `partDef()`. */
   id: string;
+  /** The material grade this instance was made at — scales the base attributes (`TIERS`/`tierOf`). */
+  tier: TierId;
 }
 
 export const EnginePart = defineComponent<EnginePart>('EnginePart');

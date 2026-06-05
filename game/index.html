@@ -280,6 +280,23 @@
         letter-spacing: 0.1em;
         text-transform: uppercase;
       }
+      /* The grade selector above the buy list — which tier the shop sells right now. */
+      .wk-shop-tier-row { display: flex; gap: 6px; }
+      .wk-shop-tier {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px;
+        border: 1px solid #2c343a;
+        border-radius: 7px;
+        background: #161b1e;
+        color: #8b97a0;
+        font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+      }
+      .wk-shop-tier:hover { background: #1b2125; color: #c7ced3; }
+      .wk-shop-tier.active { border-color: #59ff9f; color: #e6ebee; background: #20282d; }
       .wk-shop-empty {
         padding: 8px 2px;
         color: #5a646b;
@@ -426,6 +443,15 @@
       .wk-chip.storage .wk-dot { background: #2f6f9f; }
       .wk-chip.reclaimer .wk-dot { background: #d9a521; }
       .wk-chip.chassis .wk-dot { background: #6b6b6b; }
+      /* The material-finish swatch — a part's tier grade (rusty/iron/…), its colour set inline from
+         the tier's finishColor. A small square (distinct from the round type dot) on chips, shop
+         cards, and the grade toggle, so tier reads by looking alongside the composed name. */
+      .wk-tier-finish {
+        width: 10px; height: 10px;
+        border-radius: 2px;
+        flex: none;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+      }
       /* A composed product (assembled engine / built container) reads as a finished article: a
          brighter fill + a left accent in its type colour, so it's clearly not a loose part. */
       .wk-chip.product {

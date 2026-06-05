@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ModelLoader } from './model-loader';
 import { MODEL_ASSETS } from './assets';
+import { tintModel } from './model-tint';
 import { createThreeCanvas, disposeObject } from './three-canvas';
 
 /**
@@ -17,11 +18,13 @@ import { createThreeCanvas, disposeObject } from './three-canvas';
  */
 export interface ModelPortrait {
   /**
-   * Swap the displayed model. `null` clears it. `fallbackColor` tints the placeholder block.
-   * `ghost: true` renders the model in flat desaturated grey — the "build target" silhouette shown
-   * while a recipe is still incomplete, before the full-colour part exists.
+   * Swap the displayed model. `null` clears it. `fallbackColor` tints the placeholder block. `tint`
+   * washes a successfully-loaded GLB toward a colour (the part's tier finish — §3), so the inspect
+   * portrait reads the grade like the chip and world model do. `ghost: true` renders the model in flat
+   * desaturated grey — the "build target" silhouette shown while a recipe is still incomplete, before
+   * the full-colour part exists (and overrides any tint).
    */
-  show(assetId: string | null, opts?: { fallbackColor?: number; ghost?: boolean }): void;
+  show(assetId: string | null, opts?: { fallbackColor?: number; tint?: number; ghost?: boolean }): void;
   /** Re-read the host's size and resize the renderer — call after the host becomes visible. */
   resize(): void;
   /** Begin the render loop (call when the host is shown). Idempotent. */
@@ -142,7 +145,7 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
     return mesh;
   }
 
-  function show(assetId: string | null, opts?: { fallbackColor?: number; ghost?: boolean }): void {
+  function show(assetId: string | null, opts?: { fallbackColor?: number; tint?: number; ghost?: boolean }): void {
     currentId = assetId;
     framed = null;
     clearHolder();
@@ -172,6 +175,7 @@ export function createModelPortrait(host: HTMLElement, opts: ModelPortraitOption
         if (currentId !== assetId) return; // a newer selection won the race
         const obj = template.clone(true);
         if (ghost) applyGhost(obj); // flat-grey build-target silhouette
+        else if (opts?.tint !== undefined) tintModel(obj, opts.tint); // wash toward the tier finish
         holder.add(obj);
         frame(obj);
         // Let the caller compose extra geometry onto the loaded model (e.g. an articulated head).

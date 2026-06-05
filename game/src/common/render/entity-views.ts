@@ -4,6 +4,7 @@ import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Renderable } from '@common/components/renderable';
 import { ModelLoader } from '@shared/model-loader';
+import { tintModel } from '@shared/model-tint';
 import { isArticulated, ReclaimerRig, BUCKET_ASSET } from './articulation';
 
 /**
@@ -69,7 +70,7 @@ export class EntityViews {
   }
 
   private createObject(r: Renderable): THREE.Object3D {
-    return r.shape === 'model' ? this.createModel(r.assetId, r.scale ?? 1) : this.createBox(r);
+    return r.shape === 'model' ? this.createModel(r.assetId, r.scale ?? 1, r.tint) : this.createBox(r);
   }
 
   private createBox(r: Extract<Renderable, { shape: 'box' }>): THREE.Mesh {
@@ -86,7 +87,7 @@ export class EntityViews {
    * waits on I/O). A placeholder fills it until the GLB loads; on success the real model
    * swaps in. Origin convention: base-centre → restY 0 (the model sits on the ground).
    */
-  private createModel(assetId: string, scale = 1): THREE.Object3D {
+  private createModel(assetId: string, scale = 1, tint?: number): THREE.Object3D {
     const group = new THREE.Group();
     group.userData['restY'] = 0;
     group.userData['wheels'] = []; // populated on load; animateWheels reads it (safe when empty)
@@ -103,6 +104,9 @@ export class EntityViews {
       .then((template) => {
         group.remove(placeholder);
         const instance = template.clone(true);
+        // Wash the model toward its tier finish before any view-owned children (the storage fill) are
+        // added, so only the model itself takes the grade colour, not the scrap inside it.
+        if (tint !== undefined) tintModel(instance, tint);
         group.add(instance);
         // Collect spin-able parts: any node named `wheel*` (rig.py keeps them unjoined so they
         // survive as addressable nodes). Empty for assets without wheels — animateWheels no-ops.
@@ -144,7 +148,7 @@ export class EntityViews {
  */
 function renderSig(r: Renderable): string {
   return r.shape === 'model'
-    ? `model:${r.assetId}:${r.scale ?? 1}`
+    ? `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}`
     : `box:${r.color}:${r.size.x},${r.size.y},${r.size.z}`;
 }
 

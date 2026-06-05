@@ -72,8 +72,68 @@ describe('assembly — attribute summing', () => {
     const w = setup();
     expect(sumPartStats(w, [w.createEntity()])).toEqual({
       power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
-      topSpeed: 0, turning: 0, loadCapacity: 0,
+      topSpeed: 0, turning: 0, loadCapacity: 0, capacity: 0,
     });
+  });
+});
+
+describe('assembly — tiers scale resolved stats (the per-part additive axis)', () => {
+  // Spawn a sub-part at a given tier and drop it on its bench slot. Returns the entity.
+  function placeOnSlotAtTier(world: World, id: string, tier: 'rusty' | 'iron') {
+    const def = partDef(id)!;
+    const e = spawnCatalogPart(world, def, tier);
+    placeOnBench(world, def.slot, e);
+    return e;
+  }
+
+  it('a rusty (tier-1) part resolves to exactly its base — the multiplier is an identity', () => {
+    const w = setup();
+    const shell = placeOnSlotAtTier(w, 'container-shell', 'rusty');
+    // base shell: weight 3 / capacity 3 (mult 1)
+    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 3, capacity: 3 });
+  });
+
+  it('an iron part resolves steeper — base × ~2.2, rounded', () => {
+    const w = setup();
+    const shell = placeOnSlotAtTier(w, 'container-shell', 'iron');
+    // base capacity 3 × 2.2 = 6.6 → 7; base weight 3 × 2.2 = 6.6 → 7
+    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 7, capacity: 7 });
+  });
+
+  it('a rusty-shell + iron-rim container is a valid mid-value between all-rusty and all-iron', () => {
+    const w = setup();
+    loadRecipe(w, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+
+    const rusty = sumPartStats(w, [
+      spawnCatalogPart(w, partDef('container-shell')!, 'rusty'),
+      spawnCatalogPart(w, partDef('container-rim')!, 'rusty'),
+    ]);
+    const iron = sumPartStats(w, [
+      spawnCatalogPart(w, partDef('container-shell')!, 'iron'),
+      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),
+    ]);
+    const mixed = sumPartStats(w, [
+      spawnCatalogPart(w, partDef('container-shell')!, 'rusty'), // 3
+      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(1 × 2.2) = 2
+    ]);
+
+    expect(rusty.capacity).toBe(4);  // 3 + 1 — the tier-1 CONTAINER_CAPACITY
+    expect(iron.capacity).toBe(9);   // 7 + 2 — the steep jump that "iron holds more" is felt as
+    expect(mixed.capacity).toBe(5);  // 3 + 2 — strictly between, no special blending logic
+    expect(rusty.capacity).toBeLessThan(mixed.capacity!);
+    expect(mixed.capacity).toBeLessThan(iron.capacity!);
+  });
+
+  it('builds an iron container whose Storage capacity is the tier-scaled sum (iron holds more)', () => {
+    const w = setup();
+    loadRecipe(w, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+    placeOnSlotAtTier(w, 'container-shell', 'iron');
+    placeOnSlotAtTier(w, 'container-rim', 'iron');
+
+    const container = assemble(w, STORAGE_RECIPE)!;
+    expect(w.get(container, Storage)).toEqual({ amount: 0, capacity: 9 });
+    // The mixed/rusty baseline is CONTAINER_CAPACITY (4), so the iron one more than doubles it.
+    expect(w.get(container, Storage)!.capacity).toBeGreaterThan(CONTAINER_CAPACITY);
   });
 });
 
