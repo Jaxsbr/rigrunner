@@ -206,7 +206,8 @@ Pure rename/restructure; ships the readability win immediately.
 Phase 2 can't be judged without **seeing each sub-part** — but today the viewer only shows whole products
 (the Reclaimer's arm + bucket are the lone exception, because that product already renders as two real
 sub-assets). Before authoring the Phase 2 roster, the viewer becomes the surface that **verifies every
-sub-part, at every grade, in isolation and in assembly.** Two capabilities:
+sub-part, at every grade, in isolation and in assembly.** Three capabilities — two for the eye, one for
+the machine:
 
 - **View any sub-part at any tier.** Pick a single sub-part (Boiler, Piston, Core, Shell, Frame, …) and a
   tier, and inspect that one model on its own — so each authored piece can be checked before it goes near
@@ -216,14 +217,25 @@ sub-part, at every grade, in isolation and in assembly.** Two capabilities:
   engine — and see the whole thing rendered from its located sub-parts. This is the feedback loop for
   **spacing, symmetry, and cohesion**: where we'll spot that a sub-part needs nudging or a small model
   tweak so the assembled product reads clean.
+- **Drive it from an agent / Playwright (the automation half).** The viewer is built to be **scripted**,
+  not just clicked: an agent addresses an exact part+tier (a query param or a small control hook),
+  screenshots it, and asserts the render is the model we expect. Two checks it must support — a
+  **coverage** assertion (fail if any currently-defined `TIERS` row has no distinct model for a part:
+  this is what mechanically enforces Phase 2's no-placeholder rule) and a **per-part×tier visual** check
+  (a baseline render the part is approved against once, so later drift is caught). Settle the visual-diff
+  strategy against feel during the build — exact-pixel diffs are flaky across GPU/AA, so a tolerance or a
+  cheaper signal (silhouette / dominant palette) may be the pragmatic assertion; a human approves the
+  baseline, the machine guards it after.
 
 **Build for many tiers, not three.** The tier list is data (§4a, `TIERS`); the viewer's tier pickers must
 be **driven by that list**, gaining rows automatically as tiers are added — no hard-coded rusty/iron/gold.
 
-- **Done when:** in the viewer, any single sub-part can be shown at any tier; and a product can be
-  assembled from a freely-chosen tier-per-sub-part mix and viewed as a whole — enough to give
-  spacing/symmetry/cohesion feedback on the composed result. (Drives the model tweaks Phase 2 then bakes
-  in.)
+- **Done when:** in the viewer, any single sub-part can be shown at any tier; a product can be assembled
+  from a freely-chosen tier-per-sub-part mix and viewed as a whole (enough to give spacing/symmetry/cohesion
+  feedback); **and the viewer is agent/Playwright-drivable to a specific part+tier, with a coverage check
+  that fails on a missing-tier model and a per-part×tier visual check against an approved baseline.**
+  (Drives the model tweaks Phase 2 then bakes in, and gives Phase 2's no-placeholder rule a mechanical
+  gate.)
 
 ### Phase 2 — Sub-part asset completeness (the gate) · *foundational, after Phase 1.5*
 
@@ -245,10 +257,10 @@ shipped in the **same PR** and **validated in the viewer** — never a placehold
 later. "Player-visible" means anywhere a part renders: the shop, inventory inspect, the bench. It need not
 look right *in-game* yet, but **every tier must read correctly in the viewer** (Phase 1.5's per-part +
 tier-combination preview), and a **full check covers all currently-defined `TIERS`**, not just the one
-tier you happened to test. An agent can **screenshot the viewer** to confirm each tier matches expectation;
-a **Playwright assertion** over that render is the automation this opens (see `ideas.md` 2026-06-05). The
-`implement-feature` skill carries this as a checklist item so future part work cannot ship a placeholder
-and call it done.
+tier you happened to test. Phase 1.5's **agent/Playwright check** (the coverage assertion + the per-part×tier
+visual baseline) gives this rule a **mechanical gate** — an agent screenshots the viewer and the coverage
+check fails outright on a missing-tier model. The `implement-feature` skill carries this as a checklist
+item so future part work cannot ship a placeholder and call it done.
 
 **The sub-part map — what exists, and its asset status.** Six products, eighteen sub-part roles. Only
 the Reclaimer's two are modelled; the rest fall back to a tinted placeholder block. Unique GLBs to

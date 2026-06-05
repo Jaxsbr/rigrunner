@@ -94,8 +94,10 @@ failure mode this rule exists to stop.
 - [ ] **Every tier is validated in the viewer.** Run `npm run dev:viewer`, select the part, and confirm
       **each tier** renders as the model you expect (the per-sub-part + tier-combination preview —
       `part-identity-spec.md` Phase 1.5). It need not look perfect *in-game* yet, but it **must** read
-      correctly in the viewer. Screenshot the viewer to verify; the intended evolution is a **Playwright**
-      check that asserts the rendered model matches expectation (the automation this opens up).
+      correctly in the viewer. Screenshot the viewer to verify; where Phase 1.5's **agent/Playwright check**
+      exists, run it — its **coverage** assertion fails outright if any tier has no distinct model (the
+      mechanical gate for this rule), and its **per-part×tier visual** check guards the render against an
+      approved baseline.
 
 ## If your push to a feature branch is rejected as "behind"
 The base moved. Rebase onto the fresh base, don't force a merge:
