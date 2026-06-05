@@ -38,6 +38,40 @@
       .item .id { font-family: ui-monospace, monospace; }
       .empty { color: var(--muted); padding: 12px 10px; }
 
+      /* Parts pane — products, each a clickable "compose" header over its sub-part rows. */
+      .group { margin-bottom: 6px; }
+      .group-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+        border-radius: 6px; cursor: pointer; color: var(--text); font-weight: 600; }
+      .group-head:hover { background: #2b2e30; }
+      .group-head.active { background: var(--accent); color: #fff; }
+      .group-head .emoji { font-size: 15px; }
+      .group-head .compose { margin-left: auto; color: var(--muted); font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.08em; }
+      .group-head.active .compose { color: #fff; }
+      .subpart { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 28px;
+        border-radius: 6px; cursor: pointer; color: var(--text); }
+      .subpart:hover { background: #2b2e30; }
+      .subpart.active { background: var(--accent); color: #fff; }
+      .subpart .name { font-family: ui-monospace, monospace; font-size: 12px; }
+      .subpart .nomodel { margin-left: auto; font-size: 11px; color: #c2864e; } /* unmodelled flag */
+      .subpart.active .nomodel { color: #ffd9a8; }
+
+      /* Tier-control overlay — the per-part / per-sub-part tier pickers, driven by the TIERS list. */
+      #partctl { position: absolute; left: 14px; top: 14px; max-width: 320px;
+        background: rgba(26,26,26,0.92); border: 1px solid var(--line); border-radius: 8px;
+        padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+      #partctl[hidden] { display: none; }
+      #partctl .ctl-title { color: var(--text); font-weight: 600; }
+      #partctl .ctl-row { display: flex; align-items: center; gap: 8px; }
+      #partctl .ctl-label { color: var(--muted); font-size: 12px; min-width: 96px; }
+      #partctl .tiers { display: flex; gap: 6px; flex-wrap: wrap; }
+      .tierchip { font: inherit; font-size: 12px; color: var(--text); background: var(--panel);
+        border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; cursor: pointer;
+        display: flex; align-items: center; gap: 6px; }
+      .tierchip:hover { border-color: var(--accent); }
+      .tierchip.on { border-color: #fff; }
+      .tierchip .dot { width: 11px; height: 11px; border-radius: 3px; border: 1px solid #0008; }
+
       .swatch { display: flex; align-items: center; gap: 10px; padding: 7px 10px; }
       .chip { width: 26px; height: 26px; border-radius: 5px; border: 1px solid #0006; flex: 0 0 auto; }
       .swatch .meta { min-width: 0; }
@@ -54,7 +88,16 @@
       #hud b { color: var(--text); }
       #hud .artic { color: var(--accent); }
 
-      #animbar { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; }
+      /* Turntable auto-spin toggle (off by default — opt in to spinning the model). */
+      #spin { position: absolute; right: 14px; top: 14px; display: flex; align-items: center; gap: 7px;
+        font: inherit; color: var(--text); background: rgba(34,36,38,0.92);
+        border: 1px solid var(--line); border-radius: 6px; padding: 7px 11px; cursor: pointer;
+        user-select: none; }
+      #spin:hover { border-color: var(--accent); }
+      #spin input { cursor: pointer; margin: 0; }
+
+      /* Dig/Stow control for an articulated asset — sits just below the spin toggle. */
+      #animbar { position: absolute; right: 14px; top: 52px; display: flex; gap: 8px; }
       #animbar[hidden] { display: none; }
       .animbtn { font: inherit; color: var(--text); background: var(--panel);
         border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
@@ -67,14 +110,18 @@
       <aside id="sidebar">
         <h1>RIGRUNNER Assets</h1>
         <div class="tabs">
-          <button class="tab active" data-pane="assets">Assets</button>
+          <button class="tab active" data-pane="parts">Parts</button>
+          <button class="tab" data-pane="assets">Assets</button>
           <button class="tab" data-pane="palette">Palette</button>
         </div>
-        <div id="pane-assets" class="pane"></div>
+        <div id="pane-parts" class="pane"></div>
+        <div id="pane-assets" class="pane" hidden></div>
         <div id="pane-palette" class="pane" hidden></div>
       </aside>
       <main id="stage">
         <canvas id="view"></canvas>
+        <label id="spin" title="Spin the model on a turntable"><input type="checkbox" id="spin-cb" /> Auto-spin</label>
+        <div id="partctl" hidden></div>
         <div id="hud"></div>
       </main>
     </div>
