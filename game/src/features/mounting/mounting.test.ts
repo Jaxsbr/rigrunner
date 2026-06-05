@@ -55,7 +55,7 @@ function typedEngine(world: World, type: EnergyType): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x: 0, z: 0, rotationY: 0, y: 0 });
   world.add(e, Part, { kind: 'engine' });
-  world.add(e, Assembly, { recipeId: 'engine', parts: [], type });
+  world.add(e, Assembly, { recipeId: type === 'electric' ? 'electric-engine' : 'steam-engine', parts: [], type });
   return e;
 }
 
@@ -284,7 +284,7 @@ describe('no-hybrid type-lock', () => {
     const w = new World();
     const r = rig(w);
     expect(canMountPartOn(w, r, typedEngine(w, 'electric'))).toBe(true);
-    expect(canMountPartOn(w, r, typedEngine(w, 'mechanical'))).toBe(true);
+    expect(canMountPartOn(w, r, typedEngine(w, 'steam'))).toBe(true);
   });
 
   it('allows a same-type engine but refuses a cross-type one', () => {
@@ -293,7 +293,7 @@ describe('no-hybrid type-lock', () => {
     mountPart(w, typedEngine(w, 'electric'), r, 0, 0); // commits the chassis to electric
 
     expect(canMountPartOn(w, r, typedEngine(w, 'electric'))).toBe(true); // second electric: fine
-    expect(canMountPartOn(w, r, typedEngine(w, 'mechanical'))).toBe(false); // hybrid: refused
+    expect(canMountPartOn(w, r, typedEngine(w, 'steam'))).toBe(false); // hybrid: refused
   });
 
   it('re-opens to the other type once the incumbent engine is removed', () => {
@@ -301,11 +301,11 @@ describe('no-hybrid type-lock', () => {
     const r = rig(w);
     const elec = typedEngine(w, 'electric');
     mountPart(w, elec, r, 0, 0);
-    const mech = typedEngine(w, 'mechanical');
-    expect(canMountPartOn(w, r, mech)).toBe(false);
+    const steamEng = typedEngine(w, 'steam');
+    expect(canMountPartOn(w, r, steamEng)).toBe(false);
 
     unmountPart(w, elec); // remove the electric engine
-    expect(canMountPartOn(w, r, mech)).toBe(true); // mechanical may now go on
+    expect(canMountPartOn(w, r, steamEng)).toBe(true); // steam may now go on
   });
 
   it('locks each chassis independently — a commitment on one rig never gates another', () => {
@@ -313,8 +313,8 @@ describe('no-hybrid type-lock', () => {
     const r1 = rig(w, 0, 0);
     const r2 = rig(w, 20, 0);
     mountPart(w, typedEngine(w, 'electric'), r1, 0, 0);
-    // r2 is untouched, so a mechanical engine mounts on it freely.
-    expect(canMountPartOn(w, r2, typedEngine(w, 'mechanical'))).toBe(true);
+    // r2 is untouched, so a steam engine mounts on it freely.
+    expect(canMountPartOn(w, r2, typedEngine(w, 'steam'))).toBe(true);
   });
 
   it('is a target-agnostic clash check — the CALLER decides which targets are locked', () => {
@@ -325,7 +325,7 @@ describe('no-hybrid type-lock', () => {
     const w = new World();
     const shop = rig(w); // any MountGrid target stands in for the workshop staging deck
     mountPart(w, typedEngine(w, 'electric'), shop, 0, 0);
-    expect(canMountPartOn(w, shop, typedEngine(w, 'mechanical'))).toBe(false);
+    expect(canMountPartOn(w, shop, typedEngine(w, 'steam'))).toBe(false);
   });
 
   it('imposes no constraint on non-engine parts or typeless engines', () => {

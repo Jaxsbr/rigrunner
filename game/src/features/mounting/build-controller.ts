@@ -112,7 +112,7 @@ export function createBuildController(
    *
    * Two policies gate the rig as a target (and ONLY the rig — a workshop is a type-agnostic,
    * uncapped staging surface that must accept any and all parts at once, e.g. an electric AND a
-   * mechanical engine side by side while you swap which is on the rig):
+   * steam engine side by side while you swap which is on the rig):
    *   - the no-hybrid type-lock (`canMountPartOn`): a chassis commits to one energy type, so a
    *     cross-type engine can't snap onto it;
    *   - the engine-capacity cap (`withinEngineCapacity`): the deck accepts at most `engineMax`

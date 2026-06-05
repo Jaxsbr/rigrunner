@@ -7,7 +7,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Renderable } from '@common/components/renderable';
 import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
-import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
+import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
 import { PART_SHOP_STOCK, shopItemForPartId, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
 import { productAssetId } from '@features/workshop/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '@features/economy/inventory';
@@ -78,18 +78,26 @@ export interface WorkshopOverlayOptions {
 
 /**
  * The chip dot + portrait-placeholder tint, keyed by an item's energy type when it has one (engine
- * parts and engine products), else by its category/kind — so storage items (no electric/mechanical)
- * get the rig_blue "player-built" signature instead of a missing colour.
+ * parts and engine products), else by its category/kind — so storage items (no electric/steam) get
+ * the rig_blue "player-built" signature instead of a missing colour. This colour IS the type cast
+ * (`docs/part-identity-spec.md` §3): electric reads cool/clean, steam warm/copper.
  */
 const COLOR_BY_KEY: Record<string, number> = {
-  electric: 0x59ff9f, // glow_green
-  mechanical: 0x8a4b2f, // rust
+  electric: 0x59ff9f, // glow_green — cool/clean electric cast
+  steam: 0x8a4b2f, // rust — warm/copper steam cast
   storage: 0x2f6f9f, // rig_blue
   reclaimer: 0xd9a521, // hazard_yellow — the rummage tool's signature
   chassis: 0x6b6b6b, // scrap_grey — the structural foundation
 };
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A shop card's role-tag span — omitted when the slot just repeats the part's name (since the strip,
+ *  "Shell" / slot "shell"); a part whose name still differs from its role keeps the tag. */
+const slotTag = (def: { slot: string; displayName: string }): string =>
+  def.slot.toLowerCase() === def.displayName.toLowerCase()
+    ? ''
+    : `<span class="wk-shop-tag">${def.slot}</span>`;
 
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
@@ -103,7 +111,7 @@ type Tab = 'bench' | 'deck' | 'shop';
 interface ItemView {
   entity: EntityId;
   displayName: string;
-  colorKey: string; // chip dot/tint key: electric | mechanical | storage
+  colorKey: string; // chip dot/tint key: electric | steam | storage
   tag: string; // small right-aligned chip tag: the part role, or the product kind
   sub: string; // detail subtitle, e.g. "electric · casing" or "electric · engine"
   attrs: ProductStats; // power/torque/weight/durability/burst to show
@@ -288,10 +296,10 @@ export class WorkshopOverlay {
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
 
-  /** The recipe currently loaded on the bench (falls back to the engine recipe). */
+  /** The recipe currently loaded on the bench (falls back to the electric engine recipe). */
   private activeRecipe(): Recipe {
     const bench = getBench(this.world);
-    return (bench && recipeById(bench.recipeId)) ?? ENGINE_RECIPE;
+    return (bench && recipeById(bench.recipeId)) ?? ELECTRIC_ENGINE_RECIPE;
   }
 
   /** (Re)build the bench's role slots for a recipe — replaces any slots from a previous recipe. */
@@ -357,10 +365,14 @@ export class WorkshopOverlay {
       `wk-chip ${view.colorKey}` + (view.isProduct ? ' product' : '') + (opts.disabled ? ' disabled' : '');
     chip.dataset['entity'] = String(view.entity);
     if (!opts.disabled && view.entity === this.selected) chip.classList.add('selected');
+    // Drop the role tag when it just repeats the name — since the strip, a part's name IS its slot
+    // noun ("Shell" / slot "shell"), so the tag would read "Shell shell". A name that still differs
+    // from its role (a chassis part: "Wheel & Axle Set" / "wheel-axle", or a product's kind) keeps it.
+    const showTag = view.tag.toLowerCase() !== view.displayName.toLowerCase();
     chip.innerHTML =
       `<span class="wk-dot"></span>` +
       `<span class="wk-name">${view.displayName}</span>` +
-      `<span class="wk-slot-tag">${view.tag}</span>`;
+      (showTag ? `<span class="wk-slot-tag">${view.tag}</span>` : '');
     if (!opts.disabled) chip.addEventListener('pointerdown', (e) => this.beginDrag(e, view));
     return chip;
   }
@@ -530,7 +542,7 @@ export class WorkshopOverlay {
         `<div class="wk-shop-name-row">` +
         `<span class="wk-shop-dot"></span>` +
         `<span class="wk-shop-name">${def.displayName}</span>` +
-        `<span class="wk-shop-tag">${def.slot}</span>` +
+        slotTag(def) +
         `</div>` +
         `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
         `</div>` +
@@ -577,7 +589,7 @@ export class WorkshopOverlay {
         `<div class="wk-shop-name-row">` +
         `<span class="wk-shop-dot"></span>` +
         `<span class="wk-shop-name">${def.displayName}</span>` +
-        `<span class="wk-shop-tag">${def.slot}</span>` +
+        slotTag(def) +
         `</div>` +
         `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
         `</div>` +
@@ -1006,11 +1018,13 @@ export class WorkshopOverlay {
     if (asm) {
       const recipe = recipeById(asm.recipeId);
       const kind = this.world.get(entity, Part)?.kind ?? 'engine';
+      // The recipe name already carries the energy type (e.g. "Electric Engine"), so it stands alone
+      // as the product's name — no type prefix to compose.
       const output = recipe?.output ?? cap(kind);
       const key = asm.type ?? kind;
       return {
         entity,
-        displayName: asm.type ? `${cap(asm.type)} ${output}` : output,
+        displayName: output,
         colorKey: key,
         tag: kind,
         sub: asm.type ? `${asm.type} · ${kind}` : kind,

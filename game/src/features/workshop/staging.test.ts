@@ -10,7 +10,7 @@ import { Mount } from '@common/components/mount';
 import { Assembly } from '@common/components/assembly';
 import { spawnCatalogPart, partDef } from '@common/parts/parts-catalog';
 import { engineParts } from '@features/engine/engines';
-import { ENGINE_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
+import { ELECTRIC_ENGINE_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
 import { composeProduct } from '@common/sim/assembly';
 import { chassisParts } from '@features/chassis/chassis';
 import { partAtCell } from '@features/mounting/mounting';
@@ -34,7 +34,7 @@ function setup() {
 
 /** A composed electric engine, placed in inventory (the normal pre-stage home). */
 function ownedEngine(world: World) {
-  const product = composeProduct(world, ENGINE_RECIPE, engineParts('electric'));
+  const product = composeProduct(world, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
   addToInventory(world, product);
   return product;
 }

@@ -4,32 +4,40 @@ import { EnginePart } from '@common/parts/engine-part';
 import type { ChassisSize } from '@common/components/chassis';
 
 /**
- * The engine-parts catalog — the authoritative roster of buildable engine sub-parts for milestone
- * MW (the workshop interface). See `docs/workshop-interface-spec.md`.
+ * The engine-parts catalog — the authoritative roster of buildable engine sub-parts (milestone MW,
+ * the workshop interface; see `docs/workshop-interface-spec.md`).
  *
- * An engine is assembled from FOUR slots, always in the same grammar, and comes in TWO energy
- * types. One part per slot per type ⇒ 8 engine catalog entries (a second, non-engine recipe — the
- * storage container — adds 2 more parts at the end; see `content/recipes.ts`):
+ * An engine is assembled from FOUR slots and comes in TWO energy types whose part vocabularies
+ * DIVERGE: electric and steam share no slot noun, so the noun itself tells you the type and a Boiler
+ * can never sit in an electric Casing slot — the no-hybrid rule is a fact of the parts, not a check
+ * (`docs/part-identity-spec.md` §2). One part per slot per type ⇒ 8 engine catalog entries (the
+ * untyped storage / reclaimer / chassis recipes add their own parts below):
  *
- *   slot         ⚡ electric                  ⛽ mechanical
- *   ----------   -------------------------    --------------------------
- *   casing       e-casing  Coilframe Casing   m-casing  Drumframe Casing
- *   core         e-core    Motor Coil         m-core    Drive Block
- *   coupling     e-coupling Power Terminal     m-coupling Fuel Feed
- *   regulator    e-regulator Discharge Reg.    m-regulator Governor
+ *   function     ⚡ electric                ♨ steam
+ *   ----------   -----------------------   --------------------------
+ *   housing      e-casing    Casing        s-boiler      Boiler
+ *   converter    e-core      Core          s-piston      Piston
+ *   transmit     e-coupling  Coupling      s-driveshaft  Driveshaft
+ *   output       e-regulator Regulator     s-throttle    Throttle
  *
- * A complete engine = all four slots filled with parts of the SAME type; the resulting EngineSpec +
- * Weight is the SUM of the four parts' contributions (computed at assembly in Phase 2). The numbers
- * below are distributed so a full electric set sums to ≈ power 13 / torque 8 / weight 4 and a full
- * mechanical set to ≈ power 8 / torque 19 / weight 8 — the suggested engine profiles in the spec
- * (electric = snappy/light, mechanical = torquey/heavy). They are tunable against feel in P5.
+ * A complete engine = all four slots filled with parts of ONE type; the resulting EngineSpec +
+ * Weight is the SUM of the four parts' contributions (computed at assembly). The numbers below are
+ * distributed so a full electric set sums to ≈ power 13 / torque 8 / weight 4 (snappy/light — the
+ * Runner) and a full steam set to ≈ power 8 / torque 19 / weight 8 (torquey/heavy — the Hauler).
+ * They are tunable against feel.
  *
- * `durability` and `burst` are reserved placeholders for later milestones (casing durability;
- * regulator boost/overdrive magnitude) — carried so the shape is stable, but nothing consumes them
- * yet. Likewise `assetId` is a forward-looking stable id; no GLB is registered for these in MW, so
- * nothing renders a part until real assets land (P3 falls back gracefully).
+ * `durability` and `burst` are reserved placeholders for later milestones (housing durability;
+ * output-control boost/overdrive magnitude) — carried so the shape is stable, but nothing consumes
+ * them yet. Likewise `assetId` is a forward-looking stable id; engine sub-parts have no GLB of their
+ * own, so a loose part falls back to a tinted placeholder until real assets land.
  */
-export type EnginePartSlot = 'casing' | 'core' | 'coupling' | 'regulator';
+/** Electric engine slots — the clean/abstract vocabulary. */
+export type ElectricEngineSlot = 'casing' | 'core' | 'coupling' | 'regulator';
+/** Steam engine slots — the industrial vocabulary, disjoint from electric's (no shared noun). */
+export type SteamEngineSlot = 'boiler' | 'piston' | 'driveshaft' | 'throttle';
+/** Any engine sub-part role. The two type vocabularies are disjoint, so the slot alone implies the
+ *  energy type — the self-enforcing no-hybrid rule (`docs/part-identity-spec.md` §2a). */
+export type EnginePartSlot = ElectricEngineSlot | SteamEngineSlot;
 /** A storage-container part role (a second recipe — see `content/recipes.ts`). */
 export type StoragePartSlot = 'shell' | 'rim';
 /** A Reclaimer part role (Option C) — the first NON-engine socket grammar: a base `arm` plus the
@@ -40,9 +48,9 @@ export type ReclaimerPartSlot = 'arm' | 'head';
 export type ChassisPartSlot = 'wheel-axle' | 'suspension-steering' | 'frame';
 /** Any part role, across all recipes — the role a bench slot matches a part against. */
 export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot;
-export type EnergyType = 'electric' | 'mechanical';
+export type EnergyType = 'electric' | 'steam';
 /** What a part is for — groups the catalog and drives the chip/portrait tint when there's no
- * energy type (storage, reclaimer and chassis parts aren't electric/mechanical). */
+ * energy type (storage, reclaimer and chassis parts aren't electric/steam). */
 export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis';
 
 /**
@@ -69,7 +77,7 @@ export interface PartDef {
   id: string;
   slot: PartSlot;
   category: PartCategory;
-  /** Engine parts only — electric/mechanical (drives the type-lock, P4). Omitted for storage parts. */
+  /** Engine parts only — electric/steam (drives the type-lock). Omitted for untyped parts. */
   type?: EnergyType;
   /** Chassis parts only — which chassis size this sub-part builds. Drives the bench's size-match
    *  guard (a 1×3 part can't join a 3×5 chassis), the size counterpart to the no-hybrid type rule. */
@@ -86,7 +94,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     slot: 'casing',
     category: 'engine',
     type: 'electric',
-    displayName: 'Coilframe Casing',
+    displayName: 'Casing',
     attributes: { power: 1, torque: 1, weight: 2, durability: 5, burst: 0 },
     assetId: 'e-casing',
   },
@@ -95,7 +103,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     slot: 'core',
     category: 'engine',
     type: 'electric',
-    displayName: 'Motor Coil',
+    displayName: 'Core',
     attributes: { power: 8, torque: 3, weight: 1, durability: 2, burst: 0 },
     assetId: 'e-core',
   },
@@ -104,7 +112,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     slot: 'coupling',
     category: 'engine',
     type: 'electric',
-    displayName: 'Power Terminal',
+    displayName: 'Coupling',
     attributes: { power: 2, torque: 1, weight: 0, durability: 1, burst: 0 },
     assetId: 'e-coupling',
   },
@@ -113,47 +121,49 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     slot: 'regulator',
     category: 'engine',
     type: 'electric',
-    displayName: 'Discharge Regulator',
+    displayName: 'Regulator',
     attributes: { power: 2, torque: 3, weight: 1, durability: 1, burst: 4 },
     assetId: 'e-regulator',
   },
 
-  // ⛽ Mechanical — high torque (hauling), lower power, heavy. Sum: power 8 / torque 19 / weight 8.
+  // ♨ Steam — high torque (hauling), lower power, heavy. Sum: power 8 / torque 19 / weight 8. Its
+  // industrial vocabulary (boiler/piston/driveshaft/throttle) is disjoint from electric's, so the
+  // noun alone marks the type — see the header.
   {
-    id: 'm-casing',
-    slot: 'casing',
+    id: 's-boiler',
+    slot: 'boiler',
     category: 'engine',
-    type: 'mechanical',
-    displayName: 'Drumframe Casing',
+    type: 'steam',
+    displayName: 'Boiler',
     attributes: { power: 0, torque: 2, weight: 4, durability: 8, burst: 0 },
-    assetId: 'm-casing',
+    assetId: 's-boiler',
   },
   {
-    id: 'm-core',
-    slot: 'core',
+    id: 's-piston',
+    slot: 'piston',
     category: 'engine',
-    type: 'mechanical',
-    displayName: 'Drive Block',
+    type: 'steam',
+    displayName: 'Piston',
     attributes: { power: 5, torque: 10, weight: 2, durability: 4, burst: 0 },
-    assetId: 'm-core',
+    assetId: 's-piston',
   },
   {
-    id: 'm-coupling',
-    slot: 'coupling',
+    id: 's-driveshaft',
+    slot: 'driveshaft',
     category: 'engine',
-    type: 'mechanical',
-    displayName: 'Fuel Feed',
+    type: 'steam',
+    displayName: 'Driveshaft',
     attributes: { power: 1, torque: 3, weight: 1, durability: 2, burst: 0 },
-    assetId: 'm-coupling',
+    assetId: 's-driveshaft',
   },
   {
-    id: 'm-regulator',
-    slot: 'regulator',
+    id: 's-throttle',
+    slot: 'throttle',
     category: 'engine',
-    type: 'mechanical',
-    displayName: 'Governor',
+    type: 'steam',
+    displayName: 'Throttle',
     attributes: { power: 2, torque: 4, weight: 1, durability: 2, burst: 3 },
-    assetId: 'm-regulator',
+    assetId: 's-throttle',
   },
 
   // 📦 Storage container — a SECOND recipe (`STORAGE_RECIPE`): two parts, no energy type. Storage
@@ -163,7 +173,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'container-shell',
     slot: 'shell',
     category: 'storage',
-    displayName: 'Container Shell',
+    displayName: 'Shell',
     attributes: { power: 0, torque: 0, weight: 3, durability: 6, burst: 0 },
     assetId: 'container-shell',
   },
@@ -171,7 +181,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'container-rim',
     slot: 'rim',
     category: 'storage',
-    displayName: 'Container Rim',
+    displayName: 'Rim',
     attributes: { power: 0, torque: 0, weight: 1, durability: 3, burst: 0 },
     assetId: 'container-rim',
   },
@@ -187,7 +197,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'reclaimer-arm',
     slot: 'arm',
     category: 'reclaimer',
-    displayName: 'Reclaimer Arm',
+    displayName: 'Arm',
     attributes: { power: 0, torque: 0, weight: 5, durability: 0, burst: 0 },
     assetId: 'reclaimer-arm',
   },
@@ -195,7 +205,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     id: 'reclaimer-bucket',
     slot: 'head',
     category: 'reclaimer',
-    displayName: 'Unearthing Bucket',
+    displayName: 'Bucket',
     attributes: { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
     assetId: 'reclaimer-bucket',
   },

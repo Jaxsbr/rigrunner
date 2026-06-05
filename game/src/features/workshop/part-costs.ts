@@ -20,11 +20,11 @@ export const PART_COSTS: readonly PartCost[] = [
   { partId: 'e-coupling', buyCost: 6 },
   { partId: 'e-regulator', buyCost: 8 },
 
-  // Mechanical engine.
-  { partId: 'm-casing', buyCost: 8 },
-  { partId: 'm-core', buyCost: 12 },
-  { partId: 'm-coupling', buyCost: 7 },
-  { partId: 'm-regulator', buyCost: 9 },
+  // Steam engine.
+  { partId: 's-boiler', buyCost: 8 },
+  { partId: 's-piston', buyCost: 12 },
+  { partId: 's-driveshaft', buyCost: 7 },
+  { partId: 's-throttle', buyCost: 9 },
 
   // Reclaimer (Option C) — the rummage tool. Bootstrapping constraint: piles are gated behind OWNING
   // it, so it must be affordable from loose scrap ALONE (no pile needed to earn it). It's also the

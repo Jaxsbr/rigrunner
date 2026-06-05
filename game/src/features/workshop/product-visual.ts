@@ -7,7 +7,7 @@ import type { EnergyType } from '@common/parts/parts-catalog';
  *
  * There are no bespoke composed-engine assets yet, so an engine reuses the two existing engine
  * models by energy type: mk2 (the brighter, more-illuminated build) stands in for the clean/glowing
- * ELECTRIC engine, mk1 (the plainer starter) for the grimier MECHANICAL one. Swap these for
+ * ELECTRIC engine, mk1 (the plainer starter) for the grimier STEAM one. Swap these for
  * dedicated assets when they land. The Reclaimer renders its articulated ARM GLB (the render layer
  * parents the bucket head onto its wrist socket — see render/articulation.ts), so its `reclaimer`
  * recipe id maps to `reclaimer-arm`. Any other product previews via its recipe id — the storage
@@ -20,7 +20,7 @@ import type { EnergyType } from '@common/parts/parts-catalog';
  */
 const ENGINE_PREVIEW_ASSET: Record<EnergyType, string> = {
   electric: 'engine-mk2',
-  mechanical: 'engine-mk1',
+  steam: 'engine-mk1',
 };
 
 export function productAssetId(kind: PartKind, recipeId: string, type?: EnergyType): string {

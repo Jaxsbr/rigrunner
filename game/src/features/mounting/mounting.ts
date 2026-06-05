@@ -192,7 +192,7 @@ export function committedEngineType(world: World, rig: EntityId): EnergyType | n
  * It only describes the clash; it does NOT decide which targets are SUBJECT to the lock — that is a
  * policy the caller owns. The build controller applies it to the rig (a chassis IS type-locked) but
  * never to a workshop deck: a workshop is a type-agnostic staging surface that must hold any parts
- * at once (an electric and a mechanical engine side by side) while the player swaps them onto the
+ * at once (an electric and a steam engine side by side) while the player swaps them onto the
  * rig. Applied naively to a workshop with one engine staged, this would wrongly refuse the other
  * type — hence the lock lives in the caller's target policy, not here.
  *

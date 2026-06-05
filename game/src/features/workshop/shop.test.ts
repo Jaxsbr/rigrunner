@@ -92,8 +92,8 @@ describe('sellPart', () => {
   it('values resale at 50% rounded to the nearest whole scrap', () => {
     expect(resaleValue({ partId: 'container-rim', cost: 2 })).toBe(1);
     expect(resaleValue({ partId: 'container-shell', cost: 3 })).toBe(2);
-    expect(resaleValue({ partId: 'm-coupling', cost: 7 })).toBe(4);
-    expect(resaleValue({ partId: 'm-core', cost: 12 })).toBe(6);
+    expect(resaleValue({ partId: 's-driveshaft', cost: 7 })).toBe(4);
+    expect(resaleValue({ partId: 's-piston', cost: 12 })).toBe(6);
   });
 
   it('sells an inventory-held loose part, credits scrap, and destroys the part entity', () => {

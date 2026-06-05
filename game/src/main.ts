@@ -1,7 +1,7 @@
 import { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { spawnRig, canPackUp, packUpChassis } from '@features/mounting/rig';
-import { engineParts } from '@features/engine/engines';
+import { engineParts, engineRecipeForType } from '@features/engine/engines';
 import { spawnWorkshop } from '@features/workshop/workshop';
 import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
@@ -9,7 +9,7 @@ import { DriveControl } from '@features/drive/drive-control';
 import { Wallet } from '@features/economy/wallet';
 import { Inventory, addToInventory } from '@features/economy/inventory';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
-import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
+import { ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
 import { placeProductInWorld } from '@features/workshop/assembly';
@@ -71,7 +71,7 @@ setActiveRig(world, player);
 // loose engines or containers scattered in the world: everything is built in the workshop and moved
 // out (the player owns the parts to build a container — see the dev grant below).
 {
-  const engine = composeProduct(world, ENGINE_RECIPE, engineParts('electric'));
+  const engine = composeProduct(world, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
   const rigT = world.get(player, Transform)!;
   placeProductInWorld(world, engine, rigT.x, rigT.z);
   mountPart(world, engine, player, 0, 1); // a deck cell; the mounting system rides it into place
@@ -135,8 +135,8 @@ world.add(playerStore, Inventory, { items: [] });
 // the 3-cell deck. Normal composed products (unplaced, browsable in the workshop), exactly what the
 // bench / Parts Shop grant.
 for (let i = 0; i < 2; i++) {
-  addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('electric')));
-  addToInventory(world, composeProduct(world, ENGINE_RECIPE, engineParts('mechanical')));
+  addToInventory(world, composeProduct(world, engineRecipeForType('electric'), engineParts('electric')));
+  addToInventory(world, composeProduct(world, engineRecipeForType('steam'), engineParts('steam')));
 }
 for (let i = 0; i < 2; i++) {
   const container = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
@@ -152,7 +152,7 @@ for (let set = 0; set < 2; set++) {
     addToInventory(world, spawnCatalogPart(world, partDef(id)!));
   }
 }
-console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanical engines, 2 storage containers, and two 1×3 chassis sub-part sets (remove before merge).');
+console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 steam engines, 2 storage containers, and two 1×3 chassis sub-part sets (remove before merge).');
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
 // workshop interface drops parts into while composing the active recipe's output. Starts on the
@@ -160,8 +160,8 @@ console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 mechanic
 // a part is always in exactly one place.
 const bench = world.createEntity();
 world.add(bench, Bench, {
-  recipeId: ENGINE_RECIPE.id,
-  slots: emptyBenchSlots(ENGINE_RECIPE.slots.map((s) => s.slot)),
+  recipeId: ELECTRIC_ENGINE_RECIPE.id,
+  slots: emptyBenchSlots(ELECTRIC_ENGINE_RECIPE.slots.map((s) => s.slot)),
 });
 
 // No loose-part dev grant: every build sub-part now comes from the Parts Shop. The rig still starts

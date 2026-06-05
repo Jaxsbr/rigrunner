@@ -8,7 +8,7 @@ import type { EngineSpec as EngineSpecData } from '@common/components/engine-spe
 import { aggregateEngineOutput } from './engine';
 
 const ELECTRIC: EngineSpecData = { power: 13, torque: 8 };   // high power, low torque
-const MECHANICAL: EngineSpecData = { power: 8, torque: 19 };  // low power, high torque
+const STEAM: EngineSpecData = { power: 8, torque: 19 };  // low power, high torque
 
 function mount(world: World, rig: EntityId, spec: EngineSpecData): EntityId {
   const p = world.createEntity();
@@ -57,7 +57,7 @@ describe('aggregateEngineOutput', () => {
     const w = new World();
     const rig = w.createEntity();
     mount(w, rig, ELECTRIC);    // 13 / 8
-    mount(w, rig, MECHANICAL);  // 8 / 19
+    mount(w, rig, STEAM);  // 8 / 19
     expect(aggregateEngineOutput(w, rig)).toEqual({ power: 21, torque: 27 });
   });
 
@@ -66,7 +66,7 @@ describe('aggregateEngineOutput', () => {
     const rigA = w.createEntity();
     const rigB = w.createEntity();
     mount(w, rigA, ELECTRIC);
-    mount(w, rigB, MECHANICAL);
+    mount(w, rigB, STEAM);
     expect(aggregateEngineOutput(w, rigA)).toEqual({ power: 13, torque: 8 });
   });
 });
