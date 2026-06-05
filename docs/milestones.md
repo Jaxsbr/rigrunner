@@ -373,8 +373,14 @@ the rarity/material language the loot table (Option C), the shop, and the future
 share. Tiers give the deferred smelter/caster its reason to exist.
 
 **Decided (2026-06-03):** the engine vocabulary split + flavour-name strip (Phase 0); the additive
-per-part tier model with set bonus; specials as gold parts, not recipes. Phases 1–4 (tiers, set bonus,
-specials, more tiers) are planned but **earn-their-place gated** — built in order, felt before the next.
+per-part tier model with set bonus; specials as gold parts, not recipes. The mechanic phases (set
+bonus, specials, more tiers) are **earn-their-place gated** — built in order, felt before the next.
+
+**Status (2026-06-05):** Phase 0 (vocabulary) and Phase 1 (tiers, rusty → iron) are **built** — Phase 0
+merged, Phase 1 in review. The committed next step is **Phase 2 — sub-part asset completeness**: every
+sub-part the game has today gets its own 3D model and is fully visible/usable in the UI. It **gates**
+the remaining mechanic phases (now Phases 3–5: set bonus, specials, more tiers) — no new tier, special,
+or set bonus until every current part is modelled. See the spec's §5 for the sub-part coverage map.
 
 **Full spec + phased plan:** [`part-identity-spec.md`](part-identity-spec.md) — the three-axis model,
 data-model changes against the current seams, the PR-by-PR phases, and the open forks.
