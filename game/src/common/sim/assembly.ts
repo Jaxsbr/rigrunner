@@ -105,7 +105,7 @@ export function sumPartStats(world: World, parts: readonly EntityId[]): ProductS
 /**
  * The single tier shared by a set of part entities, or null when they're mixed (or none carry one).
  * Drives the uniform finish tint a built product shows in the world/portrait — a mixed-tier product
- * has no one material finish. (Phase 2's matched-set bonus keys off this same uniformity.)
+ * has no one material finish. (The matched-set-bonus phase keys off this same uniformity.)
  */
 export function productTier(world: World, parts: readonly EntityId[]): TierId | null {
   const tiers = new Set<TierId>();
