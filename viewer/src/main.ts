@@ -78,6 +78,14 @@ spinCb.addEventListener('change', () => {
   updateAutoRotate();
 });
 
+// Double-click the stage to re-fit the current selection to its default framing. Selecting a part or
+// toggling a tier no longer snaps the camera back (see `finishSelect`), so this is the explicit way to
+// return to the default view after you've orbited away.
+canvas.addEventListener('dblclick', () => {
+  frame(holder, framedZoom);
+  renderer.render(scene, camera);
+});
+
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 0.9);
 sun.position.set(5, 10, 7);
@@ -133,6 +141,15 @@ let pedestalRef: THREE.Mesh | null = null; // a stand the articulated arm is rai
 let token = 0;
 // Resolves when the latest selection has finished loading + rendered a frame (the scripting hook).
 let currentLoad: Promise<void> = Promise.resolve();
+
+// Framing persistence: the orbit camera is re-fit only when the SELECTED IDENTITY changes — keyed on
+// `mode:viewId`, which is tier-INDEPENDENT. Toggling a tier on the same part/composition (or changing
+// one sub-part's tier while composing) leaves the camera exactly where the user dragged it, so spinning
+// to a detail and flicking Rusty↔Iron to compare it no longer snaps the orbit (and the turntable spin)
+// back to the default 3/4 view. `framedZoom` remembers the current identity's default zoom so a
+// double-click can re-fit on demand — the explicit "reset view" path.
+let framedKey: string | null = null;
+let framedZoom = 1;
 
 // ── Articulation playback (asset-mode Reclaimer dig demo) ────────────────────────────────
 const clock = new THREE.Clock();
@@ -313,10 +330,15 @@ function beginSelect(): number {
   return t;
 }
 
-/** Finish a selection: frame (at the view's zoom), render one frame (so the buffer is sampleable),
- *  sync sidebar + hash. */
+/** Finish a selection: frame on a fresh identity (else keep the user's camera), render one frame (so
+ *  the buffer is sampleable), sync sidebar + hash. */
 function finishSelect(zoom = 1): void {
-  frame(holder, zoom);
+  const key = `${mode}:${viewId}`;
+  if (key !== framedKey) {
+    frame(holder, zoom);
+    framedKey = key;
+    framedZoom = zoom;
+  }
   renderer.render(scene, camera);
   syncSidebar();
 }
