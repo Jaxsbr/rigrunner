@@ -239,6 +239,17 @@ sub-part is modelled, the tint has reached its end-state. **From Phase 2 onward,
 new tier as it's added — must ship as a real authored asset, visible in both the game and the viewer.** No
 new part is ever "done" as a tinted placeholder again.
 
+**The standing acceptance rule this phase establishes (enforced in the `implement-feature` skill).** From
+here on, **adding a player-visible part is not "done" until every tier of it has a real authored model**,
+shipped in the **same PR** and **validated in the viewer** — never a placeholder meant to be filled in
+later. "Player-visible" means anywhere a part renders: the shop, inventory inspect, the bench. It need not
+look right *in-game* yet, but **every tier must read correctly in the viewer** (Phase 1.5's per-part +
+tier-combination preview), and a **full check covers all currently-defined `TIERS`**, not just the one
+tier you happened to test. An agent can **screenshot the viewer** to confirm each tier matches expectation;
+a **Playwright assertion** over that render is the automation this opens (see `ideas.md` 2026-06-05). The
+`implement-feature` skill carries this as a checklist item so future part work cannot ship a placeholder
+and call it done.
+
 **The sub-part map — what exists, and its asset status.** Six products, eighteen sub-part roles. Only
 the Reclaimer's two are modelled; the rest fall back to a tinted placeholder block. Unique GLBs to
 author: **8 engine + 2 storage + 3 chassis = 13.**

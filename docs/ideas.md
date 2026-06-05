@@ -64,6 +64,44 @@ progression. Revisit when we're doing the art pass and have a direction for what
 
 ---
 
+## 2026-06-05 (cont.) — Agent-driven visual validation of part assets (the viewer as a test surface)
+
+**Mode:** spotting an opportunity while firming the no-placeholder rule (a part isn't done until every
+tier is a real model, validated in the viewer — now in `part-identity-spec.md` Phase 2 + the
+`implement-feature` skill). The *requirement* is decided; this thread is the **automation it opens up**,
+which is **not committed** — just the shape of where it could go.
+
+### The opportunity
+Once the viewer can show **any sub-part at any tier** (Phase 1.5), validating a new asset stops being a
+"squint at the game" job and becomes a **repeatable check an agent can run**. An agent already inspects
+screenshots; point it at the viewer, drive it with **Playwright**, screenshot each tier of the part, and
+confirm the render is what we expect — turning "did you actually model it?" into something a workflow can
+assert instead of trust.
+
+### What it might look like (all raw)
+- **Deterministic viewer URLs/state** — drive the viewer to "part X, tier Y" via a query param or a tiny
+  control API, so Playwright can land on an exact part+tier without clicking through UI.
+- **A baseline image per part×tier** — first author run captures the approved render; later runs diff
+  against it (visual-regression style) and flag drift. The viewer's flat lighting/fixed camera makes a
+  stable shot plausible.
+- **A "coverage" assertion** — fail if any currently-defined `TIERS` row has no distinct model for a
+  part (catches the placeholder-shipped-as-done failure mode mechanically, not by reviewer vigilance).
+- **Hook point** — a CI/check or an `implement-feature` step that runs the sweep before a part PR is
+  considered complete.
+
+### Open threads
+- Visual diffs are flaky if anything (GPU, AA, driver) shifts the pixels — may need tolerance, or assert
+  on cheaper signals (bounding box / silhouette / dominant palette) rather than exact pixels.
+- "Looks like what we expect" is fuzzy — a baseline-approval loop (human signs off once, machine guards
+  after) is probably the pragmatic version; full *semantic* "is this a Boiler?" checking is far off.
+- Could generalise beyond parts to **any** asset the viewer can load — a general asset-regression net.
+
+**Status:** captured opportunity, not committed. The firm part (no placeholders; validate every tier in
+the viewer) is decided; *how* we automate it is for when Phase 1.5's viewer exists and we feel the manual
+check's friction.
+
+---
+
 ## 2026-06-04 — Chassis tiers as the cap that makes part-tiers safe (+ refined energy identity, multiple rigs, cross-type viability)
 
 **Mode:** design session, firming. Sparked by the drivetrain rebalance (milestone MD) and the worry
