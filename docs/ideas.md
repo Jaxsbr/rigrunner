@@ -11,6 +11,59 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-05 — A built part should *look* like the parts it's made of (composed sub-part rendering)
+
+**Mode:** reacting to the game, capturing a target. Sparked by playing the freshly-shipped MP **Phase 1**
+tiers ([`part-identity-spec.md`](part-identity-spec.md)): the per-piece tier **tint** is working, and on
+the Reclaimer (two real assets — arm + bucket) I can clearly see an iron arm next to a rusty bucket. That
+made me want the *whole* thing this points at. **Not committed** — this is the ideal I'm aiming for, and
+it's a later, more polished job. For now the tint is a fine, easy stopgap that buys real progression.
+
+### The target: a product is visibly a composition of its sub-parts
+When I assemble several parts into one product, I'd love the assembled thing to be a **single asset built
+from positioned, scaled sub-part models** — each sub-part **wearing its own tier material/finish** — so
+it's obvious at a glance that this is *a whole made of multiple, individually-graded parts*. Not one
+silhouette I recolour; an actual little assembly where each piece shines through with its own colour.
+
+### The engine is the clearest example
+An engine has a **frame** plus internals. So:
+- The **frame** should *not* be a solid block — it's a **frame**: sides with big **holes** in it, open
+  enough to see through to what's mounted inside. If the frame is rusty, it reads brown.
+- The **internals** sit at **specific points** inside that frame, each **scaled to fit** its place — not
+  floating, not random; located where it belongs in the whole.
+- Each internal carries **its own tier**: say the frame is rusty (brown), one internal is iron (grey),
+  another is some **green metal** — and you can **see all those colours at once**, distinct and obvious,
+  through the open frame. The build reads as "an engine made of these specific, differently-graded parts."
+
+That's the feeling: you look at a built engine and *read its bill of materials* — what it's made of and
+how good each piece is — straight off the model.
+
+### Why it's not now (and what makes it real work)
+This is a **polish/art-pipeline activity**, not a quick swap. The hard parts are the *placement, scale,
+and wear* of each sub-part **within** the whole: every product needs an authored layout (where each slot's
+model sits inside the frame, at what size), and each sub-part needs its own model (the engine sub-parts
+don't have assets yet, and we haven't even decided what a composed engine *looks* like). Until then,
+falling back to a **simple tinted block/placeholder** for a missing sub-part asset is totally fine.
+
+### Where it plugs in
+- Directly continues **2026-05-30 → "Tier visuals and 'components should connect' may be one art system"**
+  and **observation #3** (parts read as random blocks; adjacency should *connect*): the open-frame +
+  located-internals idea is plausibly that same connective art system — the frame is the connective tissue,
+  the internals are what it visibly holds.
+- It's the richer end-state of **`part-identity-spec.md` §3** (the tier→material-finish visual cue). The
+  shipped Phase-1 **flat tint** is the cheap first rung; **per-sub-part composed models** is the top of
+  that same ladder. The render seam already resolves a tier *per sub-asset* (`assetTier`/`productTints`),
+  so when sub-part assets and an authored layout exist, each piece wears its own grade with little new code.
+- The **Reclaimer already does a tiny version of this** (arm asset + bucket asset, each its own tier) —
+  living proof the direction works; the engine is the same idea with more pieces and an authored interior.
+
+### Status
+**Captured target, not a commitment.** Settling on the tint for now — it's easy and gives a bit of
+progression. Revisit when we're doing the art pass and have a direction for what composed products
+(starting with the engine) should actually look like.
+
+---
+
 ## 2026-06-04 — Chassis tiers as the cap that makes part-tiers safe (+ refined energy identity, multiple rigs, cross-type viability)
 
 **Mode:** design session, firming. Sparked by the drivetrain rebalance (milestone MD) and the worry
