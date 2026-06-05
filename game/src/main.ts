@@ -1,16 +1,16 @@
 import { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { spawnRig, canPackUp, packUpChassis } from '@features/mounting/rig';
-import { engineParts, engineRecipeForType } from '@features/engine/engines';
+import { engineParts } from '@features/engine/engines';
 import { spawnWorkshop } from '@features/workshop/workshop';
 import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
 import { DriveControl } from '@features/drive/drive-control';
 import { Wallet } from '@features/economy/wallet';
-import { Inventory, addToInventory } from '@features/economy/inventory';
+import { Inventory } from '@features/economy/inventory';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
 import { ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
-import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
+import { partDef } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
 import { placeProductInWorld } from '@features/workshop/assembly';
 import { mountPart, resolveLocalYaw, mountingSystem } from '@features/mounting/mounting';
@@ -68,8 +68,8 @@ setActiveRig(world, player);
 // (the player can drive immediately, and electric's snappy/light profile is the friendlier default
 // than the heavy hauler). It's a normal composed engine — removable and dismantlable like any other
 // — so the type-lock and swap loop are testable from the first session. There are no longer any
-// loose engines or containers scattered in the world: everything is built in the workshop and moved
-// out (the player owns the parts to build a container — see the dev grant below).
+// loose engines or containers scattered in the world: everything is built in the workshop from parts
+// bought in the Parts Shop.
 {
   const engine = composeProduct(world, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
   const rigT = world.get(player, Transform)!;
@@ -123,36 +123,10 @@ for (const [x, z] of [[-10, 2], [13, 6], [-15, -11], [9, -15], [17, -3], [-4, -1
 // so both survive rig rebuilds and chassis swaps. The workshop drain feeds the wallet; the HUD
 // reads it; the workshop interface (P3+) browses the inventory.
 const playerStore = world.createEntity();
-// DEV/TEST SEED: temporarily inflated so the Reclaimer (arm 24 + bucket 12 = 36) can be bought and
-// tested without grinding the loose-scrap field first. Revert to 5 before merge — the intended cold
-// start is exactly enough for the first storage-container shell + rim.
-world.add(playerStore, Wallet, { scrap: 60 });
+// Starting scrap — a small stake so the player can buy a few early parts from the Parts Shop without
+// first grinding the loose-scrap field. The inventory starts EMPTY: every build sub-part is bought.
+world.add(playerStore, Wallet, { scrap: 100 });
 world.add(playerStore, Inventory, { items: [] });
-
-// DEV/TEST SEED (remove before merge): stock the inventory so the chassis envelope can be felt
-// without grinding or buying — spare engines to free a deck cell and swap a SECOND engine in, then
-// feel the 1×3's max-2 cap refuse a third even over a free cell; plus storage containers to swap on
-// the 3-cell deck. Normal composed products (unplaced, browsable in the workshop), exactly what the
-// bench / Parts Shop grant.
-for (let i = 0; i < 2; i++) {
-  addToInventory(world, composeProduct(world, engineRecipeForType('electric'), engineParts('electric')));
-  addToInventory(world, composeProduct(world, engineRecipeForType('steam'), engineParts('steam')));
-}
-for (let i = 0; i < 2; i++) {
-  const container = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
-  addToInventory(world, container);
-}
-// Two full 1×3 chassis sub-part sets, so the chassis-kit flow (build on the bench → stage the 2×2 kit
-// → haul it out into the world to assemble a new rig) is exercisable immediately without grinding —
-// AND so the ownership cap can be felt: deploy the first kit to reach the MAX_OWNED=2 cap, then haul
-// the second out to trip the cap-refusal toast. The 3×5 set, and more 1×3 sets, are bought in the
-// Parts Shop.
-for (let set = 0; set < 2; set++) {
-  for (const id of ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3']) {
-    addToInventory(world, spawnCatalogPart(world, partDef(id)!));
-  }
-}
-console.info('[starter] DEV SEED: inventory stocked with 2 electric + 2 steam engines, 2 storage containers, and two 1×3 chassis sub-part sets (remove before merge).');
 
 // The assembly bench — a singleton (one workshop, one bench) on its own entity: the role slots the
 // workshop interface drops parts into while composing the active recipe's output. Starts on the
@@ -164,9 +138,8 @@ world.add(bench, Bench, {
   slots: emptyBenchSlots(ELECTRIC_ENGINE_RECIPE.slots.map((s) => s.slot)),
 });
 
-// No loose-part dev grant: every build sub-part now comes from the Parts Shop. The rig still starts
+// The inventory starts empty: every build sub-part comes from the Parts Shop. The rig still starts
 // with a complete mounted electric engine so the player can drive immediately.
-console.info('[starter] DEV SEED: wallet seeded with 60 scrap so the Reclaimer can be bought to test (revert to 5 before merge).');
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);
