@@ -7,9 +7,10 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Renderable } from '@common/components/renderable';
 import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
+import { TIERS, tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
-import { PART_SHOP_STOCK, shopItemForPartId, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
-import { productAssetId } from '@features/workshop/product-visual';
+import { shopStockForTier, shopItemForPart, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
+import { productAssetId, productTints } from '@features/workshop/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '@features/economy/inventory';
 import { getWallet } from '@features/economy/wallet';
 import {
@@ -22,7 +23,9 @@ import {
 } from '@features/workshop/bench';
 import {
   sumPartStats,
+  resolvePartStats,
   resolveEnergyType,
+  productTier,
   type ProductStats,
 } from '@common/sim/assembly';
 import {
@@ -91,6 +94,11 @@ const COLOR_BY_KEY: Record<string, number> = {
 };
 const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+/** A colour number as a CSS `#rrggbb` string — for inline tier-finish swatches. */
+const cssHex = (n: number): string => '#' + n.toString(16).padStart(6, '0');
+/** The small material-finish swatch (§3) that marks a part's tier on a chip / shop card. */
+const finishSwatch = (color: number): string =>
+  `<span class="wk-tier-finish" style="background:${cssHex(color)}"></span>`;
 
 /** A shop card's role-tag span — omitted when the slot just repeats the part's name (since the strip,
  *  "Shell" / slot "shell"); a part whose name still differs from its role keeps the tag. */
@@ -110,12 +118,14 @@ type Tab = 'bench' | 'deck' | 'shop';
  */
 interface ItemView {
   entity: EntityId;
-  displayName: string;
+  displayName: string; // the composed label shown on the chip — "{Tier} {Slot}" for a part ("Iron Shell")
+  baseName: string; // the un-prefixed noun ("Shell") — what the slot tag is checked against for redundancy
   colorKey: string; // chip dot/tint key: electric | steam | storage
   tag: string; // small right-aligned chip tag: the part role, or the product kind
   sub: string; // detail subtitle, e.g. "electric · casing" or "electric · engine"
-  attrs: ProductStats; // power/torque/weight/durability/burst to show
+  attrs: ProductStats; // the RESOLVED (tier-scaled) stats to show
   assetId: string | null; // portrait asset (unregistered id → tinted placeholder; null → empty)
+  tierFinish?: number; // the part's tier finish colour (§3) — chip swatch + portrait tint; omitted for mixed-tier products
   slot: PartSlot | null; // bench role; null = product (not bench-droppable)
   type?: EnergyType; // energy type for the no-hybrid drop rule
   isProduct: boolean;
@@ -139,6 +149,7 @@ export class WorkshopOverlay {
   private open = false;
   private zoneActive = false;
   private tab: Tab = 'bench';
+  private shopTier: TierId = DEFAULT_TIER; // which grade the Parts Shop sells right now (the tier toggle)
   private selected: EntityId | null = null;
   private drag: DragState | null = null;
 
@@ -164,6 +175,7 @@ export class WorkshopOverlay {
   private readonly slotEls = new Map<string, HTMLElement>();
   private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
   private decorateHead = false; // gate: attach the bucket head only for the assembled Reclaimer product
+  private headTint?: number; // the selected Reclaimer's bucket finish — the decorate hook tints the head with it
   private readonly headLoader = new ModelLoader(); // loads the Reclaimer bucket for the inspect portrait
 
   private readonly onCloseClick = (): void => this.closeOverlay();
@@ -214,7 +226,7 @@ export class WorkshopOverlay {
       // sub-part shares the same arm GLB but must show bare — `decorateHead` (set per selection in
       // renderDetail) distinguishes the two, since the decorate hook only sees the asset id.
       decorate: (assetId, model) =>
-        this.decorateHead ? attachStaticHead(assetId, model, this.headLoader) : undefined,
+        this.decorateHead ? attachStaticHead(assetId, model, this.headLoader, this.headTint) : undefined,
     });
     this.deck = createDeckView(this.deckHost, { onSelect: (e) => this.onDeckSelect(e) });
 
@@ -365,12 +377,14 @@ export class WorkshopOverlay {
       `wk-chip ${view.colorKey}` + (view.isProduct ? ' product' : '') + (opts.disabled ? ' disabled' : '');
     chip.dataset['entity'] = String(view.entity);
     if (!opts.disabled && view.entity === this.selected) chip.classList.add('selected');
-    // Drop the role tag when it just repeats the name — since the strip, a part's name IS its slot
-    // noun ("Shell" / slot "shell"), so the tag would read "Shell shell". A name that still differs
+    // Drop the role tag when it just repeats the noun — a part's name IS its slot noun ("Shell" /
+    // slot "shell"), so the tag would read "Shell shell". Checked against `baseName`, the un-prefixed
+    // noun, so the composed "Iron Shell" still drops its redundant "shell" tag. A name that differs
     // from its role (a chassis part: "Wheel & Axle Set" / "wheel-axle", or a product's kind) keeps it.
-    const showTag = view.tag.toLowerCase() !== view.displayName.toLowerCase();
+    const showTag = view.tag.toLowerCase() !== view.baseName.toLowerCase();
     chip.innerHTML =
       `<span class="wk-dot"></span>` +
+      (view.tierFinish !== undefined ? finishSwatch(view.tierFinish) : '') +
       `<span class="wk-name">${view.displayName}</span>` +
       (showTag ? `<span class="wk-slot-tag">${view.tag}</span>` : '');
     if (!opts.disabled) chip.addEventListener('pointerdown', (e) => this.beginDrag(e, view));
@@ -485,12 +499,16 @@ export class WorkshopOverlay {
         : recipe.productKind === 'engine'
           ? '—'
           : cap(recipe.productKind);
-    // A chassis shows the three attributes its sub-parts contribute (one each); every other product
-    // shows the engine-shaped power/torque/weight triple.
+    // The projected readout fits the build: a chassis shows its three contributed attributes; a
+    // storage container leads with capacity (so dropping an iron Shell/Rim previews the bigger hold
+    // before you commit); every other product shows the engine-shaped power/torque/weight triple.
     const statRows = recipe.productKind === 'chassis'
       ? `<span class="k">top speed</span><span class="v">${stats.topSpeed ?? 0}</span>` +
         `<span class="k">turning</span><span class="v">${stats.turning ?? 0}</span>` +
         `<span class="k">load cap</span><span class="v">${stats.loadCapacity ?? 0}</span>`
+      : recipe.productKind === 'storage'
+      ? `<span class="k">capacity</span><span class="v">${stats.capacity ?? 0}</span>` +
+        `<span class="k">weight</span><span class="v">${stats.weight}</span>`
       : `<span class="k">power</span><span class="v">${stats.power}</span>` +
         `<span class="k">torque</span><span class="v">${stats.torque}</span>` +
         `<span class="k">weight</span><span class="v">${stats.weight}</span>`;
@@ -522,18 +540,20 @@ export class WorkshopOverlay {
 
   // ── Parts Shop ─────────────────────────────────────────────────────────────────────────────
 
-  /** Render the current stock against the live Wallet total. */
+  /** Render the current stock against the live Wallet total, at the selected tier. */
   private renderShop(): void {
     const scrap = getWallet(this.world)?.scrap ?? 0;
     this.shopWalletEl.textContent = `SCRAP ${scrap}`;
     this.shopListEl.innerHTML = '';
 
     this.appendShopSectionTitle('Buy Parts');
-    for (const item of PART_SHOP_STOCK) {
+    this.appendShopTierToggle(); // the grade the buy list sells — Phase 1's iron source (§5)
+    for (const item of shopStockForTier(this.shopTier)) {
       const def = shopPartDef(item);
       if (!def) continue;
 
       const key = def.type ?? def.category;
+      const tier = tierOf(item.tier);
       const verdict = purchaseVerdict(this.world, item);
       const card = document.createElement('div');
       card.className = `wk-shop-card ${key}`;
@@ -541,7 +561,8 @@ export class WorkshopOverlay {
         `<div class="wk-shop-main">` +
         `<div class="wk-shop-name-row">` +
         `<span class="wk-shop-dot"></span>` +
-        `<span class="wk-shop-name">${def.displayName}</span>` +
+        finishSwatch(tier.finishColor) +
+        `<span class="wk-shop-name">${tier.name} ${def.displayName}</span>` +
         slotTag(def) +
         `</div>` +
         `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
@@ -566,7 +587,7 @@ export class WorkshopOverlay {
     const sellable = inventoryItems(this.world)
       .map((entity) => ({ entity, part: this.world.get(entity, EnginePart) }))
       .filter((row): row is { entity: EntityId; part: EnginePart } => {
-        return row.part != null && shopItemForPartId(row.part.id) != null;
+        return row.part != null && shopItemForPart(row.part.id, row.part.tier) != null;
       });
 
     if (sellable.length === 0) {
@@ -578,9 +599,10 @@ export class WorkshopOverlay {
     }
 
     for (const { entity, part } of sellable) {
-      const item = shopItemForPartId(part.id)!;
+      const item = shopItemForPart(part.id, part.tier)!; // an instance is valued at its own tier
       const def = shopPartDef(item)!;
       const key = def.type ?? def.category;
+      const tier = tierOf(part.tier);
       const value = resaleValue(item);
       const card = document.createElement('div');
       card.className = `wk-shop-card sell ${key}`;
@@ -588,7 +610,8 @@ export class WorkshopOverlay {
         `<div class="wk-shop-main">` +
         `<div class="wk-shop-name-row">` +
         `<span class="wk-shop-dot"></span>` +
-        `<span class="wk-shop-name">${def.displayName}</span>` +
+        finishSwatch(tier.finishColor) +
+        `<span class="wk-shop-name">${tier.name} ${def.displayName}</span>` +
         slotTag(def) +
         `</div>` +
         `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
@@ -614,6 +637,25 @@ export class WorkshopOverlay {
     title.className = 'wk-shop-section-title';
     title.textContent = label;
     this.shopListEl.appendChild(title);
+  }
+
+  /** The grade selector at the top of the buy list — one button per tier, swatch + name. Switching
+   *  reprices every buy card and is what the player builds an iron container from (the §5 source). */
+  private appendShopTierToggle(): void {
+    const row = document.createElement('div');
+    row.className = 'wk-shop-tier-row';
+    for (const tier of TIERS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-shop-tier' + (tier.id === this.shopTier ? ' active' : '');
+      btn.innerHTML = `${finishSwatch(tier.finishColor)}<span>${tier.name}</span>`;
+      btn.addEventListener('click', () => {
+        this.shopTier = tier.id;
+        this.renderShop();
+      });
+      row.appendChild(btn);
+    }
+    this.shopListEl.appendChild(row);
   }
 
   /** Execute one shop transaction and select the newly owned part. */
@@ -668,6 +710,7 @@ export class WorkshopOverlay {
     const view = this.selected !== null ? this.viewOf(this.selected) : null;
     if (!view) {
       this.decorateHead = false;
+      this.headTint = undefined;
       this.detailEl.innerHTML =
         `<div class="wk-detail-empty">Select a part or product to inspect it. Build on the ` +
         `Bench; drag finished products onto the Workshop Deck to stage them.</div>`;
@@ -677,15 +720,31 @@ export class WorkshopOverlay {
     // Only the assembled Reclaimer PRODUCT gets the bucket composed onto its arm in the portrait; the
     // loose arm sub-part shares the GLB but shows bare. Set before show() — the decorate hook reads it.
     this.decorateHead = view.isProduct && this.world.get(view.entity, Part)?.kind === 'reclaimer';
+    // Per-piece tier finishes: a loose part shows its own tier; a composed product washes each piece
+    // by its sub-part's tier (a Reclaimer's arm and bucket can differ). The decorate hook reads
+    // `this.headTint` to wash the attached bucket.
+    let baseTint = view.tierFinish;
+    this.headTint = undefined;
+    if (view.isProduct && view.assetId) {
+      const t = productTints(this.world, view.entity, view.assetId);
+      baseTint = t.tint;
+      this.headTint = t.headTint;
+    }
     const a = view.attrs;
     const staged = view.isProduct && this.isStaged(view.entity);
-    // A chassis (sub-part or kit) reads as its three contributed attributes + mass; everything else
-    // shows the engine-shaped power/torque/weight + the reserved durability/burst.
+    // The attribute readout fits the part: a chassis shows its three contributed attributes + mass; a
+    // storage part/container leads with capacity (the felt "iron holds more" stat) + mass; everything
+    // else shows the engine-shaped power/torque/weight + the reserved durability/burst. The numbers
+    // are RESOLVED through tier, so an iron part reads its scaled values, not the base.
     const attrsHtml = view.colorKey === 'chassis'
       ? `<span class="k">top speed</span><span class="v">${a.topSpeed ?? 0}</span>` +
         `<span class="k">turning</span><span class="v">${a.turning ?? 0}</span>` +
         `<span class="k">load cap</span><span class="v">${a.loadCapacity ?? 0}</span>` +
         `<span class="k">weight</span><span class="v">${a.weight}</span>`
+      : view.colorKey === 'storage'
+      ? `<span class="k">capacity</span><span class="v">${a.capacity ?? 0}</span>` +
+        `<span class="k">weight</span><span class="v">${a.weight}</span>` +
+        `<span class="k reserved">durability</span><span class="v reserved">${a.durability} (reserved)</span>`
       : `<span class="k">power</span><span class="v">${a.power}</span>` +
         `<span class="k">torque</span><span class="v">${a.torque}</span>` +
         `<span class="k">weight</span><span class="v">${a.weight}</span>` +
@@ -714,7 +773,13 @@ export class WorkshopOverlay {
         .querySelector<HTMLButtonElement>('#wk-dismantle')!
         .addEventListener('click', () => this.dismantleSelected());
     }
-    this.portrait.show(view.assetId, { fallbackColor: tintOf(view.colorKey) });
+    // The portrait wears the tier finish: the placeholder block (most sub-parts have no GLB) takes it
+    // as its colour, and a loaded GLB (the container, the Reclaimer arm) is washed toward it — falling
+    // back to the type cast when there's no single tier for the base piece (a mixed single-GLB product).
+    this.portrait.show(view.assetId, {
+      fallbackColor: baseTint ?? tintOf(view.colorKey),
+      ...(baseTint !== undefined ? { tint: baseTint } : {}),
+    });
   }
 
   // ── Deck (3D staging view) ──────────────────────────────────────────────────────────────────
@@ -737,7 +802,19 @@ export class WorkshopOverlay {
           r && r.shape === 'model'
             ? r.assetId
             : productAssetId(this.world.get(e, Part)?.kind ?? 'engine', asm?.recipeId ?? '', asm?.type);
-        parts.push({ entity: e, assetId, col: m.col, row: m.row, yaw: m.yaw, footprint: partFootprint(this.world, e) });
+        // Each piece wears its own sub-part's finish on the deck too — the Reclaimer's arm and bucket
+        // can differ; a single-GLB product takes its uniform tier (none when mixed).
+        const { tint, headTint } = productTints(this.world, e, assetId);
+        parts.push({
+          entity: e,
+          assetId,
+          col: m.col,
+          row: m.row,
+          yaw: m.yaw,
+          footprint: partFootprint(this.world, e),
+          ...(tint !== undefined ? { tint } : {}),
+          ...(headTint !== undefined ? { headTint } : {}),
+        });
       }
     }
     return {
@@ -1000,14 +1077,20 @@ export class WorkshopOverlay {
       const def = partDef(part.id);
       if (!def) return null;
       const key = def.type ?? def.category;
+      const tier = tierOf(part.tier);
+      // The tier rides as a one-word prefix composed here ("Iron Shell"), never stored in the catalog
+      // displayName (§1/§2b); `baseName` keeps the un-prefixed noun so the chip can still drop a slot
+      // tag that just repeats it.
       return {
         entity,
-        displayName: def.displayName,
+        displayName: `${tier.name} ${def.displayName}`,
+        baseName: def.displayName,
         colorKey: key,
         tag: def.slot,
-        sub: `${def.type ?? def.category} · ${def.slot}`,
-        attrs: def.attributes,
+        sub: `${tier.name} · ${def.type ?? def.category} · ${def.slot}`,
+        attrs: resolvePartStats(this.world, entity) ?? def.attributes,
         assetId: def.assetId,
+        tierFinish: tier.finishColor,
         slot: def.slot,
         ...(def.type ? { type: def.type } : {}),
         isProduct: false,
@@ -1019,17 +1102,21 @@ export class WorkshopOverlay {
       const recipe = recipeById(asm.recipeId);
       const kind = this.world.get(entity, Part)?.kind ?? 'engine';
       // The recipe name already carries the energy type (e.g. "Electric Engine"), so it stands alone
-      // as the product's name — no type prefix to compose.
+      // as the product's name — no type prefix to compose. A uniform-tier product wears that tier's
+      // finish; a mixed-tier one has no single grade, so it shows none.
       const output = recipe?.output ?? cap(kind);
       const key = asm.type ?? kind;
+      const tier = productTier(this.world, asm.parts);
       return {
         entity,
         displayName: output,
+        baseName: output,
         colorKey: key,
         tag: kind,
         sub: asm.type ? `${asm.type} · ${kind}` : kind,
         attrs: sumPartStats(this.world, asm.parts),
         assetId: productAssetId(kind, asm.recipeId, asm.type),
+        ...(tier ? { tierFinish: tierOf(tier).finishColor } : {}),
         slot: null,
         ...(asm.type ? { type: asm.type } : {}),
         isProduct: true,

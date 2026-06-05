@@ -1,7 +1,9 @@
 /**
  * Single tuning surface for shop part prices. Edit buyCost here to rebalance the Parts Shop.
  *
- * The shop stock derives from this list, and resale is calculated from the same buyCost so buy/sell
+ * These are the BASE (rusty, tier-1) prices. Higher tiers are priced up from them by the tier
+ * multiplier in `part-shop.ts` (`tieredCost`), so an iron part costs ~2.2× its rusty price without a
+ * second list to maintain. The shop stock and resale both derive from this list, so buy/sell
  * economics cannot drift apart.
  */
 export interface PartCost {

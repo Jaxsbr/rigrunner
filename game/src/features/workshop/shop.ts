@@ -4,7 +4,7 @@ import { EnginePart } from '@common/parts/engine-part';
 import { addToInventory, getInventory, removeFromInventory } from '@features/economy/inventory';
 import { getWallet } from '@features/economy/wallet';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
-import { shopItemForPartId, type PartShopItem } from '@features/workshop/part-shop';
+import { shopItemForPart, type PartShopItem } from '@features/workshop/part-shop';
 
 export type PurchaseVerdict =
   | { ok: true }
@@ -38,8 +38,9 @@ export function purchaseVerdict(world: World, item: PartShopItem): PurchaseVerdi
 }
 
 /**
- * The minimum Option-B transaction seam: spend N scrap from Wallet, spawn the catalog part, and put
- * it in Inventory. It does not know about recipes, workshop tiers, fixtures, or unlocks.
+ * The minimum Option-B transaction seam: spend N scrap from Wallet, spawn the catalog part at the
+ * item's tier, and put it in Inventory. It does not know about recipes, workshop tiers, fixtures, or
+ * unlocks — only that the item names a part, a tier (the grade to mint), and a cost.
  */
 export function buyPart(world: World, item: PartShopItem): PurchaseResult {
   const verdict = purchaseVerdict(world, item);
@@ -49,7 +50,7 @@ export function buyPart(world: World, item: PartShopItem): PurchaseResult {
   const def = partDef(item.partId)!;
   wallet.scrap -= item.cost;
 
-  const entity = spawnCatalogPart(world, def);
+  const entity = spawnCatalogPart(world, def, item.tier);
   addToInventory(world, entity);
 
   return { ok: true, item: entity, remainingScrap: wallet.scrap };
@@ -69,7 +70,7 @@ export function sellPart(world: World, entity: EntityId): SaleResult {
   const part = world.get(entity, EnginePart);
   if (!part) return { ok: false, reason: 'Only loose parts can be sold' };
 
-  const item = shopItemForPartId(part.id);
+  const item = shopItemForPart(part.id, part.tier);
   if (!item) return { ok: false, reason: 'No shop price' };
 
   const gained = resaleValue(item);

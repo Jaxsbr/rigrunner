@@ -6,6 +6,7 @@ import { Storage, CONTAINER_CAPACITY } from '@common/components/storage';
 import { Weight } from '@common/components/weight';
 import { Collider } from '@common/components/collider';
 import { Renderable } from '@common/components/renderable';
+import { tierOf, DEFAULT_TIER } from '@common/parts/tiers';
 
 /**
  * A storage container: a part the player mounts on the rig to hold collected scrap. Its capabilities:
@@ -28,6 +29,8 @@ export function spawnContainer(world: World, x = 0, z = 0): EntityId {
   world.add(e, Storage, { amount: 0, capacity: CONTAINER_CAPACITY });
   world.add(e, Weight, { value: CONTAINER_WEIGHT });
   world.add(e, Collider, { radius: CONTAINER_RADIUS });
-  world.add(e, Renderable, { shape: 'model', assetId: 'storage' });
+  // A directly-spawned container is a base (rusty) one — it wears the rusty finish, matching a
+  // bench-built rusty container so the two read alike (its capacity is the tier-1 CONTAINER_CAPACITY).
+  world.add(e, Renderable, { shape: 'model', assetId: 'storage', tint: tierOf(DEFAULT_TIER).finishColor });
   return e;
 }

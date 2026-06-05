@@ -1,6 +1,7 @@
 import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { EnginePart } from '@common/parts/engine-part';
+import { DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import type { ChassisSize } from '@common/components/chassis';
 
 /**
@@ -65,12 +66,15 @@ export interface PartAttributes {
   durability: number; // reserved (casing toughness) — not consumed in MW
   burst: number;      // reserved (regulator boost/overdrive magnitude) — not consumed in MW
   // Chassis sub-part contributions — summed into a `Chassis` at assembly. Omitted (≡ 0) on every
-  // non-chassis part, the same way `capacity` is planned to ride only on storage parts
-  // (docs/part-identity-spec.md §4c). topSpeed/turning are inert until the laden-weight milestone;
-  // loadCapacity is the rated carry weight the HUD reads.
+  // non-chassis part. topSpeed/turning are inert until the laden-weight milestone; loadCapacity is
+  // the rated carry weight the HUD reads.
   topSpeed?: number;
   turning?: number;
   loadCapacity?: number;
+  // Storage sub-part contribution — the scrap a container can hold, summed at assembly into the
+  // product's `Storage.capacity` (docs/part-identity-spec.md §4c). Rides only on Shell/Rim; ≡ 0
+  // elsewhere. Scaled by tier like every attribute, so an iron container holds more than a rusty one.
+  capacity?: number;
 }
 
 export interface PartDef {
@@ -167,14 +171,16 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   },
 
   // 📦 Storage container — a SECOND recipe (`STORAGE_RECIPE`): two parts, no energy type. Storage
-  // parts contribute weight/durability (capacity is a later axis); power/torque/burst stay 0 since a
-  // container does no engine work. They prove the bench is recipe-driven, not engine-shaped.
+  // parts contribute weight/durability AND `capacity` — the scrap the assembled container holds.
+  // power/torque/burst stay 0 since a container does no engine work. The shell holds the bulk; the
+  // rim a little more. A rusty (tier-1) container sums to capacity 4 — the same `CONTAINER_CAPACITY`
+  // a directly-spawned one carries — and the tier multiplier makes an iron container hold more.
   {
     id: 'container-shell',
     slot: 'shell',
     category: 'storage',
     displayName: 'Shell',
-    attributes: { power: 0, torque: 0, weight: 3, durability: 6, burst: 0 },
+    attributes: { power: 0, torque: 0, weight: 3, durability: 6, burst: 0, capacity: 3 },
     assetId: 'container-shell',
   },
   {
@@ -182,7 +188,7 @@ export const PARTS_CATALOG: readonly PartDef[] = [
     slot: 'rim',
     category: 'storage',
     displayName: 'Rim',
-    attributes: { power: 0, torque: 0, weight: 1, durability: 3, burst: 0 },
+    attributes: { power: 0, torque: 0, weight: 1, durability: 3, burst: 0, capacity: 1 },
     assetId: 'container-rim',
   },
 
@@ -214,8 +220,8 @@ export const PARTS_CATALOG: readonly PartDef[] = [
   // suspension/steering, frame) like an engine is from four. No energy type (it does no engine work).
   // Each slot owns one chassis attribute plus its own weight; power/torque/durability/burst stay 0.
   // There is a set PER SIZE: the 3×5 parts are heavier and rated higher than the 1×3's — a bigger
-  // foundation. (Tier — scrap/iron/… — is a separate, not-yet-built axis that will ride on the part
-  // INSTANCE and multiply these base values uniformly; see docs/part-identity-spec.md §4a.)
+  // foundation. (Tier — rusty/iron/… — is the orthogonal material axis on the part INSTANCE that
+  // multiplies these base values uniformly at resolve time; see `tiers.ts` and `resolvePartStats`.)
 
   // 1×3 — the light scout foundation.
   {
@@ -282,15 +288,17 @@ export function partDef(id: string): PartDef | undefined {
 }
 
 /**
- * Spawn one catalog sub-part as a loose world entity carrying the `EnginePart` vessel (the catalog
- * id). It is NOT placed in the scene and carries no Transform/Renderable yet — in MW a part only
- * exists to be owned (inventory) and, later, assembled. P3 adds the visual/portrait seam.
+ * Spawn one catalog sub-part as a loose world entity carrying the `EnginePart` vessel — the catalog
+ * `id` plus the `tier` it was made at (defaulting to the base of the ladder). It is NOT placed in the
+ * scene and carries no Transform/Renderable yet — a loose part only exists to be owned (inventory)
+ * and, later, assembled.
  *
- * Named `spawnCatalogPart` (not `spawnCatalogPart`): it spawns ANY catalog sub-part — engine pieces,
- * container shells, Reclaimer parts — so the name reflects the registry it draws from, not one kind.
+ * The name reflects the registry it draws from, not one kind: it spawns ANY catalog sub-part — engine
+ * pieces, container shells, Reclaimer parts, chassis parts. The shop hands it a non-default tier to
+ * mint an iron part (`@features/workshop/shop`); seeds and the bench use the rusty default.
  */
-export function spawnCatalogPart(world: World, def: PartDef): EntityId {
+export function spawnCatalogPart(world: World, def: PartDef, tier: TierId = DEFAULT_TIER): EntityId {
   const e = world.createEntity();
-  world.add(e, EnginePart, { id: def.id });
+  world.add(e, EnginePart, { id: def.id, tier });
   return e;
 }

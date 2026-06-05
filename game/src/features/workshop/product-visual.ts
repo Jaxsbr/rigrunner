@@ -1,5 +1,10 @@
+import type { World } from '@core/world';
+import type { EntityId } from '@core/types';
 import type { PartKind } from '@common/components/part';
 import type { EnergyType } from '@common/parts/parts-catalog';
+import { tierOf } from '@common/parts/tiers';
+import { assetTier } from '@common/sim/assembly';
+import { isArticulated, BUCKET_ASSET } from '@common/render/articulation';
 
 /**
  * Which GLB previews/renders a composed product — the ONE place that maps a product to its asset, so
@@ -28,4 +33,30 @@ export function productAssetId(kind: PartKind, recipeId: string, type?: EnergyTy
   if (kind === 'reclaimer') return 'reclaimer-arm';
   if (kind === 'chassis') return 'chassis-kit';
   return recipeId;
+}
+
+/** The tier finish each rendered piece of a product wears (`docs/part-identity-spec.md` §3). */
+export interface ProductTints {
+  /** Wash for the base model. */
+  tint?: number;
+  /** Wash for an articulated asset's socket head (the Reclaimer's bucket). */
+  headTint?: number;
+}
+
+/**
+ * The finishes a composed product's render wears — the companion to `productAssetId`, kept here so the
+ * ONE place that maps a product to its asset also says how each piece is graded. The base model is
+ * washed by the tier of the sub-part whose asset it is (or the product's uniform tier for a one-GLB
+ * product), and an articulated arm's head is washed by its own sub-part's tier — so an iron-arm +
+ * rusty-bucket Reclaimer shows each piece's real grade instead of collapsing to one finish or none.
+ */
+export function productTints(world: World, product: EntityId, assetId: string): ProductTints {
+  const tints: ProductTints = {};
+  const base = assetTier(world, product, assetId);
+  if (base) tints.tint = tierOf(base).finishColor;
+  if (isArticulated(assetId)) {
+    const head = assetTier(world, product, BUCKET_ASSET);
+    if (head) tints.headTint = tierOf(head).finishColor;
+  }
+  return tints;
 }

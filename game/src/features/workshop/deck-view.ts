@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ModelLoader } from '@shared/model-loader';
 import { MODEL_ASSETS } from '@shared/assets';
+import { tintModel } from '@shared/model-tint';
 import { createThreeCanvas, disposeObject } from '@shared/three-canvas';
 import type { EntityId } from '@core/types';
 import { cellLocalOffset } from '@features/mounting/mounting';
@@ -39,6 +40,10 @@ export interface DeckPart {
   yaw: number;
   /** Cells the part occupies, anchored at (col, row) — a 2×2 chassis kit; 1×1 otherwise. */
   footprint: { cols: number; rows: number };
+  /** The tier finish to wash the model toward (§3), or omitted for the GLB's own colours. */
+  tint?: number;
+  /** The tier finish for an articulated asset's socket head (the Reclaimer's bucket). */
+  headTint?: number;
 }
 
 export interface DeckSnapshot {
@@ -135,7 +140,16 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
   }
 
   /** Add a model (or placeholder) at a deck position, tagging it with its entity for picking. */
-  function addModel(assetId: string, x: number, y: number, z: number, yaw = 0, entity?: EntityId): void {
+  function addModel(
+    assetId: string,
+    x: number,
+    y: number,
+    z: number,
+    yaw = 0,
+    entity?: EntityId,
+    tint?: number,
+    headTint?: number,
+  ): void {
     const myToken = token;
     const group = new THREE.Group();
     group.position.set(x, y, z);
@@ -144,7 +158,7 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     holder.add(group);
 
     if (!(assetId in MODEL_ASSETS)) {
-      const block = placeholder(0.7, 0x6b6b6b);
+      const block = placeholder(0.7, tint ?? 0x6b6b6b);
       ownedRoots.add(block);
       group.add(block);
       return;
@@ -154,11 +168,13 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
       .then((template) => {
         if (myToken !== token) return; // a newer render() superseded this
         const instance = template.clone(true);
+        if (tint !== undefined) tintModel(instance, tint);
         group.add(instance);
         // An articulated arm (the Reclaimer) gets its bucket head parented onto the wrist socket in
         // a static stow pose — mirroring the live world (render/entity-views), so a staged Reclaimer
-        // reads as the whole tool here too, not a bare headless arm. A no-op for any other asset.
-        void attachStaticHead(assetId, instance, models);
+        // reads as the whole tool here too, not a bare headless arm. A no-op for any other asset. The
+        // head wears its own sub-part's tier finish, independent of the arm's.
+        void attachStaticHead(assetId, instance, models, headTint);
       })
       .catch(() => {
         if (myToken !== token) return;
@@ -187,7 +203,7 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     addModel(snapshot.workshopAssetId, 0, 0, 0); // the deck itself, at the origin
     for (const p of snapshot.parts) {
       const c = regionCenter(p.col, p.row, p.footprint);
-      addModel(p.assetId, c.x, grid.deckY, c.z, p.yaw, p.entity);
+      addModel(p.assetId, c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint, p.headTint);
     }
 
     // Selected staged product → a soft blue highlight over its region (distinct from the drop
