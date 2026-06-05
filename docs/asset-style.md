@@ -98,6 +98,32 @@ not-in-operation raised pose). The driver that knows the Reclaimer's joints/sock
 `viewer/src/articulation.ts` — the same node-name contract the game will drive later (e.g. stow while
 driving, deploy to dig).
 
+## Assembly sockets (composing a product from its sub-parts)
+
+A product (an engine, a container) is built from several sub-parts, and renders as those sub-parts
+**positioned and snapped together** — each wearing its own tier finish — so a mixed-tier build reads
+*as* a mix. The spatial layout lives **in the art**: a **host** sub-part carries named attach points,
+and one shared assembler (`shared/assembler.ts`, used by the game **and** the viewer) snaps the other
+sub-parts onto them at runtime. Because the part that owns the geometry also places the socket,
+alignment is true *by construction* — no layout numbers are duplicated in code.
+
+| Concern | Rule |
+|---------|------|
+| **Host** | One sub-part per product is the **host** (the engine **Casing**/**Boiler**, the container **Shell**). Its GLB carries the sockets; the others seat into it. |
+| **Assembly sockets** | Name attach points `socket_<slot>` empties (e.g. `socket_core`, `socket_rim`). At runtime a child sub-part's GLB is parented here and inherits the host's transform. **A child's origin snaps to the socket**, so place the socket where the child should rest (children keep their base-centre origin, so the socket sits at the child's footprint-centre-on-ground). |
+| **Attach vs motion** | Assembly sockets are **static** — they don't rotate (unlike `joint_*` motion handles). A host may carry both: the Reclaimer arm rotates its `joint_*` chain and attaches its bucket on `socket_wrist`. |
+| **Repeated stations** | A family `socket_<slot>_<i>` (`socket_axle_0`, `socket_axle_1`, …) means "instance **one** shared child model at **every** numbered socket". The instancing is purely visual — it never changes the logical part count or stats. |
+| **Host export** | A host is a normal **static** asset (base-centre origin, no `ARTICULATED` flag unless it also has joints). Parent each socket empty to the joined body (`rr.parent_keep(socket, body)`) so the base-centre re-origin moves them with the geometry and they stay aligned. |
+
+The composition map — which sub-part hosts a product, and which socket each other sub-part snaps to —
+is data in [`shared/part-identity.ts`](../shared/part-identity.ts) (`PRODUCT_COMPOSITION`), read by the
+assembler. Adding sockets to a host's generator + a descriptor row is all it takes for a product to
+compose. Reference host: `tools/blender/assets/e_casing.py` (`socket_core|coupling|regulator`).
+
+**Verify in the viewer**: select a product on the **Parts** tab and it renders through the assembler as
+its located sub-parts; change one sub-part's tier and only that piece's finish changes. This is the
+spacing/symmetry/cohesion feedback loop — nudge a socket offset in the host generator, rebuild, re-look.
+
 ## How an asset reaches the screen (the seam)
 
 ```

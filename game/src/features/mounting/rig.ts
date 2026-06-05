@@ -10,7 +10,8 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { Chassis, CHASSIS_KIT_FOOTPRINT, type ChassisSize } from '@common/components/chassis';
 import { chassisRecipeForSize } from '@common/parts/recipes';
-import { composeProduct } from '@common/sim/assembly';
+import { composeProduct, chassisTier } from '@common/sim/assembly';
+import { tierOf } from '@common/parts/tiers';
 import { hasMountedParts } from '@features/mounting/mounting';
 import { chassisParts } from '@features/chassis/chassis';
 import {
@@ -43,6 +44,17 @@ import { Deploying } from '@features/chassis/deploying';
  * milestone wires that seam); with no engine mounted the rig still can't move (propulsion is the
  * engines').
  */
+/**
+ * The tier finish a chassis GLB wears — its Frame sub-part's grade (`chassisTier`). The chassis renders
+ * as one whole GLB (sub-part composition is the deferred follow-up), so it takes one finish; tinting by
+ * the Frame means it always reads as a graded chassis — the starting rusty rig wears the rust finish, an
+ * iron one the iron finish — never the untinted blue GLB, even when its sub-parts are mixed.
+ */
+function chassisFinish(world: World, chassis: EntityId): number | undefined {
+  const t = chassisTier(world, chassis);
+  return t ? tierOf(t).finishColor : undefined;
+}
+
 export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): EntityId {
   const size = world.get(chassis, Chassis)!.size;
   // A staged kit already has a Transform (it had world presence on the deck) — reseat it on the
@@ -59,7 +71,12 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   // Collider, so the rig's true collision area is the union of these circles — it grows with the
   // build. Sized to the size's central body; the 3×5 hauler is wider so its disc is larger.
   world.add(chassis, Collider, { radius: size === '1x3' ? 1.0 : 1.9 });
-  world.add(chassis, Renderable, { shape: 'model', assetId: size === '1x3' ? 'chassis-1x3' : 'chassis-3x5' });
+  const rigTint = chassisFinish(world, chassis);
+  world.add(chassis, Renderable, {
+    shape: 'model',
+    assetId: size === '1x3' ? 'chassis-1x3' : 'chassis-3x5',
+    ...(rigTint !== undefined ? { tint: rigTint } : {}),
+  });
   // A rig stands on the ground and is never mounted on a grid, so the packed-kit footprint no longer
   // applies — drop it so nothing treats the rig as a 2×2 occupant.
   const part = world.get(chassis, Part);
@@ -85,7 +102,12 @@ export function chassisToKit(world: World, chassis: EntityId): EntityId {
   world.remove(chassis, DriveControl);
   world.remove(chassis, Collider);
   world.remove(chassis, Deploying); // a settled rig isn't mid-unfold, but never leave a stale marker
-  world.add(chassis, Renderable, { shape: 'model', assetId: 'chassis-kit' });
+  const kitTint = chassisFinish(world, chassis);
+  world.add(chassis, Renderable, {
+    shape: 'model',
+    assetId: 'chassis-kit',
+    ...(kitTint !== undefined ? { tint: kitTint } : {}),
+  });
   // Restore the 2×2 packed footprint a rig sheds — mounting reserves the whole region when the kit is
   // staged back onto the workshop deck.
   world.get(chassis, Part)!.footprint = { ...CHASSIS_KIT_FOOTPRINT };

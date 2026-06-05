@@ -5,6 +5,8 @@ import { Transform } from '@common/components/transform';
 import { Renderable } from '@common/components/renderable';
 import { ModelLoader } from '@shared/model-loader';
 import { tintModel } from '@shared/model-tint';
+import { assembleProduct } from '@shared/assembler';
+import type { TierId } from '@common/parts/tiers';
 import { isArticulated, ReclaimerRig, BUCKET_ASSET } from './articulation';
 
 /**
@@ -70,7 +72,39 @@ export class EntityViews {
   }
 
   private createObject(r: Renderable): THREE.Object3D {
-    return r.shape === 'model' ? this.createModel(r.assetId, r.scale ?? 1, r.tint, r.headTint) : this.createBox(r);
+    if (r.shape === 'assembly') return this.createAssembly(r.groupId, r.tiers, r.scale ?? 1);
+    if (r.shape === 'model') return this.createModel(r.assetId, r.scale ?? 1, r.tint, r.headTint);
+    return this.createBox(r);
+  }
+
+  /**
+   * A COMPOSED product (engine, container) drawn as its positioned sub-parts through the SHARED
+   * assembler — the same path the viewer composes by, so a build reads identically in the world and in
+   * the viewer (`docs/part-identity-spec.md` §2b). Like `createModel`, the entity gets a stable Group
+   * immediately (a placeholder until the async compose resolves), so the cache/positioning logic never
+   * waits on I/O; the composed whole swaps in on load. Base-centre origin → restY 0.
+   */
+  private createAssembly(groupId: string, tiers: Record<string, TierId>, scale: number): THREE.Object3D {
+    const group = new THREE.Group();
+    group.userData['restY'] = 0;
+    group.userData['wheels'] = []; // composed engines/containers have none — animateWheels no-ops
+    group.userData['reclaimer'] = null;
+    group.scale.setScalar(scale);
+
+    const placeholder = placeholderMesh();
+    group.add(placeholder);
+
+    assembleProduct(groupId, tiers, this.models)
+      .then((assembled) => {
+        if (!assembled) return; // not a composing product (shouldn't reach here) — keep the placeholder
+        group.remove(placeholder);
+        group.add(assembled.group);
+      })
+      .catch((err: unknown) => {
+        console.warn(`[assets] could not compose product '${groupId}', showing placeholder:`, err);
+      });
+
+    return group;
   }
 
   private createBox(r: Extract<Renderable, { shape: 'box' }>): THREE.Mesh {
@@ -150,9 +184,14 @@ export class EntityViews {
  * its signature changes, so a live assetId swap (the chassis-kit → chassis deploy) is reflected.
  */
 function renderSig(r: Renderable): string {
-  return r.shape === 'model'
-    ? `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}:${r.headTint ?? ''}`
-    : `box:${r.color}:${r.size.x},${r.size.y},${r.size.z}`;
+  if (r.shape === 'model') return `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}:${r.headTint ?? ''}`;
+  if (r.shape === 'assembly') {
+    // A per-sub-part tier change must rebuild the composed object, so fold the whole tier map into the
+    // signature (sorted, so key order can't spuriously churn it).
+    const tiers = Object.entries(r.tiers).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join(',');
+    return `assembly:${r.groupId}:${r.scale ?? 1}:${tiers}`;
+  }
+  return `box:${r.color}:${r.size.x},${r.size.y},${r.size.z}`;
 }
 
 /** Magenta wireframe cube = "asset loading or missing" — an obvious dev signal. */

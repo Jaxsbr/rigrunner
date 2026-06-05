@@ -348,13 +348,18 @@ describe('assembly — placeProductInWorld gives a product world presence', () =
 
     expect(w.get(engine, Transform)).toMatchObject({ x: 3, z: 5, y: 0 });
     const r = w.get(engine, Renderable)!;
-    expect(r).toMatchObject({ shape: 'model', assetId: 'engine-mk2' }); // electric → mk2 stand-in
+    // The engine composes from its sub-parts through the shared assembler (the same path the viewer
+    // renders by), each piece at its own tier — not a single whole-engine GLB (§2b).
+    expect(r).toMatchObject({ shape: 'assembly', groupId: 'electric-engine' });
+    expect((r as Extract<typeof r, { shape: 'assembly' }>).tiers).toMatchObject({
+      'e-casing': 'rusty', 'e-core': 'rusty', 'e-coupling': 'rusty', 'e-regulator': 'rusty',
+    });
     expect(w.get(engine, Collider)).toBeDefined();
     expect(w.get(engine, MountFacing)).toMatchObject({ kind: 'specific', rule: 'outward' });
     expect(inventoryItems(w)).toEqual([]); // left inventory — a product is in exactly one place
   });
 
-  it('a storage product gets no MountFacing and renders via its recipe id', () => {
+  it('a storage product gets no MountFacing and composes from its shell + rim', () => {
     const w = setup();
     loadRecipe(w, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
     STORAGE.forEach((id) => placeOnSlot(w, id));
@@ -362,7 +367,7 @@ describe('assembly — placeProductInWorld gives a product world presence', () =
 
     placeProductInWorld(w, container, 0, 0);
 
-    expect(w.get(container, Renderable)).toMatchObject({ shape: 'model', assetId: 'storage' });
+    expect(w.get(container, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'storage' });
     expect(w.get(container, MountFacing)).toBeUndefined(); // a container has no directional facing
   });
 });

@@ -9,7 +9,7 @@ import { MountFacing } from '@common/components/mount-facing';
 import type { PartDef, EnergyType } from '@common/parts/parts-catalog';
 import type { Recipe } from '@common/parts/recipes';
 import { defOf, resolveEnergyType, buildProduct } from '@common/sim/assembly';
-import { productAssetId, productTints } from './product-visual';
+import { productRenderSpec } from './product-visual';
 import { getBench, benchSlots, clearBenchSlot } from './bench';
 import { addToInventory, removeFromInventory } from '@features/economy/inventory';
 
@@ -130,18 +130,20 @@ export function assemble(world: World, recipe: Recipe): EntityId | null {
 export function placeProductInWorld(world: World, product: EntityId, x: number, z: number): void {
   const part = world.get(product, Part);
   if (!part) return;
-  const asm = world.get(product, Assembly);
-  // Each rendered piece wears its own sub-part's tier finish: a single-GLB product takes its uniform
-  // tier (none when mixed), a composed Reclaimer washes its arm and bucket each by their own grade.
-  const assetId = productAssetId(part.kind, asm?.recipeId ?? '', asm?.type);
-  const { tint, headTint } = productTints(world, product, assetId);
+  // One resolver decides how the product draws (`productRenderSpec`): an engine/container COMPOSES from
+  // its sub-parts through the shared assembler — each piece at its own tier, the SAME path the viewer
+  // renders by — while the chassis/Reclaimer draw as a single whole-product GLB (uniform-tier finish,
+  // the Reclaimer's bucket its own grade).
+  const spec = productRenderSpec(world, product);
   world.add(product, Transform, { x, z, y: 0, rotationY: 0 });
-  world.add(product, Renderable, {
-    shape: 'model',
-    assetId,
-    ...(tint !== undefined ? { tint } : {}),
-    ...(headTint !== undefined ? { headTint } : {}),
-  });
+  world.add(product, Renderable, spec.compose
+    ? { shape: 'assembly', groupId: spec.groupId, tiers: spec.tiers }
+    : {
+        shape: 'model',
+        assetId: spec.assetId,
+        ...(spec.tint !== undefined ? { tint: spec.tint } : {}),
+        ...(spec.headTint !== undefined ? { headTint: spec.headTint } : {}),
+      });
   world.add(product, Collider, { radius: 0.5 });
   if (part.kind === 'engine' || part.kind === 'reclaimer') {
     world.add(product, MountFacing, { kind: 'specific', rule: 'outward' });

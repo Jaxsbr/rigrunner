@@ -10,7 +10,7 @@ import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-cat
 import { TIERS, tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
 import { shopStockForTier, shopItemForPart, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
-import { productAssetId, productTints } from '@features/workshop/product-visual';
+import { productAssetId, productRenderSpec } from '@features/workshop/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '@features/economy/inventory';
 import { getWallet } from '@features/economy/wallet';
 import {
@@ -45,6 +45,7 @@ import { buyPart, purchaseVerdict, resaleValue, sellPart } from '@features/works
 import { closestFreeCellLocal, partFootprint } from '@features/mounting/mounting';
 import { createModelPortrait, type ModelPortrait } from '@shared/model-portrait';
 import { ModelLoader } from '@shared/model-loader';
+import { attachSubParts } from '@shared/assembler';
 import { attachStaticHead } from '@common/render/articulation';
 import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from './deck-view';
 
@@ -176,7 +177,10 @@ export class WorkshopOverlay {
   private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
   private decorateHead = false; // gate: attach the bucket head only for the assembled Reclaimer product
   private headTint?: number; // the selected Reclaimer's bucket finish — the decorate hook tints the head with it
-  private readonly headLoader = new ModelLoader(); // loads the Reclaimer bucket for the inspect portrait
+  // Set per selection: the inspect portrait composes a product's sub-parts onto its host (engine/storage)
+  // through the shared assembler, mirroring the world/deck/viewer. Null for a loose part or a whole-GLB product.
+  private composeSpec: { groupId: string; tiers: Record<string, TierId> } | null = null;
+  private readonly headLoader = new ModelLoader(); // loads the Reclaimer bucket / composed sub-parts for the portrait
 
   private readonly onCloseClick = (): void => this.closeOverlay();
   private readonly onTabClick = (): void => this.openOverlay();
@@ -226,7 +230,11 @@ export class WorkshopOverlay {
       // sub-part shares the same arm GLB but must show bare — `decorateHead` (set per selection in
       // renderDetail) distinguishes the two, since the decorate hook only sees the asset id.
       decorate: (assetId, model) =>
-        this.decorateHead ? attachStaticHead(assetId, model, this.headLoader, this.headTint) : undefined,
+        this.composeSpec
+          ? attachSubParts(model, this.composeSpec.groupId, this.composeSpec.tiers, this.headLoader).then(() => {})
+          : this.decorateHead
+            ? attachStaticHead(assetId, model, this.headLoader, this.headTint)
+            : undefined,
     });
     this.deck = createDeckView(this.deckHost, { onSelect: (e) => this.onDeckSelect(e) });
 
@@ -717,18 +725,25 @@ export class WorkshopOverlay {
       this.portrait.show(null);
       return;
     }
-    // Only the assembled Reclaimer PRODUCT gets the bucket composed onto its arm in the portrait; the
-    // loose arm sub-part shares the GLB but shows bare. Set before show() — the decorate hook reads it.
-    this.decorateHead = view.isProduct && this.world.get(view.entity, Part)?.kind === 'reclaimer';
-    // Per-piece tier finishes: a loose part shows its own tier; a composed product washes each piece
-    // by its sub-part's tier (a Reclaimer's arm and bucket can differ). The decorate hook reads
-    // `this.headTint` to wash the attached bucket.
-    let baseTint = view.tierFinish;
+    // How the selected item draws in the portrait, resolved through the SAME `productRenderSpec` the
+    // world and deck use — so the inspect view matches them. A loose part shows its own GLB; a composed
+    // product (engine/storage) shows its host GLB and the decorate hook snaps the sub-parts on (each at
+    // its tier); a whole-GLB product (chassis/Reclaimer) shows that GLB, the Reclaimer's bucket composed.
+    this.decorateHead = false;
+    this.composeSpec = null;
     this.headTint = undefined;
-    if (view.isProduct && view.assetId) {
-      const t = productTints(this.world, view.entity, view.assetId);
-      baseTint = t.tint;
-      this.headTint = t.headTint;
+    let portraitAsset = view.assetId;
+    let baseTint = view.tierFinish;
+    if (view.isProduct) {
+      const spec = productRenderSpec(this.world, view.entity);
+      portraitAsset = spec.assetId; // the host GLB for a composed product, else the whole-product GLB
+      baseTint = spec.tint;
+      if (spec.compose) {
+        this.composeSpec = { groupId: spec.groupId, tiers: spec.tiers };
+      } else {
+        this.decorateHead = this.world.get(view.entity, Part)?.kind === 'reclaimer';
+        this.headTint = spec.headTint;
+      }
     }
     const a = view.attrs;
     const staged = view.isProduct && this.isStaged(view.entity);
@@ -776,7 +791,7 @@ export class WorkshopOverlay {
     // The portrait wears the tier finish: the placeholder block (most sub-parts have no GLB) takes it
     // as its colour, and a loaded GLB (the container, the Reclaimer arm) is washed toward it — falling
     // back to the type cast when there's no single tier for the base piece (a mixed single-GLB product).
-    this.portrait.show(view.assetId, {
+    this.portrait.show(portraitAsset, {
       fallbackColor: baseTint ?? tintOf(view.colorKey),
       ...(baseTint !== undefined ? { tint: baseTint } : {}),
     });
@@ -796,25 +811,27 @@ export class WorkshopOverlay {
     if (workshop !== null) {
       for (const e of stagedProducts(this.world, workshop)) {
         const m = this.world.get(e, Mount)!;
+        // Mirror the staged product's OWN Renderable — the same description the world draws it from — so
+        // the deck preview and the world agree: an engine/container composes from its sub-parts (each at
+        // its tier), a chassis/Reclaimer draws its whole GLB with its finishes.
         const r = this.world.get(e, Renderable);
-        const asm = this.world.get(e, Assembly);
-        const assetId =
-          r && r.shape === 'model'
-            ? r.assetId
-            : productAssetId(this.world.get(e, Part)?.kind ?? 'engine', asm?.recipeId ?? '', asm?.type);
-        // Each piece wears its own sub-part's finish on the deck too — the Reclaimer's arm and bucket
-        // can differ; a single-GLB product takes its uniform tier (none when mixed).
-        const { tint, headTint } = productTints(this.world, e, assetId);
-        parts.push({
-          entity: e,
-          assetId,
-          col: m.col,
-          row: m.row,
-          yaw: m.yaw,
-          footprint: partFootprint(this.world, e),
-          ...(tint !== undefined ? { tint } : {}),
-          ...(headTint !== undefined ? { headTint } : {}),
-        });
+        const base = { entity: e, col: m.col, row: m.row, yaw: m.yaw, footprint: partFootprint(this.world, e) };
+        if (r?.shape === 'assembly') {
+          parts.push({ ...base, groupId: r.groupId, tiers: r.tiers });
+        } else if (r?.shape === 'model') {
+          parts.push({
+            ...base,
+            assetId: r.assetId,
+            ...(r.tint !== undefined ? { tint: r.tint } : {}),
+            ...(r.headTint !== undefined ? { headTint: r.headTint } : {}),
+          });
+        } else {
+          const asm = this.world.get(e, Assembly);
+          parts.push({
+            ...base,
+            assetId: productAssetId(this.world.get(e, Part)?.kind ?? 'engine', asm?.recipeId ?? '', asm?.type),
+          });
+        }
       }
     }
     return {

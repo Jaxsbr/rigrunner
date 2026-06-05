@@ -58,6 +58,16 @@ export const PART_VIEWS: Record<string, Partial<PartView>> = {
   // a touch wide.
   'container-shell': { zoom: 0.6 },
   'container-rim': { zoom: 0.88 },
+
+  // Composed PRODUCTS (the Parts-tab product headers) — keyed by the product-group id. The engines yaw
+  // their front to camera so the open frame's internals + status read; both are chunky open frames, so
+  // pull back. Storage shows the shell+rim head-on. The chassis renders as its whole functional GLB —
+  // the 3×5 hauler is large, so pull well back.
+  'electric-engine': { facing: 180, zoom: 0.55 },
+  'steam-engine': { facing: 180, zoom: 0.5 },
+  storage: { zoom: 0.6 },
+  'chassis-1x3': { zoom: 0.5 },
+  'chassis-3x5': { zoom: 0.32 },
 };
 
 /** The view settings for an id — the per-id override merged over the defaults. */
