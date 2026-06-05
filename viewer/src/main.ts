@@ -17,6 +17,7 @@ import {
 } from '../../shared/part-identity';
 import paletteData from '../../shared/palette.json';
 import { ReclaimerRig, isArticulated } from './articulation';
+import { viewFor } from './part-views';
 
 /**
  * RIGRUNNER asset viewer — a standalone tool to inspect the game's assets in isolation, outside the
@@ -225,18 +226,27 @@ function countTris(obj: THREE.Object3D): number {
   return Math.round(tris);
 }
 
-/** Frame the orbit camera on an object's bounds so any size of display fills the view nicely. */
-function frame(obj: THREE.Object3D): THREE.Vector3 {
+/**
+ * Frame the orbit camera on an object's bounds. `zoom` scales the apparent size: 1 fits the object to
+ * the frame (the baseline); <1 pulls the camera back so it reads smaller; >1 pushes in. This is the
+ * per-part default zoom (`part-views.ts`) — the initial framing; the user can still scroll from here.
+ */
+function frame(obj: THREE.Object3D, zoom = 1): THREE.Vector3 {
   const box = new THREE.Box3().setFromObject(obj);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
-  const dist = radius / Math.sin((camera.fov * Math.PI) / 180 / 2) + radius;
+  const dist = (radius / Math.sin((camera.fov * Math.PI) / 180 / 2) + radius) / zoom;
   controls.target.copy(center);
   camera.position.copy(center).add(new THREE.Vector3(1, 0.75, 1.15).normalize().multiplyScalar(dist));
   controls.update();
   forward.setLength(Math.max(size.z, radius) + 0.8, 0.4, 0.25);
   return size;
+}
+
+/** Yaw a displayed object to its configured facing (degrees about the vertical axis). */
+function applyFacing(obj: THREE.Object3D, facingDeg: number): void {
+  obj.rotation.y = (facingDeg * Math.PI) / 180;
 }
 
 /** A neutral ~1m placeholder block (with edges), shown for a sub-part that has no model yet. */
@@ -303,9 +313,10 @@ function beginSelect(): number {
   return t;
 }
 
-/** Finish a selection: frame, render one frame (so the buffer is sampleable), sync sidebar + hash. */
-function finishSelect(): void {
-  frame(holder);
+/** Finish a selection: frame (at the view's zoom), render one frame (so the buffer is sampleable),
+ *  sync sidebar + hash. */
+function finishSelect(zoom = 1): void {
+  frame(holder, zoom);
   renderer.render(scene, camera);
   syncSidebar();
 }
@@ -315,6 +326,7 @@ async function selectAsset(assetId: string): Promise<void> {
   const t = beginSelect();
   mode = 'asset';
   viewId = assetId;
+  const view = viewFor(assetId);
   partctl.hidden = true;
   hud.innerHTML = `<b>${assetId}</b> — loading…`;
   try {
@@ -338,11 +350,12 @@ async function selectAsset(assetId: string): Promise<void> {
       animBar.hidden = false;
       setArmState('dig');
     } else {
+      applyFacing(obj, view.facing);
       restOnFloor(obj);
     }
 
     rendered = [{ assetId, tier: null, isRealModel: true, tris: countTris(obj) }];
-    finishSelect();
+    finishSelect(view.zoom);
     const size = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3());
     hud.innerHTML =
       `<b>${assetId}</b> &nbsp; ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m` +
@@ -362,14 +375,16 @@ async function selectPart(id: string, tier: TierId): Promise<void> {
   const t = beginSelect();
   mode = 'part';
   viewId = id;
+  const view = viewFor(id);
   hud.innerHTML = `<b>${ident.displayName}</b> — loading…`;
   const { obj, isRealModel, tris } = await loadGraded(ident.assetId, tier);
   if (t !== token) return;
+  applyFacing(obj, view.facing);
   restOnFloor(obj);
   holder.add(obj);
   rendered = [{ assetId: ident.assetId, tier, isRealModel, tris }];
   renderPartCtl(ident, tier);
-  finishSelect();
+  finishSelect(view.zoom);
   setPartHud(ident, tier, obj, isRealModel);
 }
 
