@@ -1,52 +1,57 @@
 """
-wheel-axle — the chassis's WHEEL & AXLE sub-part (the drive contact / top-speed piece).
+wheel-axle — the chassis's WHEEL unit (the drive contact / top-speed piece).
 
-A "Small part" on the size ladder (docs/asset-style.md): a ~1.2 m-wide axle carrying a faceted tyre
-at each end. The read is unmistakable — two wheels on a shaft — the chassis sub-part that sets top
-speed. Shared by both chassis sizes (the spec's "three models, scaled per size" default); the in-game
-chassis still renders as its whole GLB until Phase 2b composes products from sub-parts.
+ONE wheel: a faceted dark tyre on a rust hub, with a ring of lug bolts on each face + a hazard nub so
+its rotation reads unmistakably. The chassis Frame instances this single unit at every corner socket, so
+one model fits both the 1 m scout and the 3 m hauler tracks — the Frame owns the spacing
+(`docs/part-identity-spec.md` §2b "shared Wheel + Suspension, per-size Frames"). It is the chassis
+sub-part that sets top speed.
 
-The axle runs along Blender +X (the track), matching the whole-chassis convention (chassis_common.py)
-where wheels sit on the sides. The central diff housing is the first chunk (axis-aligned) so the
-merged transform stays clean; the axle and wheels are laid along +X and `join` bakes those rotations
-in. Wheel bottoms sit on Z=0 (radius == hub height) so the part rests cleanly on the ground.
+Its ORIGIN is the HUB (0,0,0) — its pivot, NOT base-centre — because the render layer spins it in place
+about its axle (`features/drive/wheel-spin.ts` rotates `wheel*` nodes about local X). The axle runs along
+Blender +X (the track), matching the whole-chassis convention. The Frame's `socket_axle_<i>` empties sit
+at hub height (Z = WHEEL_R), so the snapped wheel's tyre just kisses the ground.
+
+ARTICULATED: keeps its hub-pivot origin (no base-centre re-origin from build_asset.py). The joined root
+is named `wheel-axle` (a `wheel*` name) so the spin/deploy animators find every instanced clone.
 """
 
 import math
 
 import rr_style as rr
 
-WHEEL_R = 0.33
-TREAD = 0.28
-HUB_W = TREAD + 0.06
+ARTICULATED = True
+
+WHEEL_R = 0.33       # radius — matches the Frame's socket hub height
+TREAD = 0.28         # tyre width along the X axle
+HUB_W = TREAD + 0.10  # rust hub pokes out both tyre faces
 
 
-def _cyl_x(name, r, d, mat, loc, verts=16):
-    """A cylinder laid along Blender +X (the axle/track)."""
-    obj = rr.beveled_cylinder(name, r, d, mat, location=loc, verts=verts)
-    obj.rotation_euler = (0.0, math.radians(90), 0.0)
+def _cyl_x(name, radius, depth, mat, verts=16):
+    """A cylinder laid along Blender +X (the axle/track), centred on the hub at the origin."""
+    obj = rr.beveled_cylinder(name, radius, depth, mat, location=(0.0, 0.0, 0.0), verts=verts)
+    obj.rotation_euler = (0.0, math.radians(90), 0.0)  # axle Z → X (baked on join)
     return obj
-
-
-def _wheel(side, x):
-    """A faceted dark tyre + rust hub + two hazard lug nubs, laid on the +X axle at offset `x`."""
-    z = WHEEL_R
-    return [
-        _cyl_x(f"tyre_{side}", WHEEL_R, TREAD, "dark_metal", (x, 0.0, z), verts=16),
-        _cyl_x(f"hub_{side}", 0.12, HUB_W, "rust", (x, 0.0, z), verts=10),
-        rr.beveled_box(f"lug_{side}_a", (0.05, 0.05, 0.07), "hazard_yellow", (x, 0.0, z + 0.14)),
-        rr.beveled_box(f"lug_{side}_b", (0.05, 0.05, 0.07), "hazard_yellow", (x, 0.14, z)),
-    ]
 
 
 def build():
     parts = [
-        # Diff housing — the central dark box the axle runs through (first chunk; bevel rounds the join,
-        # identity rotation keeps the merged transform clean).
-        rr.beveled_box("diff", (0.22, 0.22, 0.20), "dark_metal", (0.0, 0.0, WHEEL_R)),
-        # Axle — the scrap_grey shaft spanning the track.
-        _cyl_x("axle", 0.05, 1.04, "scrap_grey", (0.0, 0.0, WHEEL_R)),
+        _cyl_x("wheel_tyre", WHEEL_R, TREAD, "dark_metal", verts=16),
+        _cyl_x("wheel_hub", 0.14, HUB_W, "rust", verts=10),
+        # A hazard nub proud of the tread, off-centre, so the spin reads from the side.
+        rr.beveled_box("wheel_nub", (0.08, 0.08, 0.10), "hazard_yellow", (0.0, WHEEL_R - 0.06, 0.0)),
     ]
-    parts += _wheel("l", -0.55)
-    parts += _wheel("r", 0.55)
-    return rr.join(parts, "wheel-axle")
+    # Lug bolts: a ring on each hub face — high-contrast, off-centre points so the rotation is
+    # unmistakable from either side (the wheel is instanced at both left and right corners).
+    face_x = HUB_W / 2 + 0.02
+    for fx in (face_x, -face_x):
+        for k in range(5):
+            a = math.radians(72 * k)
+            parts.append(rr.beveled_box(
+                "wheel_lug", (0.06, 0.05, 0.05), "dark_metal",
+                (fx, 0.09 * math.cos(a), 0.09 * math.sin(a)),
+            ))
+
+    wheel = rr.join(parts, "wheel-axle")
+    rr.set_origin(wheel, (0.0, 0.0, 0.0))  # hub pivot — aligns with the Frame's socket_axle_* + spins in place
+    return wheel

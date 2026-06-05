@@ -154,6 +154,25 @@ export function chassisTier(world: World, product: EntityId): TierId | null {
 }
 
 /**
+ * The tier each sub-part of a product wears, keyed by its sub-part (catalog) id — the input the shared
+ * assembler (`@shared/assembler`) composes from. Empty for a product with no `Assembly` (a directly-
+ * spawned one supplies its own defaults). Lives here in the shared sim core because two features read it:
+ * the workshop's `productRenderSpec` (the deck preview + inspect portrait) and the rig's `chassisToRig`
+ * (the deployed chassis composes from these tiers) — and `features/mounting` must not import
+ * `features/workshop`, so the function neither feature owns belongs in `@common/sim`.
+ */
+export function productSubPartTiers(world: World, product: EntityId): Record<string, TierId> {
+  const asm = world.get(product, Assembly);
+  const tiers: Record<string, TierId> = {};
+  if (!asm) return tiers;
+  for (const e of asm.parts) {
+    const ep = world.get(e, EnginePart);
+    if (ep) tiers[ep.id] = ep.tier;
+  }
+  return tiers;
+}
+
+/**
  * The single energy type shared by a set of part defs, with a mismatch flag — the generic no-hybrid
  * rule. Untyped parts (storage) are ignored, so:
  *   - no typed parts            → { type: null, mismatch: false }  (an untyped product, e.g. storage)

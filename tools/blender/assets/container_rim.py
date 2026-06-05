@@ -48,10 +48,12 @@ def build():
     rr.apply_style(ring)  # one live bevel → rounds the whole join on export
 
     parts = [ring]
-    # Corner bolts — dark nubs at the four corners, the reinforced-collar read.
+    # Corner bolts — dark nubs straddling the ring's outer corner (centred on the edge at ±OUTER/2 so
+    # they stand proud, never coplanar with the ring's outer face — that coplanarity z-fought).
+    edge = OUTER / 2.0
     for sx in (-1, 1):
         for sy in (-1, 1):
             parts.append(rr.beveled_box(
-                f"bolt_{sx}_{sy}", (0.11, 0.11, 0.10), "dark_metal", (sx * 0.47, sy * 0.47, HEIGHT - 0.04)))
+                f"bolt_{sx}_{sy}", (0.12, 0.12, 0.10), "dark_metal", (sx * edge, sy * edge, HEIGHT - 0.04)))
 
     return rr.join(parts, "container-rim")

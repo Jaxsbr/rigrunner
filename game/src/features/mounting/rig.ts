@@ -10,7 +10,7 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { Chassis, CHASSIS_KIT_FOOTPRINT, type ChassisSize } from '@common/components/chassis';
 import { chassisRecipeForSize } from '@common/parts/recipes';
-import { composeProduct, chassisTier } from '@common/sim/assembly';
+import { composeProduct, chassisTier, productSubPartTiers } from '@common/sim/assembly';
 import { tierOf } from '@common/parts/tiers';
 import { hasMountedParts } from '@features/mounting/mounting';
 import { chassisParts } from '@features/chassis/chassis';
@@ -45,10 +45,11 @@ import { Deploying } from '@features/chassis/deploying';
  * engines').
  */
 /**
- * The tier finish a chassis GLB wears — its Frame sub-part's grade (`chassisTier`). The chassis renders
- * as one whole GLB (sub-part composition is the deferred follow-up), so it takes one finish; tinting by
- * the Frame means it always reads as a graded chassis — the starting rusty rig wears the rust finish, an
- * iron one the iron finish — never the untinted blue GLB, even when its sub-parts are mixed.
+ * The single tier finish the packed kit CRATE wears — its Frame sub-part's grade (`chassisTier`). The
+ * crate is one whole GLB, so it takes one finish; tinting by the Frame means it always reads as a graded
+ * chassis — a rusty build's crate wears the rust finish, an iron one the iron finish — never the untinted
+ * crate, even when its sub-parts are mixed. (The DEPLOYED rig instead composes, so each sub-part wears its
+ * OWN grade — `chassisToRig` below.)
  */
 function chassisFinish(world: World, chassis: EntityId): number | undefined {
   const t = chassisTier(world, chassis);
@@ -71,11 +72,15 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   // Collider, so the rig's true collision area is the union of these circles — it grows with the
   // build. Sized to the size's central body; the 3×5 hauler is wider so its disc is larger.
   world.add(chassis, Collider, { radius: size === '1x3' ? 1.0 : 1.9 });
-  const rigTint = chassisFinish(world, chassis);
+  // The deployed rig renders as its COMPOSED sub-parts — the per-size Frame deck holding a Wheel +
+  // Suspension unit at every corner station, each at its own grade — through the same shared assembler the
+  // viewer composes by, so a build reads identically in both. The `assembly` Renderable carries the group
+  // id + each sub-part's tier; the assembler (via entity-views) loads the host, instances the wheels +
+  // suspension onto its station sockets, and exposes the `wheel_*` nodes the spin/deploy animators drive.
   world.add(chassis, Renderable, {
-    shape: 'model',
-    assetId: size === '1x3' ? 'chassis-1x3' : 'chassis-3x5',
-    ...(rigTint !== undefined ? { tint: rigTint } : {}),
+    shape: 'assembly',
+    groupId: size === '1x3' ? 'chassis-1x3' : 'chassis-3x5',
+    tiers: productSubPartTiers(world, chassis),
   });
   // A rig stands on the ground and is never mounted on a grid, so the packed-kit footprint no longer
   // applies — drop it so nothing treats the rig as a 2×2 occupant.

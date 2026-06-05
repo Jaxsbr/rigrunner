@@ -99,10 +99,30 @@ describe('assembleProduct', () => {
     expect(res!.group.getObjectByName('socket_core')!.children).toHaveLength(1); // placeholder still attached
   });
 
-  it('returns null for products that do not compose via the assembler (reclaimer, chassis)', async () => {
+  it('composes a chassis from its per-size Frame host + Wheel/Suspension units instanced per corner', async () => {
+    // The 1×3 Frame exposes 6 axle + 6 suspension corner stations; the single Wheel and Suspension units
+    // each instance onto every one of their family's stations (the chassis-style numbered sockets).
+    const corners = (prefix: string): string[] => [0, 1, 2, 3, 4, 5].map((i) => `${prefix}_${i}`);
+    const loader = fakeLoader({
+      'frame-1x3': () => hostWith(...corners('socket_axle'), ...corners('socket_susp')),
+      'wheel-axle-1x3': childMesh,
+      'suspension-steering-1x3': childMesh,
+    });
+
+    const res = await assembleProduct('chassis-1x3', { 'frame-1x3': 'iron', 'wheel-axle-1x3': 'rusty' }, loader);
+
+    expect(res).not.toBeNull();
+    // One logical part each (host first), even though the wheel/suspension render at six stations apiece.
+    expect(res!.items.map((i) => i.subPartId)).toEqual(['frame-1x3', 'wheel-axle-1x3', 'suspension-steering-1x3']);
+    for (const s of corners('socket_axle')) expect(res!.group.getObjectByName(s)!.children).toHaveLength(1);
+    for (const s of corners('socket_susp')) expect(res!.group.getObjectByName(s)!.children).toHaveLength(1);
+    expect(res!.items.find((i) => i.subPartId === 'frame-1x3')!.tier).toBe('iron'); // the host wears its own grade
+    expect(res!.items.find((i) => i.subPartId === 'wheel-axle-1x3')!.tier).toBe('rusty');
+  });
+
+  it('returns null for products that do not compose via the assembler (the Reclaimer)', async () => {
     const loader = fakeLoader({});
     expect(await assembleProduct('reclaimer', {}, loader)).toBeNull();
-    expect(await assembleProduct('chassis-1x3', {}, loader)).toBeNull();
     expect(await assembleProduct('not-a-product', {}, loader)).toBeNull();
   });
 });

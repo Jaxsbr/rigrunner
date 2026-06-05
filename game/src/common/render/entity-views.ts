@@ -41,9 +41,9 @@ export class EntityViews {
       const sig = renderSig(r);
       let obj = this.cache.get(e);
       // Rebuild when the Renderable itself changed (not just the Transform): a chassis kit deploying
-      // into a rig swaps its model `chassis-kit` → `chassis-1x3`, so the cached crate object must be
-      // discarded and recreated from the new Renderable — otherwise the deck would render as a crate
-      // forever. assetId is otherwise stable per entity, so this is a no-op the rest of the time.
+      // into a rig swaps its `model` crate for the composed `assembly` rig, so the cached crate object
+      // must be discarded and recreated from the new Renderable — otherwise the deck would render as a
+      // crate forever. The Renderable is otherwise stable per entity, so this is a no-op the rest of the time.
       if (obj && obj.userData['renderSig'] !== sig) {
         this.scene.remove(obj);
         this.cache.delete(e);
@@ -99,6 +99,14 @@ export class EntityViews {
         if (!assembled) return; // not a composing product (shouldn't reach here) — keep the placeholder
         group.remove(placeholder);
         group.add(assembled.group);
+        // A composed chassis exposes its instanced Wheel units as `wheel*` nodes (one per corner socket);
+        // collect them so animateWheels spins them and the deploy animator splays + spins them up. Empty
+        // for engines/containers (no wheels) — animateWheels then no-ops, as before.
+        const wheels: THREE.Object3D[] = [];
+        assembled.group.traverse((o) => {
+          if (o.name.startsWith('wheel')) wheels.push(o);
+        });
+        group.userData['wheels'] = wheels;
       })
       .catch((err: unknown) => {
         console.warn(`[assets] could not compose product '${groupId}', showing placeholder:`, err);
@@ -179,9 +187,10 @@ export class EntityViews {
 }
 
 /**
- * A stable signature of a Renderable — changes only when the *drawing* changes (model swap/resize,
- * or a box's size/colour), not when the entity merely moves. `sync` rebuilds an entity's object when
- * its signature changes, so a live assetId swap (the chassis-kit → chassis deploy) is reflected.
+ * A stable signature of a Renderable — changes only when the *drawing* changes (model swap/resize, a
+ * composition's tier mix, or a box's size/colour), not when the entity merely moves. `sync` rebuilds an
+ * entity's object when its signature changes, so a live swap (the chassis-kit crate → the composed rig on
+ * deploy) is reflected.
  */
 function renderSig(r: Renderable): string {
   if (r.shape === 'model') return `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}:${r.headTint ?? ''}`;

@@ -37,14 +37,15 @@ import {
  */
 
 // A held part floats a fixed clearance ABOVE whichever deck it's currently over — not at a fixed
-// world height — so the hover gap reads the same on the tall rig deck (0.66) and the low workshop
-// deck (0.20), and the part visibly drops as it crosses from rig to workshop. 0.84 over the 0.66
-// rig deck reproduces the original 1.5 world height (which cleared the 0.74 deck lips).
+// world height — so the hover gap reads the same on a rig deck (0.70 scout / 0.84 hauler) and the
+// low workshop deck (0.20), and the part visibly drops as it crosses from rig to workshop. 0.84 of
+// clearance clears the rig's deck lips with margin.
 const CARRY_CLEARANCE = 0.84;
 // The cursor is projected onto this fixed world plane to read drag x/z — a stable parallax
 // reference that does NOT move with the deck below, so dragging across decks doesn't shift the
-// snap point. (Matches the rig's hover height: rig deckY 0.66 + CARRY_CLEARANCE.)
-const CARRY_PLANE_Y = 1.5;
+// snap point. Tuned to the 1×3 scout's hover height (deckY 0.70 + CARRY_CLEARANCE), the starter rig;
+// the 3×5 hauler's slightly taller deck leaves a small, acceptable parallax offset.
+const CARRY_PLANE_Y = 1.54;
 const LIFT_DUR = 0.14;   // seconds for the grab rise
 const DROP_DUR = 0.14;   // seconds for a drop to settle (loose on the ground, or back to its cell)
 const SNAP_DIST = 0.7;   // rig-local metres: how close to a cell counts as "over" it
