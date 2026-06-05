@@ -136,6 +136,24 @@ export function assetTier(world: World, product: EntityId, assetId: string): Tie
 }
 
 /**
+ * The tier a single-GLB **chassis** wears — its **Frame** sub-part's grade. The chassis renders as one
+ * whole GLB (its sub-part composition is the deferred follow-up — `docs/part-identity-spec.md` §2b), so it
+ * takes ONE finish; the Frame is its structural host, so its grade represents the whole. Using the Frame's
+ * tier (rather than the uniform tier) means a MIXED-tier chassis still reads as a graded chassis instead
+ * of reverting to the untinted GLB. Falls back to the product's uniform tier, then null, if there's no
+ * Frame part.
+ */
+export function chassisTier(world: World, product: EntityId): TierId | null {
+  const asm = world.get(product, Assembly);
+  if (!asm) return null;
+  for (const e of asm.parts) {
+    const ep = world.get(e, EnginePart);
+    if (ep && partDef(ep.id)?.slot === 'frame') return ep.tier;
+  }
+  return productTier(world, asm.parts);
+}
+
+/**
  * The single energy type shared by a set of part defs, with a mismatch flag — the generic no-hybrid
  * rule. Untyped parts (storage) are ignored, so:
  *   - no typed parts            → { type: null, mismatch: false }  (an untyped product, e.g. storage)

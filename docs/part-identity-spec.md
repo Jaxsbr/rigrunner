@@ -335,10 +335,13 @@ that by construction.
   rebuilding the per-size frame into that functional deck and re-deriving wheel-spin + deploy from
   instanced parts, plus a per-size track-width problem (one shared axle can't fit both a 1 m and a 3 m
   deck) — a risky refactor of a working mechanic that the parity goal does **not** require for
-  engine/storage. So the chassis renders as its functional whole GLB in **both** apps (parity held), and
-  the frame split + station sockets + instanced axle/suspension are a focused follow-up. The
-  assembly-socket convention (incl. the `socket_axle_<i>`/`socket_susp_<i>` instanced family) is
-  documented and the assembler already supports instancing, so the follow-up is additive.
+  engine/storage. So the chassis renders as its functional whole GLB in **both** apps (parity held),
+  **wearing its Frame sub-part's grade** (`chassisTier`) so it always reads as a graded chassis — the
+  starting rusty rig wears the rust finish, never the untinted blue GLB, even when its sub-parts are
+  mixed (only the Frame's grade shows until composition lands). The frame split + station sockets +
+  instanced axle/suspension are a focused follow-up; the assembly-socket convention (incl. the
+  `socket_axle_<i>`/`socket_susp_<i>` instanced family) is documented and the assembler already supports
+  instancing, so the follow-up is additive.
 
 #### 2b design — composition via assembly sockets (decided 2026-06-05)
 

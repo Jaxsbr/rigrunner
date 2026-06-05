@@ -443,17 +443,17 @@ async function selectProduct(groupId: string, tiers: Map<string, TierId>): Promi
   } else {
     // The chassis renders as its whole functional GLB (the deployed chassis: its mounting deck/grid,
     // spinnable wheels and deploy unfold live in that one model), matching the game — sub-part
-    // composition is the deck-aware follow-up. Washed by the uniform tier when the sub-parts share one,
-    // else the GLB's own colours — exactly how the game grades a one-GLB product. The group id is the
-    // deployed chassis assetId.
-    const subTiers = members.map((m) => tiers.get(m.id) ?? DEFAULT_TIER);
-    const uniform = subTiers.every((tt) => tt === subTiers[0]) ? subTiers[0]! : null;
-    const whole = await loadGraded(groupId, uniform);
+    // composition is the deck-aware follow-up. It wears its FRAME's grade (the structural host), the same
+    // rule the game uses (`chassisTier`): so it always reads as a graded chassis — never reverting to the
+    // untinted blue GLB — even when the sub-part tiers are mixed. The group id is the deployed chassis assetId.
+    const frameId = group.subPartIds.find((sid) => partIdentity(sid)?.slot === 'frame');
+    const chassisTierId = (frameId ? tiers.get(frameId) : undefined) ?? DEFAULT_TIER;
+    const whole = await loadGraded(groupId, chassisTierId);
     if (t !== token) return;
     applyFacing(whole.obj, view.facing);
     restOnFloor(whole.obj);
     holder.add(whole.obj);
-    rendered = [{ assetId: groupId, tier: uniform, isRealModel: whole.isRealModel, tris: whole.tris }];
+    rendered = [{ assetId: groupId, tier: chassisTierId, isRealModel: whole.isRealModel, tris: whole.tris }];
   }
 
   renderProductCtl(group, tiers);

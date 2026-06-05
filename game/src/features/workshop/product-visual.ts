@@ -6,7 +6,7 @@ import { EnginePart } from '@common/parts/engine-part';
 import type { EnergyType } from '@common/parts/parts-catalog';
 import { tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { partIdentity, productComposition } from '@shared/part-identity';
-import { assetTier } from '@common/sim/assembly';
+import { assetTier, chassisTier } from '@common/sim/assembly';
 import { isArticulated, BUCKET_ASSET } from '@common/render/articulation';
 
 /**
@@ -108,6 +108,12 @@ export function productRenderSpec(world: World, product: EntityId): ProductRende
   }
   const kind = world.get(product, Part)?.kind ?? 'engine';
   const assetId = productAssetId(kind, asm?.recipeId ?? '', asm?.type);
+  // A chassis is one whole GLB (composition deferred) — it wears its Frame's grade, so it always reads as
+  // a graded chassis (never the untinted blue GLB), even with mixed sub-part tiers.
+  if (kind === 'chassis') {
+    const ct = chassisTier(world, product);
+    return { compose: false, assetId, ...(ct ? { tint: tierOf(ct).finishColor } : {}) };
+  }
   const { tint, headTint } = productTints(world, product, assetId);
   return { compose: false, assetId, ...(tint !== undefined ? { tint } : {}), ...(headTint !== undefined ? { headTint } : {}) };
 }
