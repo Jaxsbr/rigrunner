@@ -6,9 +6,9 @@ text-heavy" and `ideas.md` 2026-06-03 "Part naming & lore: rarity-as-material ti
 that raw `ideas.md` entry as the structured version.
 
 > **Status:** Phase 0 (vocabulary + naming strip) and Phase 1 (tiers as a data axis, rusty → iron)
-> are **built and merged**. The committed next step is the asset push: first **Phase 1.5 —
-> asset-viewer upgrade** (the verification tool — view any sub-part at any tier and assemble arbitrary
-> tier combinations to check fit), then **Phase 2 — sub-part asset completeness** (every sub-part the
+> are **built and merged**, and **Phase 1.5 — asset-viewer upgrade** (the verification tool — view any
+> sub-part at any tier and assemble arbitrary tier combinations to check fit) is **built**. The
+> committed next step is **Phase 2 — sub-part asset completeness** (every sub-part the
 > game has *today* gets its own 3D model, fully visible/usable in the game and the viewer). Phase 2 is
 > where the tier **tint stopgap retires**: from there on every new part — and each tier as it's added —
 > ships as a real authored asset in both the game and the viewer, never a tinted placeholder. Phase 2
@@ -201,7 +201,7 @@ Pure rename/restructure; ships the readability win immediately.
 - **Done when:** build a rusty container and an iron container, feel the capacity jump; confirm a
   *rusty-shell + iron-rim* container is a valid, mid-value in-between (per-part additive proven). ✓
 
-### Phase 1.5 — Asset viewer: per-sub-part + tier-combination preview (Phase 2's verification tool) · *pre-req, decided next*
+### Phase 1.5 — Asset viewer: per-sub-part + tier-combination preview (Phase 2's verification tool) · ✅ built
 
 Phase 2 can't be judged without **seeing each sub-part** — but today the viewer only shows whole products
 (the Reclaimer's arm + bucket are the lone exception, because that product already renders as two real
@@ -236,6 +236,19 @@ be **driven by that list**, gaining rows automatically as tiers are added — no
   that fails on a missing-tier model and a per-part×tier visual check against an approved baseline.**
   (Drives the model tweaks Phase 2 then bakes in, and gives Phase 2's no-placeholder rule a mechanical
   gate.)
+
+**Built as.** The part-identity roster (the tier ladder + every sub-part's slot/type/name/asset) is
+promoted to `shared/part-identity.ts` so the game and the viewer read one source of truth (the game's
+`PARTS_CATALOG` now layers its gameplay `attributes` over these identity records). The viewer's new
+**Parts** tab inspects any sub-part at any tier and composes a product from a tier-per-sub-part mix
+(tier pickers driven by the `TIERS` data; unmodelled parts show a tinted placeholder flagged "no
+model"). The automation half is lightweight (no new deps): every view is URL-addressable
+(`#part=…&tier=…`, `#product=…&tiers=…`) and `window.__viewer` exposes the catalog, programmatic
+selection, a `settled()` promise, and a `state()` snapshot (per-asset real-model-or-placeholder + tris,
+plus a sampled dominant-palette signature). The **coverage gate** is `npm run check:assets` — data-driven,
+it fails (exit 1) listing the 13 GLBs Phase 2 must author. The per-part×tier **visual baseline** is
+foundationed (the signature is exposed) but not yet captured: baselining 13 identical placeholders is
+pointless, so baselines get approved in Phase 2 as each real model lands.
 
 ### Phase 2 — Sub-part asset completeness (the gate) · *foundational, after Phase 1.5*
 

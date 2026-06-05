@@ -12,7 +12,8 @@
     "test:game:watch": "vitest --root game",
     "dev:viewer": "vite viewer",
     "build:viewer": "vite build viewer",
-    "typecheck:viewer": "tsc --noEmit -p viewer/tsconfig.json"
+    "typecheck:viewer": "tsc --noEmit -p viewer/tsconfig.json",
+    "check:assets": "vite-node tools/check-assets.ts"
   },
   "dependencies": {
     "three": "^0.171.0"
