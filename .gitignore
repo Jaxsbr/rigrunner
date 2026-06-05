@@ -3,7 +3,8 @@ dist/
 .DS_Store
 *.log
 .vite/
-.playwright-mcp/   # browser-verification artifacts (snapshots, console dumps, screenshots)
+# browser-verification artifacts (snapshots, console dumps, screenshots)
+.playwright-mcp/
 
 # Python
 __pycache__/
