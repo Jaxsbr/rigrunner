@@ -13,9 +13,9 @@ that raw `ideas.md` entry as the structured version.
 > game's inventory inspect. **The tint stand-in is retired**: from here every new part — and each tier
 > as it's added — ships as a real authored asset in both the game and the viewer, never a tinted
 > placeholder. With 2a's gate closed, the remaining work is **Phase 2b** (compose a product from its
-> positioned, scaled sub-parts — the bigger art + per-product-layout lift) and then the **earn-their-
-> place gated** mechanic phases: set bonus, gold, more tiers (Phases 3–5). Numbers here are strawmen,
-> tuned to feel.
+> positioned sub-parts — its mechanism is now **designed**: assembly sockets baked into the GLBs + one
+> shared assembler, §5) and then the **earn-their-place gated** mechanic phases: set bonus, gold, more
+> tiers (Phases 3–5). Numbers here are strawmen, tuned to feel.
 
 ---
 
@@ -276,22 +276,21 @@ visual baseline) gives this rule a **mechanical gate** — an agent screenshots 
 check fails outright on a missing-tier model. The `implement-feature` skill carries this as a checklist
 item so future part work cannot ship a placeholder and call it done.
 
-**The sub-part map — what exists, and its asset status.** Six products, eighteen sub-part roles. Only
-the Reclaimer's two are modelled; the rest fall back to a tinted placeholder block. Unique GLBs to
-author: **8 engine + 2 storage + 3 chassis = 13.**
+**The sub-part map.** Six products, eighteen sub-part roles — **all now modelled (2a).** 2a authored the
+13 that were missing (8 engine + 2 storage + 3 chassis); the Reclaimer's two predated it.
 
 | Product | Sub-parts (slot · catalog id) | Asset id(s) | Model? |
 |---|---|---|---|
-| ⚡ Electric engine | Casing `e-casing` · Core `e-core` · Coupling `e-coupling` · Regulator `e-regulator` | one per id | ⬜ ×4 |
-| ♨ Steam engine | Boiler `s-boiler` · Piston `s-piston` · Driveshaft `s-driveshaft` · Throttle `s-throttle` | one per id | ⬜ ×4 |
-| 📦 Storage container | Shell `container-shell` · Rim `container-rim` | `container-shell` / `container-rim` | ⬜ ×2 |
+| ⚡ Electric engine | Casing `e-casing` · Core `e-core` · Coupling `e-coupling` · Regulator `e-regulator` | one per id | ✅ ×4 |
+| ♨ Steam engine | Boiler `s-boiler` · Piston `s-piston` · Driveshaft `s-driveshaft` · Throttle `s-throttle` | one per id | ✅ ×4 |
+| 📦 Storage container | Shell `container-shell` · Rim `container-rim` | `container-shell` / `container-rim` | ✅ ×2 |
 | 🦾 Reclaimer | Arm `reclaimer-arm` · Bucket `reclaimer-bucket` | `reclaimer-arm` / `reclaimer-bucket` | ✅ ×2 |
-| 🛞 Chassis 1×3 | Wheel & Axle `wheel-axle-1x3` · Suspension & Steering `suspension-steering-1x3` · Frame `frame-1x3` | `wheel-axle` / `suspension-steering` / `chassis-frame` | ⬜ ×3 |
-| 🛞 Chassis 3×5 | Wheel & Axle `wheel-axle-3x5` · Suspension & Steering `suspension-steering-3x5` · Frame `frame-3x5` | *(shares the 1×3 ids above)* | ⬜ shared |
+| 🛞 Chassis 1×3 | Wheel & Axle `wheel-axle-1x3` · Suspension & Steering `suspension-steering-1x3` · Frame `frame-1x3` | `wheel-axle` / `suspension-steering` / `chassis-frame` | ✅ ×3 |
+| 🛞 Chassis 3×5 | Wheel & Axle `wheel-axle-3x5` · Suspension & Steering `suspension-steering-3x5` · Frame `frame-3x5` | *(shares the 1×3 ids above)* | ✅ shared |
 
 (Both chassis sizes currently point their sub-parts at the **same three** asset ids — `wheel-axle`,
-`suspension-steering`, `chassis-frame` — so that's 3 unique models unless we decide the sizes should
-look distinct; see the fork below.)
+`suspension-steering`, `chassis-frame`. 2b splits the **frame** per size and keeps the axle + suspension
+shared and instanced — see the 2b design below.)
 
 **Two halves — model coverage first, then composition:**
 - **2a — Model every sub-part (the firm gate).** Author a GLB for each of the 13 via the
@@ -299,25 +298,66 @@ look distinct; see the fork below.)
   each sub-part show its **own model** in the inventory inspect portrait + bench — selecting "Core" or
   "Shell" shows a Core or a Shell, not a grey box. This half **must** land before Phases 3–5.
 - **2b — Compose the sub-parts into the product whole (the vision it unlocks).** With every piece
-  modelled, an assembled product can render as its **positioned, scaled sub-parts**, each wearing its
-  own tier finish — so a built engine reads as *an open frame holding its located internals*, a built
-  container as its shell + rim, and a mixed-tier build is finally legible *as* a mix (beyond the flat
-  tint). This is the richer target captured in `ideas.md` (2026-06-05) + `observations.md` #12; the
-  per-sub-asset seam (`assetTier` / `productTints`) is already in place. Scope 2b against feel once 2a
-  exists — it's an art + per-product-layout job, the bigger lift.
+  modelled, an assembled product renders as its **positioned, scaled sub-parts**, each wearing its own
+  tier finish — a built engine reads as *an open frame holding its located internals*, a built container
+  as its shell + rim, a built chassis as its frame with axles + suspension, and a mixed-tier build is
+  finally legible *as* a mix (beyond the flat tint). This is the richer target captured in `ideas.md`
+  (2026-06-05) + `observations.md` #12. **The mechanism is decided below.**
 
 - **Done when (2a, the gate):** every current catalog sub-part shows its own distinct 3D model in the
   workshop (inventory inspect at minimum) **and in the viewer** — **no placeholder cube for any catalog
-  sub-part.** (2b, as it lands: an assembled product visibly reads as the sub-parts it's made of, each at
-  its own tier.)
+  sub-part.** ✓ met.
+- **Done when (2b):** in the viewer **and** in-game, each product renders through the shared assembler as
+  its positioned, tier-finished sub-parts — engine = open frame holding its internals, storage = shell +
+  rim, chassis = frame with its axle + suspension instanced and aligned to its cells — and a mixed-tier
+  build reads as a mix.
 
-**Open forks (flagged, not blocking):**
-- **Chassis sizes — shared or distinct models?** The 1×3 and 3×5 sub-parts share three asset ids
-  today. Start with **three models, scaled per size** (cheap); diverge to six distinct ones only if
-  the sizes should read differently in play.
-- **What a composed engine looks like.** The open-frame-with-visible-internals direction (`ideas.md`
-  2026-06-05) is the lead; the exact frame geometry, internal placement, and per-slot scale are 2b's
-  design work, not decided here.
+#### 2b design — composition via assembly sockets (decided 2026-06-05)
+
+The spatial layout lives **in the art, authored by the generators that already compute it**, snapped
+together at runtime by **one shared assembler** — the Reclaimer's `socket_wrist` head-attach
+generalized to every product. No layout numbers are duplicated in code; alignment is true *by
+construction* because the part that owns the geometry also places the socket.
+
+- **Assembly-socket convention** (added to `docs/asset-style.md`). A **host** part carries `socket_<slot>`
+  empties — static attach points where a child part's **origin** is snapped. Repeated stations use a
+  `socket_axle_<i>` / `socket_susp_<i>` family. These are *attach* sockets, distinct from the `joint_*`
+  motion handles (which rotate); a host may carry both.
+- **Host per product** (the open frame the rest seat into):
+  - ⚡/♨ **engine** → the **Casing** / **Boiler** is the host, carrying `socket_core|coupling|regulator`
+    / `socket_piston|driveshaft|throttle` at the internal positions — the "open frame holding its
+    internals" read.
+  - 📦 **storage** → the **Shell** is the host, carrying `socket_rim` at the mouth.
+  - 🛞 **chassis** → the **Frame** is the host, carrying `socket_axle_<i>` + `socket_susp_<i>` at the
+    cell stations the frame generator already lays out.
+  - 🦾 **reclaimer** → already composes (Arm host + Bucket on `socket_wrist`).
+- **Chassis = one axle + one suspension, instanced per station** (decided). The **"Wheel & Axle Set"**
+  and **"Suspension & Steering Set"** stay **one logical sub-part each** (their stats apply once); the
+  assembler **instances the single shared model** at every `socket_axle_<i>` / `socket_susp_<i>` the
+  frame exposes. The instancing is **purely visual** — it never changes the logical part count or stats.
+  Consequence: the **frame becomes per-size** (`frame-1x3` / `frame-3x5` distinct GLBs, each with its own
+  station count + positions), while **wheel-axle and suspension stay shared single units.** This resolves
+  the old "shared vs distinct chassis models" fork: *shared axle/suspension, per-size frames.*
+- **The shared assembler** (a module in `shared/`, used by the game **and** the viewer). Given a product
+  group + a tier-per-sub-part map, it loads the host, finds its sockets by name, and loads + tints +
+  snaps each child (instancing across the `_<i>` families), returning the composed group. It generalizes
+  the viewer's `ReclaimerRig` / the game's `attachStaticHead`.
+- **Viewer:** the Parts-tab product view renders through the assembler — the real assembled whole, not a
+  provisional row. **Game:** the whole-product preview GLBs (`engine-mk1/2`, `chassis-kit`/`-1x3`/`-3x5`,
+  `storage`) are replaced by the assembler output, so an in-game product reads as its located sub-parts at
+  their own tiers. The game swap is the bigger half and can be staged after the viewer.
+- **No manipulator needed.** Sockets are placed **procedurally by the generators**, so the chassis needs
+  zero hand-placement and engine/storage need only a few socket offsets eyeballed in the viewer. A full
+  transform-gizmo manipulator is **out of scope**; if hand-tuning engine internals proves painful, a
+  *light* "nudge + read-out the transform" mode is the fallback, not a gizmo.
+
+**New asset work 2b introduces:** add sockets to the Casing/Boiler/Shell/Frame generators; split the
+shared `chassis-frame` into `frame-1x3` / `frame-3x5` (each carrying its station sockets). Wheel-axle and
+suspension are unchanged.
+
+**Still open (art tuning, not blocking):** the exact internal placement + per-slot scale inside each
+engine frame, and how many axle stations each chassis size carries — both settled by eye in the viewer as
+2b is built.
 
 ### Phase 3 — Matched-set bonus + steep-curve tuning
 - Uniform-tier detection → set-bonus multiplier in `buildProduct` (§4b).
