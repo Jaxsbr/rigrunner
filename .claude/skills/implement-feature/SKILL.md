@@ -76,6 +76,29 @@ stale-branch and push-race failures we hit before. The flow below is mandatory.
    git fetch --prune
    ```
 
+## Adding a part? It is not "done" until every tier is a real model, validated in the viewer
+
+**No placeholders for a new part — ever.** If your change adds a part the player can *see* (it shows in
+the shop, inventory inspect, the bench — anywhere a sub-part or product renders), the PR is **not
+complete** until all three hold. This is the enforcement arm of
+[`part-identity-spec.md`](../../../docs/part-identity-spec.md) Phase 2 ("the tint stand-in retires; every
+new part ships as a real authored asset"). Shipping a tinted placeholder and moving on is the exact
+failure mode this rule exists to stop.
+
+- [ ] **Every tier of the part has a real authored 3D model.** Author a GLB per tier with the
+      `blender-asset` skill and register it (`shared/assets.ts`). A **full check covers all
+      currently-defined `TIERS`**, not just the tier you happened to test — a new part missing a tier's
+      model is incomplete. Do **not** ship a tinted placeholder cube and call it done.
+- [ ] **The models ship in the same PR as the part.** Deliberately create the assets alongside the
+      code that introduces the part — never "add the part now, model it later."
+- [ ] **Every tier is validated in the viewer.** Run `npm run dev:viewer`, select the part, and confirm
+      **each tier** renders as the model you expect (the per-sub-part + tier-combination preview —
+      `part-identity-spec.md` Phase 1.5). It need not look perfect *in-game* yet, but it **must** read
+      correctly in the viewer. Screenshot the viewer to verify; where Phase 1.5's **agent/Playwright check**
+      exists, run it — its **coverage** assertion fails outright if any tier has no distinct model (the
+      mechanical gate for this rule), and its **per-part×tier visual** check guards the render against an
+      approved baseline.
+
 ## If your push to a feature branch is rejected as "behind"
 The base moved. Rebase onto the fresh base, don't force a merge:
 ```sh
@@ -91,3 +114,6 @@ git push --force-with-lease
 - Don't leave merged branches lying around — they cause the stale confusion we're fixing.
 - Don't leave **tombstone comments** — code describes the present, not what it replaced or is *not*;
   the migration story goes in the commit/PR/ADR (see step 3).
+- Don't ship a **placeholder** for a player-visible part and call it done — author a real model for
+  every tier, in the same PR, and validate each in the viewer (see the new-part rule above). This is
+  non-negotiable.
