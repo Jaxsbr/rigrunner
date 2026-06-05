@@ -60,7 +60,7 @@ describe('composing a chassis', () => {
       size: '1x3', engineMin: 1, engineMax: 2, topSpeed: 12, turning: 8, loadCapacity: 24,
     });
     // Deck dimensions come from the recipe, not the sub-parts.
-    expect(w.get(c, MountGrid)).toMatchObject({ cols: 1, rows: 3, cellSize: 1, deckY: 0.66 });
+    expect(w.get(c, MountGrid)).toMatchObject({ cols: 1, rows: 3, cellSize: 1, deckY: 0.84 });
     // Mass is summed from the sub-parts (3 + 2 + 6).
     expect(w.get(c, Weight)!.value).toBe(11);
   });

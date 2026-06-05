@@ -18,7 +18,8 @@ instanced `wheel-axle` sub-part. Conventions are unchanged so the deck still lin
     onto every suspension socket. Left as top-level siblings (the `e_casing` host pattern): the rig-body
     is already base-centred, so `finalize_and_export`'s re-origin is a no-op and the empties keep pose.
   * Footprint centred on X/Y, lowest point at Z=0; front faces Blender +Y (→ −Z in-game).
-  * Deck top at DECK_TOP=0.66 — the `MountGrid.deckY` both chassis recipes carry.
+  * Deck surface at DECK_TOP — the `MountGrid.deckY` both chassis recipes carry. The deck rides clear
+    above the wheels (DECK_BOT > the wheel tops) so the slab never z-fights the tucked-under wheels.
   * Cells are cellSize=1, centred on the origin, matching mounting.ts `cellLocalOffset`.
 """
 
@@ -27,10 +28,15 @@ import rr_style as rr
 
 WHEEL_R = 0.33       # the Wheel unit's radius → its socket sits at this hub height
 WHEEL_INSET = 0.14   # wheel corner tucked just under the deck edge (chassis_common: half_w − 0.14)
+WHEEL_TOP = WHEEL_R * 2  # the wheel's highest point (hub at WHEEL_R + radius WHEEL_R) = 0.66
 
-DECK_BOT = 0.50      # top deck slab bottom
-DECK_TOP = 0.66      # deck surface — matches both recipes' MountGrid.deckY
-LIP_TOP = 0.74       # raised grid ridges that draw the cells
+# The deck rides ABOVE the wheels: its underside clears WHEEL_TOP with a small gap, so the full-width
+# deck slab never shares space with the tucked-under wheels (which would z-fight / flicker). The chassis
+# block below grows up to meet the deck underside, so there's no floating gap. deckY (both recipes'
+# MountGrid) tracks DECK_TOP.
+DECK_BOT = WHEEL_TOP + 0.02  # 0.68 — deck underside, just clear of the wheel tops
+DECK_TOP = DECK_BOT + 0.16   # 0.84 — deck surface; matches both recipes' MountGrid.deckY
+LIP_TOP = DECK_TOP + 0.08    # raised grid ridges that draw the cells
 
 
 def build_frame(width, length, cols, rows, axle_ys):
@@ -44,8 +50,12 @@ def build_frame(width, length, cols, rows, axle_ys):
     body = []
     # Central skid plate — the lowest geometry, reaches Z=0 so the body bbox bottom is the ground.
     body.append(rr.beveled_box("skid", (width * 0.55, length * 0.80, 0.14), "dark_metal", (0.0, 0.0, 0.07)))
-    # Chassis block between the wheels (narrower than the track so the wheels read on the sides).
-    body.append(rr.beveled_box("chassis", (width * 0.70, length - 0.5, 0.36), "dark_metal", (0.0, 0.0, 0.32)))
+    # Chassis block — the dark mass between the wheels (narrower than the track so the wheels read on the
+    # sides), grown up from the skid to the deck underside so the deck sits on it with no floating gap.
+    chassis_bot = 0.14
+    chassis_h = DECK_BOT - chassis_bot
+    body.append(rr.beveled_box("chassis", (width * 0.70, length - 0.5, chassis_h), "dark_metal",
+                               (0.0, 0.0, chassis_bot + chassis_h / 2)))
     # The mounting deck — the signature rig_blue slab the player builds onto.
     body.append(rr.beveled_box("deck", (width, length, DECK_TOP - DECK_BOT), "rig_blue",
                                (0.0, 0.0, (DECK_BOT + DECK_TOP) / 2)))
@@ -72,11 +82,13 @@ def build_frame(width, length, cols, rows, axle_ys):
         body.append(rr.beveled_box(f"div_row{r}", (span_x, rail, lip_h), "dark_metal", (0.0, -half_l + r, lip_z)))
 
     # Front bumper + headlight nubs at +Y — the in-game forward (−Z), so the bumper leads when you
-    # accelerate. Tucked under the deck's front overhang so it reads as attached.
-    body.append(rr.beveled_box("bumper", (width * 0.80, 0.26, 0.34), "dark_metal", (0.0, half_l - 0.10, 0.34)))
+    # accelerate. Tucked just under the deck's front overhang (its top near the deck underside) so it
+    # reads as attached now that the deck rides higher.
+    body.append(rr.beveled_box("bumper", (width * 0.80, 0.26, 0.34), "dark_metal", (0.0, half_l - 0.10, DECK_BOT - 0.17)))
     light_x = min(0.50, half_w - 0.15)
-    body.append(rr.beveled_box("light_l", (0.18, 0.12, 0.18), "hazard_yellow", (-light_x, half_l - 0.02, 0.40)))
-    body.append(rr.beveled_box("light_r", (0.18, 0.12, 0.18), "hazard_yellow", (light_x, half_l - 0.02, 0.40)))
+    light_z = DECK_BOT - 0.11
+    body.append(rr.beveled_box("light_l", (0.18, 0.12, 0.18), "hazard_yellow", (-light_x, half_l - 0.02, light_z)))
+    body.append(rr.beveled_box("light_r", (0.18, 0.12, 0.18), "hazard_yellow", (light_x, half_l - 0.02, light_z)))
 
     rr.join(body, "rig-body")
 

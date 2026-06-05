@@ -11,10 +11,10 @@ import { Storage } from '@common/components/storage';
  * (ADR-003 §4).
  */
 
-// Storage fill block dimensions — kept in step with the tank cavity in tools/blender/assets/storage.py
-// (OUTER 1.0, WALL_T 0.10, HEIGHT 0.90, CAVITY 0.80). The block sits just inside the walls, on the
-// cavity floor, and stops below the raised rim collar.
-const STORAGE_FLOOR_TOP = 0.10;   // interior floor (top of the carved base = WALL_T)
+// Storage fill block dimensions — kept in step with the cavity in tools/blender/assets/container_shell.py
+// (the composed container's host: OUTER 1.0, WALL_T 0.10, CAVITY 0.80, body raised onto FOOT 0.08 feet).
+// The block sits just inside the walls, on the cavity floor, and stops below the raised rim collar.
+const STORAGE_FLOOR_TOP = 0.16;   // interior floor (BODY_BOT 0.06 + WALL_T 0.10) — the hold rides on feet
 const STORAGE_FILL_W = 0.74;      // a touch inside the 0.80 m cavity
 const STORAGE_FILL_MAX_H = 0.66;  // full-height of the fill, stopping just below the rim collar
 const STORAGE_FILL_EASE = 7;      // how fast the shown level glides to the real fraction (per second)
@@ -38,8 +38,8 @@ export function animateStorageFill(views: EntityViews, world: World, dt: number)
 
     let fill = obj.userData['fill'] as THREE.Mesh | undefined;
     if (!fill) {
-      // Sized to sit just inside the cube cavity authored in tools/blender/assets/storage.py
-      // (0.84 m interior, floor top at 0.08 m). Created at full height; we scale Y to the fraction.
+      // Sized to sit just inside the cavity authored in tools/blender/assets/container_shell.py
+      // (0.80 m interior, floor top at STORAGE_FLOOR_TOP). Created at full height; we scale Y to the fraction.
       fill = new THREE.Mesh(
         new THREE.BoxGeometry(STORAGE_FILL_W, STORAGE_FILL_MAX_H, STORAGE_FILL_W),
         new THREE.MeshStandardMaterial({ color: 0x6b6b6b }), // scrap_grey

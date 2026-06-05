@@ -108,7 +108,8 @@ export const RECLAIMER_RECIPE: Recipe = {
  * stamp (deck dimensions + engine envelope). The 1×3 is the light scout (1–2 engines); the 3×5 the
  * hauler (3–6). `chassisParts(size)` (in `@features/chassis`) supplies the size-matched sub-parts.
  *
- * The deck surface sits at the same height (0.66) for both, matching each size's GLB deck top, so the
+ * The deck surface sits at the same height (0.84) for both, matching each size's GLB deck top — which
+ * rides clear above the wheels (so the deck never z-fights the tucked-under wheels) — so the
  * build-interaction's carry-clearance math is unchanged across sizes.
  */
 const CHASSIS_SLOTS: readonly RecipeSlot[] = [
@@ -122,7 +123,7 @@ export const CHASSIS_1X3_RECIPE: Recipe = {
   output: 'Chassis (1×3)',
   productKind: 'chassis',
   slots: CHASSIS_SLOTS,
-  chassis: { size: '1x3', cols: 1, rows: 3, deckY: 0.66, engineMin: 1, engineMax: 2 },
+  chassis: { size: '1x3', cols: 1, rows: 3, deckY: 0.84, engineMin: 1, engineMax: 2 },
 };
 
 export const CHASSIS_3X5_RECIPE: Recipe = {
@@ -130,7 +131,7 @@ export const CHASSIS_3X5_RECIPE: Recipe = {
   output: 'Chassis (3×5)',
   productKind: 'chassis',
   slots: CHASSIS_SLOTS,
-  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.66, engineMin: 3, engineMax: 6 },
+  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.84, engineMin: 3, engineMax: 6 },
 };
 
 /** The chassis recipe for a size — the seam `spawnRig` composes its foundation through. */
