@@ -41,13 +41,16 @@ export const MODEL_ASSETS: Record<string, string> = {
   // 📦 Storage container — the rig_blue cargo body + its hazard_yellow rim collar.
   'container-shell': '/assets/container-shell.glb',
   'container-rim': '/assets/container-rim.glb',
-  // 🛞 Chassis sub-parts. The Frame splits per size — each is the host: a full mounting deck carrying the
-  // `socket_axle_<i>`/`socket_susp_<i>` corner stations. The Wheel + Suspension are one shared unit each,
-  // instanced at every station, so one model fits both the 1 m and 3 m tracks (the frame owns the spacing).
+  // 🛞 Chassis sub-parts — all per-size now (the 1×3 scout + 3×5 hauler diverged too much to share). Each
+  // Frame is the host: a full mounting deck carrying the `socket_axle_<i>`/`socket_susp_<i>` corner
+  // stations, instancing its size's Wheel + Suspension. The 3×5 keeps the full-size wheel/suspension; the
+  // 1×3 gets the smaller `-sm` pair (a lower scout stance).
   'frame-1x3': '/assets/frame-1x3.glb',
   'frame-3x5': '/assets/frame-3x5.glb',
   'wheel-axle': '/assets/wheel-axle.glb',
+  'wheel-axle-sm': '/assets/wheel-axle-sm.glb',
   'suspension-steering': '/assets/suspension-steering.glb',
+  'suspension-steering-sm': '/assets/suspension-steering-sm.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

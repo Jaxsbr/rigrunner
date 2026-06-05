@@ -126,15 +126,15 @@ export const PART_IDENTITIES: readonly PartIdentity[] = [
   { id: 'reclaimer-arm', slot: 'arm', category: 'reclaimer', displayName: 'Arm', assetId: 'reclaimer-arm' },
   { id: 'reclaimer-bucket', slot: 'head', category: 'reclaimer', displayName: 'Bucket', assetId: 'reclaimer-bucket' },
 
-  // 🛞 Chassis 1×3 — the light scout foundation. The Frame is the host: it carries the mounting deck +
-  // the per-corner sockets the shared Wheel and Suspension units instance onto (so it splits per size,
-  // while wheel-axle + suspension stay one shared unit each — `docs/part-identity-spec.md` §2b).
-  { id: 'wheel-axle-1x3', slot: 'wheel-axle', category: 'chassis', chassisSize: '1x3', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle' },
-  { id: 'suspension-steering-1x3', slot: 'suspension-steering', category: 'chassis', chassisSize: '1x3', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering' },
+  // 🛞 Chassis 1×3 — the light scout foundation. Every sub-part is per-size: the scout's Frame, its
+  // SMALLER Wheel (lower stance) and its scaled-down Suspension. The 1×3 and 3×5 diverged enough that
+  // they no longer share a wheel/suspension — each frame instances its own (`docs/part-identity-spec.md` §2b).
+  { id: 'wheel-axle-1x3', slot: 'wheel-axle', category: 'chassis', chassisSize: '1x3', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle-sm' },
+  { id: 'suspension-steering-1x3', slot: 'suspension-steering', category: 'chassis', chassisSize: '1x3', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering-sm' },
   { id: 'frame-1x3', slot: 'frame', category: 'chassis', chassisSize: '1x3', displayName: 'Chassis Frame', assetId: 'frame-1x3' },
 
   // 🛞 Chassis 3×5 — the heavy hauler foundation. Its own per-size Frame (more cells, a wider track),
-  // instancing the SAME shared Wheel + Suspension units at its own station sockets.
+  // instancing the full-size Wheel + Suspension units at its own station sockets.
   { id: 'wheel-axle-3x5', slot: 'wheel-axle', category: 'chassis', chassisSize: '3x5', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle' },
   { id: 'suspension-steering-3x5', slot: 'suspension-steering', category: 'chassis', chassisSize: '3x5', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering' },
   { id: 'frame-3x5', slot: 'frame', category: 'chassis', chassisSize: '3x5', displayName: 'Chassis Frame', assetId: 'frame-3x5' },

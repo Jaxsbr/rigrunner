@@ -15,4 +15,5 @@ ARTICULATED = True
 
 
 def build():
-    return build_frame(width=3.0, length=5.0, cols=3, rows=5, axle_ys=(-1.8, -0.6, 0.6, 1.8))
+    # The hauler keeps the full-size wheel (wheel-axle, r=0.33) → the taller deck (deckY 0.84).
+    return build_frame(width=3.0, length=5.0, cols=3, rows=5, axle_ys=(-1.8, -0.6, 0.6, 1.8), wheel_r=0.33, tread=0.28)

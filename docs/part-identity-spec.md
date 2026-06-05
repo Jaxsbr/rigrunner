@@ -16,9 +16,11 @@ that raw `ideas.md` entry as the structured version.
 > GLB carries `socket_<slot>` empties and one shared assembler (`shared/assembler.ts`, §2b) snaps the
 > sub-parts on — each at its own tier — used by the game AND the viewer, so a build reads identically in
 > both. Engine + storage compose onto their open-frame hosts; the **chassis** composes too — its per-size
-> **Frame** is the host (a full mounting deck), instancing one shared **Wheel** + **Suspension** unit at
-> every corner station, so the deployed driving rig is rebuilt from its sub-parts (its deck, spinnable
-> wheels and deploy unfold all re-derived from the composed structure) and reads as a graded mix. With 2b
+> **Frame** is the host (a flat mounting deck on a ladder with ground clearance), instancing its size's
+> **Wheel** + **Suspension** unit at every corner station, so the deployed driving rig is rebuilt from its
+> sub-parts (its deck, spinnable wheels and deploy unfold all re-derived from the composed structure) and
+> reads as a graded mix. (The 1×3 scout and 3×5 hauler diverged enough in play that they no longer share a
+> wheel/suspension — each size has its own, the scout's smaller for a lower stance.) With 2b
 > fully landed, the remaining work is the **earn-their-place gated** mechanic phases: set bonus, gold, more
 > tiers (Phases 3–5). Numbers here are strawmen, tuned to feel.
 
@@ -290,12 +292,14 @@ item so future part work cannot ship a placeholder and call it done.
 | ♨ Steam engine | Boiler `s-boiler` · Piston `s-piston` · Driveshaft `s-driveshaft` · Throttle `s-throttle` | one per id | ✅ ×4 |
 | 📦 Storage container | Shell `container-shell` · Rim `container-rim` | `container-shell` / `container-rim` | ✅ ×2 |
 | 🦾 Reclaimer | Arm `reclaimer-arm` · Bucket `reclaimer-bucket` | `reclaimer-arm` / `reclaimer-bucket` | ✅ ×2 |
-| 🛞 Chassis 1×3 | Wheel `wheel-axle-1x3` · Suspension `suspension-steering-1x3` · Frame `frame-1x3` | `wheel-axle` / `suspension-steering` / `frame-1x3` | ✅ ×3 |
+| 🛞 Chassis 1×3 | Wheel `wheel-axle-1x3` · Suspension `suspension-steering-1x3` · Frame `frame-1x3` | `wheel-axle-sm` / `suspension-steering-sm` / `frame-1x3` | ✅ ×3 |
 | 🛞 Chassis 3×5 | Wheel `wheel-axle-3x5` · Suspension `suspension-steering-3x5` · Frame `frame-3x5` | `wheel-axle` / `suspension-steering` / `frame-3x5` | ✅ ×3 |
 
-(The **Frame** splits per size — `frame-1x3` / `frame-3x5` are distinct GLBs, each a full mounting deck
-carrying its own corner stations — while the **Wheel** + **Suspension** stay one shared unit each,
-instanced at every station, so one model fits both the 1 m and 3 m tracks. See the 2b design below.)
+(**Every** chassis sub-part is per-size — the 1×3 scout and 3×5 hauler diverged too much to share. The 3×5
+keeps the full-size `wheel-axle` / `suspension-steering`; the 1×3 has the smaller `-sm` pair (a lower
+scout stance). Each **Frame** is a distinct GLB — a flat mounting deck on a ladder with ground clearance,
+carrying its own corner stations — and its size's Wheel + Suspension instance at every station. See the
+2b design below.)
 
 **Two halves — model coverage first, then composition:**
 - **2a — Model every sub-part (the firm gate).** Author a GLB for each of the 13 via the
@@ -335,11 +339,13 @@ that by construction.
   mounting deck + grid (`deckY`, cell lips aligned to `mounting.ts`), spinnable `wheel_*` nodes, the kit↔rig
   swap, and the deploy unfold — so composing it meant rebuilding that working rig from sub-parts. Decided
   as one PR doing exactly that. The **Frame** became the per-size host: `frame-1x3` / `frame-3x5` are
-  distinct GLBs, each a full mounting deck carrying `socket_axle_<i>` + `socket_susp_<i>` corner stations
-  (rig-body + sockets are siblings, so the deploy's deck un-squash never moves the wheels). The
-  track-width fork was resolved by making the **Wheel** one single hub-origin unit, instanced at every
-  corner station — the Frame owns the spacing, so one model fits both the 1 m scout and 3 m hauler
-  tracks; **Suspension** is likewise one corner unit, instanced. The deployed rig composes at the deploy
+  distinct GLBs, each a flat mounting deck on a ladder with ground clearance, carrying `socket_axle_<i>` +
+  `socket_susp_<i>` corner stations (rig-body + sockets are siblings, so the deploy's deck un-squash never
+  moves the wheels). The **Wheel** is a hub-origin unit instanced at every corner station, the
+  **Suspension** a corner unit instanced inboard of each wheel. Initially these were *shared* across sizes
+  (the Frame owning the track), but in play the 1×3 scout and 3×5 hauler diverged too much — so they're now
+  **per-size too**: the 3×5 keeps the full-size pair, the 1×3 a smaller `-sm` wheel/suspension for a lower
+  scout stance (a lower deckY, 0.70 vs 0.84). The deployed rig composes at the deploy
   seam (`chassisToRig` → a `shape: 'assembly'` Renderable); a *staged* chassis still shows the packed
   `chassis-kit` crate (it only composes once hauled out). Wheel-spin + the deploy unfold were re-derived
   from the composed structure (the wheels are collected from the assembled group; deploy splays the
@@ -368,11 +374,15 @@ construction* because the part that owns the geometry also places the socket.
   - 🦾 **reclaimer** → already composes (Arm host + Bucket on `socket_wrist`).
 - **Chassis = one axle + one suspension, instanced per station** (decided). The **"Wheel & Axle Set"**
   and **"Suspension & Steering Set"** stay **one logical sub-part each** (their stats apply once); the
-  assembler **instances the single shared model** at every `socket_axle_<i>` / `socket_susp_<i>` the
-  frame exposes. The instancing is **purely visual** — it never changes the logical part count or stats.
-  Consequence: the **frame becomes per-size** (`frame-1x3` / `frame-3x5` distinct GLBs, each with its own
-  station count + positions), while **wheel-axle and suspension stay shared single units.** This resolves
-  the old "shared vs distinct chassis models" fork: *shared axle/suspension, per-size frames.*
+  assembler **instances the model** at every `socket_axle_<i>` / `socket_susp_<i>` the frame exposes. The
+  instancing is **purely visual** — it never changes the logical part count or stats. The **frame is
+  per-size** (`frame-1x3` / `frame-3x5` distinct GLBs, each with its own station count + positions).
+  > **Evolved in play (2026-06-06):** the wheel/suspension started **shared** across sizes ("shared
+  > axle/suspension, per-size frames"), but the 1×3 scout and 3×5 hauler diverged too much to share —
+  > the scout wanted a smaller wheel (a lower stance) and a scaled-down suspension. So **every** chassis
+  > sub-part is now per-size: `wheel-axle` / `suspension-steering` (3×5, full-size) and `wheel-axle-sm` /
+  > `suspension-steering-sm` (1×3). The frame is also a flat ladder with ground clearance, and the
+  > suspension sits inboard of the wheel (visible running gear), not under it.
 - **The shared assembler** (a module in `shared/`, used by the game **and** the viewer). Given a product
   group + a tier-per-sub-part map, it loads the host, finds its sockets by name, and loads + tints +
   snaps each child (instancing across the `_<i>` families), returning the composed group. It generalizes

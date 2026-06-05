@@ -14,4 +14,5 @@ ARTICULATED = True
 
 
 def build():
-    return build_frame(width=1.0, length=3.0, cols=1, rows=3, axle_ys=(-1.0, 0.0, 1.0))
+    # The scout's smaller wheel (wheel-axle-sm, r=0.26) → a lower deck (deckY 0.70) than the 3×5 hauler.
+    return build_frame(width=1.0, length=3.0, cols=1, rows=3, axle_ys=(-1.0, 0.0, 1.0), wheel_r=0.26, tread=0.24)
