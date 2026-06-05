@@ -32,7 +32,7 @@ export class StatsHud {
   private compose(world: World, rig: EntityId): string {
     const perf = rigPerformance(world, rig);
 
-    // Label each mounted engine by its energy type (electric/mechanical) — every engine is now a
+    // Label each mounted engine by its energy type (electric/steam) — every engine is now a
     // composed product carrying that type. A typeless engine (shouldn't occur) reads as 'engine'.
     const labels = mountedEngines(world, rig).map((e) => {
       const t = world.get(e, Assembly)?.type;
@@ -74,7 +74,7 @@ export class StatsHud {
   }
 }
 
-/** Group engine labels → e.g. "Electric + Mechanical", "Electric ×2". */
+/** Group engine labels → e.g. "Electric + Steam", "Electric ×2". */
 function groupLabels(labels: string[]): string {
   const counts = new Map<string, number>();
   for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);

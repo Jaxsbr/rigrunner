@@ -7,7 +7,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Renderable } from '@common/components/renderable';
 import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
-import { ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
+import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
 import { PART_SHOP_STOCK, shopItemForPartId, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
 import { productAssetId } from '@features/workshop/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '@features/economy/inventory';
@@ -78,12 +78,13 @@ export interface WorkshopOverlayOptions {
 
 /**
  * The chip dot + portrait-placeholder tint, keyed by an item's energy type when it has one (engine
- * parts and engine products), else by its category/kind — so storage items (no electric/mechanical)
- * get the rig_blue "player-built" signature instead of a missing colour.
+ * parts and engine products), else by its category/kind — so storage items (no electric/steam) get
+ * the rig_blue "player-built" signature instead of a missing colour. This colour IS the type cast
+ * (`docs/part-identity-spec.md` §3): electric reads cool/clean, steam warm/copper.
  */
 const COLOR_BY_KEY: Record<string, number> = {
-  electric: 0x59ff9f, // glow_green
-  mechanical: 0x8a4b2f, // rust
+  electric: 0x59ff9f, // glow_green — cool/clean electric cast
+  steam: 0x8a4b2f, // rust — warm/copper steam cast
   storage: 0x2f6f9f, // rig_blue
   reclaimer: 0xd9a521, // hazard_yellow — the rummage tool's signature
   chassis: 0x6b6b6b, // scrap_grey — the structural foundation
@@ -103,7 +104,7 @@ type Tab = 'bench' | 'deck' | 'shop';
 interface ItemView {
   entity: EntityId;
   displayName: string;
-  colorKey: string; // chip dot/tint key: electric | mechanical | storage
+  colorKey: string; // chip dot/tint key: electric | steam | storage
   tag: string; // small right-aligned chip tag: the part role, or the product kind
   sub: string; // detail subtitle, e.g. "electric · casing" or "electric · engine"
   attrs: ProductStats; // power/torque/weight/durability/burst to show
@@ -288,10 +289,10 @@ export class WorkshopOverlay {
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
 
-  /** The recipe currently loaded on the bench (falls back to the engine recipe). */
+  /** The recipe currently loaded on the bench (falls back to the electric engine recipe). */
   private activeRecipe(): Recipe {
     const bench = getBench(this.world);
-    return (bench && recipeById(bench.recipeId)) ?? ENGINE_RECIPE;
+    return (bench && recipeById(bench.recipeId)) ?? ELECTRIC_ENGINE_RECIPE;
   }
 
   /** (Re)build the bench's role slots for a recipe — replaces any slots from a previous recipe. */

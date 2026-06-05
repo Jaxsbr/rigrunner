@@ -15,7 +15,7 @@ import { EngineSpec } from '@common/components/engine-spec';
  * more engines are now strictly more performance, never a detriment.
  *
  * With the masking removed, the only thing distinguishing a build is the engines' own profiles —
- * electric (high power / low torque) tops out faster, mechanical (the reverse) accelerates harder.
+ * electric (high power / low torque) tops out faster, steam (the reverse) accelerates harder.
  *
  * The sum is per-attribute, so an engine that's strong in torque but weak in power lends its torque
  * in full regardless of what else is mounted.

@@ -16,7 +16,7 @@ import type { EnergyType } from '@common/parts/parts-catalog';
  *                  same entities back to inventory, so identity and any per-part state are conserved
  *                  end to end (`observations.md` #6–7: parts are stateful vessels — nothing is cloned
  *                  or destroyed across assemble ↔ dismantle).
- *   - `type`       the resolved energy type for typed products (engine: electric/mechanical), or
+ *   - `type`       the resolved energy type for typed products (engine: electric/steam), or
  *                  `undefined` for untyped ones (a storage container has no energy type). This is the
  *                  no-hybrid marker the chassis type-lock reads in P6.
  *

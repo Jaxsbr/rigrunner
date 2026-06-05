@@ -13,7 +13,7 @@ import { Collider } from '@common/components/collider';
 import { MountFacing } from '@common/components/mount-facing';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 import { engineParts } from '@features/engine/engines';
-import { ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
+import { ELECTRIC_ENGINE_RECIPE, STEAM_ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
 import { CONTAINER_CAPACITY } from '@common/components/storage';
 import {
   sumPartStats,
@@ -33,16 +33,16 @@ import {
 } from './assembly';
 
 const ELECTRIC = ['e-casing', 'e-core', 'e-coupling', 'e-regulator'];
-const MECHANICAL = ['m-casing', 'm-core', 'm-coupling', 'm-regulator'];
+const STEAM = ['s-boiler', 's-piston', 's-driveshaft', 's-throttle'];
 const STORAGE = ['container-shell', 'container-rim'];
 const RECLAIMER = ['reclaimer-arm', 'reclaimer-bucket'];
 
-/** A world wired like main.ts: an inventory singleton and a bench loaded with the engine recipe. */
+/** A world wired like main.ts: an inventory singleton and a bench loaded with the electric recipe. */
 function setup() {
   const world = new World();
   world.add(world.createEntity(), Inventory, { items: [] });
-  const slots = ENGINE_RECIPE.slots.map((s) => s.slot);
-  world.add(world.createEntity(), Bench, { recipeId: ENGINE_RECIPE.id, slots: emptyBenchSlots(slots) });
+  const slots = ELECTRIC_ENGINE_RECIPE.slots.map((s) => s.slot);
+  world.add(world.createEntity(), Bench, { recipeId: ELECTRIC_ENGINE_RECIPE.id, slots: emptyBenchSlots(slots) });
   return world;
 }
 
@@ -61,9 +61,10 @@ describe('assembly — attribute summing', () => {
     expect(sumPartStats(w, parts)).toMatchObject({ power: 13, torque: 8, weight: 4 });
   });
 
-  it('sums a full mechanical set to the spec profile (power 8 / torque 19 / weight 8)', () => {
+  it('sums a full steam set to the spec profile (power 8 / torque 19 / weight 8)', () => {
     const w = setup();
-    const parts = MECHANICAL.map((id) => placeOnSlot(w, id));
+    loadRecipe(w, STEAM_ENGINE_RECIPE.id, STEAM_ENGINE_RECIPE.slots.map((s) => s.slot));
+    const parts = STEAM.map((id) => placeOnSlot(w, id));
     expect(sumPartStats(w, parts)).toMatchObject({ power: 8, torque: 19, weight: 8 });
   });
 
@@ -82,8 +83,10 @@ describe('assembly — the no-hybrid energy rule', () => {
     expect(resolveEnergyType(defs)).toEqual({ type: 'electric', mismatch: false });
   });
 
-  it('a mixed-type set is a mismatch (a hybrid)', () => {
-    const defs = [partDef('e-casing')!, partDef('m-core')!];
+  it('a mixed-type set is a mismatch — the resolveEnergyType backstop', () => {
+    // Disjoint slot vocabularies make a hybrid bench impossible to BUILD (see below), but the
+    // resolver is kept as a backstop for any other path that hands it a mixed set.
+    const defs = [partDef('e-casing')!, partDef('s-piston')!];
     expect(resolveEnergyType(defs)).toEqual({ type: null, mismatch: true });
   });
 
@@ -98,23 +101,23 @@ describe('assembly — the no-hybrid energy rule', () => {
     placeOnSlot(w, 'e-core');
     expect(benchEnergyType(w)).toBe('electric');
     expect(acceptsType(w, 'electric')).toBe(true);  // same type joins
-    expect(acceptsType(w, 'mechanical')).toBe(false); // cross-type refused (won't snap)
-    expect(acceptsType(w, undefined)).toBe(true);     // untyped never clashes
+    expect(acceptsType(w, 'steam')).toBe(false);    // cross-type refused (won't snap)
+    expect(acceptsType(w, undefined)).toBe(true);   // untyped never clashes
   });
 });
 
 describe('assembly — completeness + verdict', () => {
   it('is incomplete until every recipe slot is filled', () => {
     const w = setup();
-    expect(isBenchComplete(w, ENGINE_RECIPE)).toBe(false);
+    expect(isBenchComplete(w, ELECTRIC_ENGINE_RECIPE)).toBe(false);
     ELECTRIC.forEach((id) => placeOnSlot(w, id));
-    expect(isBenchComplete(w, ENGINE_RECIPE)).toBe(true);
+    expect(isBenchComplete(w, ELECTRIC_ENGINE_RECIPE)).toBe(true);
   });
 
   it('refuses to assemble an incomplete bench with a readable reason', () => {
     const w = setup();
     placeOnSlot(w, 'e-core');
-    const v = assembleVerdict(w, ENGINE_RECIPE);
+    const v = assembleVerdict(w, ELECTRIC_ENGINE_RECIPE);
     expect(v.ok).toBe(false);
     expect(v.reason).toMatch(/fill all/i);
   });
@@ -124,13 +127,13 @@ describe('assembly — assembling an engine', () => {
   it('turns four same-type parts into one complete engine, conserved', () => {
     const w = setup();
     const parts = ELECTRIC.map((id) => placeOnSlot(w, id));
-    const product = assemble(w, ENGINE_RECIPE)!;
+    const product = assemble(w, ELECTRIC_ENGINE_RECIPE)!;
 
     expect(product).toBeDefined();
     expect(w.get(product, Part)).toEqual({ kind: 'engine' });
     expect(w.get(product, EngineSpec)).toEqual({ power: 13, torque: 8 });
     expect(w.get(product, Weight)).toEqual({ value: 4 });
-    expect(w.get(product, Assembly)).toEqual({ recipeId: 'engine', parts, type: 'electric' });
+    expect(w.get(product, Assembly)).toEqual({ recipeId: 'electric-engine', parts, type: 'electric' });
     expect(isProduct(w, product)).toBe(true);
 
     // The bench is emptied and the parts live on, owned by the product (off the bench, not loose).
@@ -141,21 +144,23 @@ describe('assembly — assembling an engine', () => {
     expect(inventoryItems(w)).toEqual([product]);
   });
 
-  it('refuses to assemble a mixed-type (hybrid) bench', () => {
-    const w = setup();
+  it('cannot form a hybrid bench at all — a steam part has no slot on the electric bench', () => {
+    const w = setup(); // electric engine recipe loaded
     placeOnSlot(w, 'e-casing');
-    placeOnSlot(w, 'm-core'); // a mechanical part among electric → hybrid
-    placeOnSlot(w, 'e-coupling');
-    placeOnSlot(w, 'e-regulator');
-    expect(assembleVerdict(w, ENGINE_RECIPE).ok).toBe(false);
-    expect(assemble(w, ENGINE_RECIPE)).toBeNull();
+    // The steam piston's slot ('piston') isn't one of the electric recipe's roles, so placing it is
+    // refused by the bench — disjoint vocabularies make a hybrid impossible to BUILD (no resolver
+    // check needed). The bench stays a pure-electric, still-incomplete build.
+    const piston = spawnCatalogPart(w, partDef('s-piston')!);
+    expect(placeOnBench(w, partDef('s-piston')!.slot, piston)).toBe(false);
+    expect(benchEnergyType(w)).toBe('electric');
+    expect(assemble(w, ELECTRIC_ENGINE_RECIPE)).toBeNull(); // still incomplete
     expect(inventoryItems(w)).toEqual([]); // nothing produced
   });
 
   it('refuses to assemble an incomplete bench', () => {
     const w = setup();
     placeOnSlot(w, 'e-core');
-    expect(assemble(w, ENGINE_RECIPE)).toBeNull();
+    expect(assemble(w, ELECTRIC_ENGINE_RECIPE)).toBeNull();
   });
 });
 
@@ -209,7 +214,7 @@ describe('assembly — assembling the Reclaimer (the non-engine socket grammar)'
 describe('assembly — composeProduct seeds a product outside the bench', () => {
   it('composes an electric engine identical to a bench-assembled one, not added to inventory', () => {
     const w = setup();
-    const engine = composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
+    const engine = composeProduct(w, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
 
     expect(w.get(engine, Part)).toEqual({ kind: 'engine' });
     expect(w.get(engine, EngineSpec)).toEqual({ power: 13, torque: 8 });
@@ -222,19 +227,19 @@ describe('assembly — composeProduct seeds a product outside the bench', () => 
     expect(w.get(engine, Renderable)).toBeUndefined();
   });
 
-  it('composes a mechanical engine to its profile (power 8 / torque 19 / weight 8)', () => {
+  it('composes a steam engine to its profile (power 8 / torque 19 / weight 8)', () => {
     const w = setup();
-    const engine = composeProduct(w, ENGINE_RECIPE, engineParts('mechanical'));
+    const engine = composeProduct(w, STEAM_ENGINE_RECIPE, engineParts('steam'));
     expect(w.get(engine, EngineSpec)).toEqual({ power: 8, torque: 19 });
     expect(w.get(engine, Weight)).toEqual({ value: 8 });
-    expect(w.get(engine, Assembly)!.type).toBe('mechanical');
+    expect(w.get(engine, Assembly)!.type).toBe('steam');
   });
 });
 
 describe('assembly — placeProductInWorld gives a product world presence', () => {
   it('adds Transform/Renderable/Collider + an engine MountFacing, and drops it from inventory', () => {
     const w = setup();
-    const engine = composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
+    const engine = composeProduct(w, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
     addToInventory(w, engine);
     expect(inventoryItems(w)).toEqual([engine]);
 
@@ -267,7 +272,7 @@ describe('assembly — the chassis size-match rule', () => {
   it('matches a sub-part to the recipe size, and waves through everything else', () => {
     expect(acceptsChassisPart(recipe1x3, partDef('wheel-axle-1x3')!)).toBe(true);
     expect(acceptsChassisPart(recipe1x3, partDef('wheel-axle-3x5')!)).toBe(false); // wrong size
-    expect(acceptsChassisPart(ENGINE_RECIPE, partDef('e-core')!)).toBe(true); // not a chassis build
+    expect(acceptsChassisPart(ELECTRIC_ENGINE_RECIPE, partDef('e-core')!)).toBe(true); // not a chassis build
     expect(acceptsChassisPart(recipe1x3, partDef('e-core')!)).toBe(true); // not a chassis part
   });
 
@@ -298,7 +303,7 @@ describe('assembly — dismantle is the conserved reverse', () => {
   it('hands the same parts back to inventory and destroys the product', () => {
     const w = setup();
     const parts = ELECTRIC.map((id) => placeOnSlot(w, id));
-    const product = assemble(w, ENGINE_RECIPE)!;
+    const product = assemble(w, ELECTRIC_ENGINE_RECIPE)!;
 
     const returned = dismantle(w, product)!;
     expect(returned).toEqual(parts); // the very same entities

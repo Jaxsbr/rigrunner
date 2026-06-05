@@ -100,13 +100,13 @@ describe('rigPerformance', () => {
     const re = rig(elec, 10);
     mountEngine(elec, re, { power: 13, torque: 8 }); // electric profile
 
-    const mech = new World();
-    const rm = rig(mech, 10);
-    mountEngine(mech, rm, { power: 8, torque: 19 }); // mechanical profile
+    const steamW = new World();
+    const rs = rig(steamW, 10);
+    mountEngine(steamW, rs, { power: 8, torque: 19 }); // steam profile
 
-    // Electric out-tops mechanical; mechanical out-accelerates electric.
-    expect(rigPerformance(elec, re).topSpeed).toBeGreaterThan(rigPerformance(mech, rm).topSpeed);
-    expect(rigPerformance(mech, rm).acceleration).toBeGreaterThan(
+    // Electric out-tops steam; steam out-accelerates electric.
+    expect(rigPerformance(elec, re).topSpeed).toBeGreaterThan(rigPerformance(steamW, rs).topSpeed);
+    expect(rigPerformance(steamW, rs).acceleration).toBeGreaterThan(
       rigPerformance(elec, re).acceleration,
     );
   });

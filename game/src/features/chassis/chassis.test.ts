@@ -12,7 +12,7 @@ import { Drivetrain } from '@features/drive/drivetrain';
 import { DriveControl } from '@features/drive/drive-control';
 import { Velocity } from '@features/drive/velocity';
 import { Renderable } from '@common/components/renderable';
-import { chassisRecipeForSize, ENGINE_RECIPE, STORAGE_RECIPE } from '@common/parts/recipes';
+import { chassisRecipeForSize, ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE } from '@common/parts/recipes';
 import { partDef } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
 import { engineParts } from '@features/engine/engines';
@@ -37,7 +37,7 @@ import {
   packUpChassis,
 } from '@features/mounting/rig';
 
-const engine = (w: World) => composeProduct(w, ENGINE_RECIPE, engineParts('electric'));
+const engine = (w: World) => composeProduct(w, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
 const container = (w: World) =>
   composeProduct(w, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
 

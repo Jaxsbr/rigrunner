@@ -10,9 +10,10 @@ import type { ChassisSize } from '@common/components/chassis';
  * data change here, not a UI rewrite — and assembly (P4) is recipe-generic for the same reason: it
  * sums whatever parts the recipe asked for and stamps out a product of `productKind`.
  *
- * MW ships two recipes — the engine (four parts) and the storage container (two parts). The slots
- * line up with the part roles in the catalog (`PartSlot`); future recipes can require any
- * roles/counts and produce any part kind.
+ * The slots line up with the part roles in the catalog (`PartSlot`); recipes can require any
+ * roles/counts and produce any part kind. The two engine types build through SEPARATE recipes with
+ * disjoint slot vocabularies (electric vs steam) — the divergence that makes the no-hybrid rule a
+ * fact of the parts (`docs/part-identity-spec.md` §2a), since no part fits the other type's slots.
  */
 export interface RecipeSlot {
   /** The part role this slot accepts — matched against a part's catalog `slot`. */
@@ -49,16 +50,29 @@ export interface Recipe {
   chassis?: ChassisRecipeMeta;
 }
 
-/** The engine recipe — four same-type parts in the four-slot grammar (see the spec). */
-export const ENGINE_RECIPE: Recipe = {
-  id: 'engine',
-  output: 'Engine',
+/** The ⚡ electric engine recipe — its four clean/abstract slots. */
+export const ELECTRIC_ENGINE_RECIPE: Recipe = {
+  id: 'electric-engine',
+  output: 'Electric Engine',
   productKind: 'engine',
   slots: [
     { slot: 'casing', label: 'Casing' },
-    { slot: 'core', label: 'Converter Core' },
-    { slot: 'coupling', label: 'Energy Coupling' },
+    { slot: 'core', label: 'Core' },
+    { slot: 'coupling', label: 'Coupling' },
     { slot: 'regulator', label: 'Regulator' },
+  ],
+};
+
+/** The ♨ steam engine recipe — its four industrial slots, disjoint from electric's. */
+export const STEAM_ENGINE_RECIPE: Recipe = {
+  id: 'steam-engine',
+  output: 'Steam Engine',
+  productKind: 'engine',
+  slots: [
+    { slot: 'boiler', label: 'Boiler' },
+    { slot: 'piston', label: 'Piston' },
+    { slot: 'driveshaft', label: 'Driveshaft' },
+    { slot: 'throttle', label: 'Throttle' },
   ],
 };
 
@@ -68,15 +82,15 @@ export const STORAGE_RECIPE: Recipe = {
   output: 'Storage Container',
   productKind: 'storage',
   slots: [
-    { slot: 'shell', label: 'Container Shell' },
-    { slot: 'rim', label: 'Container Rim' },
+    { slot: 'shell', label: 'Shell' },
+    { slot: 'rim', label: 'Rim' },
   ],
 };
 
 /**
  * The Reclaimer recipe (Option C / PR3) — the first NON-engine socket grammar: a base `arm` slot
  * plus the `head` socket the bucket slots into (alongside the engine's four-slot grammar). Untyped
- * (no electric/mechanical), so it never engages the no-hybrid rule; assembly sums its parts' weight
+ * (no electric/steam), so it never engages the no-hybrid rule; assembly sums its parts' weight
  * and stamps out a `reclaimer`-kind product exactly as the engine and container recipes do.
  */
 export const RECLAIMER_RECIPE: Recipe = {
@@ -84,8 +98,8 @@ export const RECLAIMER_RECIPE: Recipe = {
   output: 'Reclaimer',
   productKind: 'reclaimer',
   slots: [
-    { slot: 'arm', label: 'Reclaimer Arm' },
-    { slot: 'head', label: 'Bucket Head' },
+    { slot: 'arm', label: 'Arm' },
+    { slot: 'head', label: 'Bucket' },
   ],
 };
 
@@ -125,14 +139,15 @@ export function chassisRecipeForSize(size: ChassisSize): Recipe {
 }
 
 /**
- * Every buildable recipe the workshop bench's recipe picker shows, in order. The two chassis recipes
- * sit alongside the engine/container/Reclaimer ones: the chassis is built on the bench like the
- * others, then hauled out of the workshop as a kit to assemble into a rig. The size-match guard
- * (`acceptsChassisPart` in `@features/workshop/assembly`) keeps a chassis build to one size, the way
- * the no-hybrid rule keeps an engine to one energy type.
+ * Every buildable recipe the workshop bench's recipe picker shows, in order. The two engine recipes
+ * (electric, steam) lead; the two chassis recipes sit alongside the container/Reclaimer ones: a
+ * chassis is built on the bench like the others, then hauled out of the workshop as a kit to
+ * assemble into a rig. The size-match guard (`acceptsChassisPart` in `@features/workshop/assembly`)
+ * keeps a chassis build to one size, the way disjoint vocabularies keep an engine to one type.
  */
 export const RECIPES: readonly Recipe[] = [
-  ENGINE_RECIPE,
+  ELECTRIC_ENGINE_RECIPE,
+  STEAM_ENGINE_RECIPE,
   STORAGE_RECIPE,
   RECLAIMER_RECIPE,
   CHASSIS_1X3_RECIPE,
