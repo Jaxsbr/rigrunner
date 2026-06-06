@@ -29,9 +29,10 @@ import { PART_IDENTITIES, type PartIdentity } from '@shared/part-identity';
  *
  * A complete engine = all four slots filled with parts of ONE type; the resulting EngineSpec +
  * Weight is the SUM of the four parts' contributions (computed at assembly). The numbers below are
- * distributed so a full electric set sums to ≈ power 13 / torque 8 / weight 4 (snappy/light — the
- * Runner) and a full steam set to ≈ power 8 / torque 19 / weight 8 (torquey/heavy — the Hauler).
- * They are tunable against feel.
+ * distributed so a full electric set sums to ≈ power 11 / torque 7 / weight 4 (snappy/light — the
+ * Runner) and a full steam set to ≈ power 7 / torque 16 / weight 8 (torquey/heavy — the Hauler).
+ * They are tunable against feel — these are the engines' absolute pace, lowered here to slow the
+ * whole game at the source (rather than a multiplier downstream).
  *
  * `durability` and `burst` are reserved placeholders for later milestones (housing durability;
  * output-control boost/overdrive magnitude) — carried so the shape is stable, but nothing consumes
@@ -64,9 +65,11 @@ export interface PartAttributes {
   durability: number; // reserved (casing toughness) — not consumed in MW
   burst: number;      // reserved (regulator boost/overdrive magnitude) — not consumed in MW
   // Chassis sub-part contributions — summed into a `Chassis` at assembly. Omitted (≡ 0) on every
-  // non-chassis part. topSpeed/turning are inert until the laden-weight milestone; loadCapacity is
-  // the rated carry weight the HUD reads.
-  topSpeed?: number;
+  // non-chassis part. `grip` (wheel/axle) and `turning` (suspension) now feed handling — see
+  // `chassisToRig`: grip → off-throttle deceleration, turning → turn rate. `loadCapacity` (frame) is
+  // the rated carry weight the HUD reads. All three scale with the part's tier, so an iron chassis
+  // brakes harder, turns sharper and hauls more.
+  grip?: number;
   turning?: number;
   loadCapacity?: number;
   // Storage sub-part contribution — the scrap a container can hold, summed at assembly into the
@@ -86,17 +89,17 @@ export interface PartDef extends PartIdentity {
  * build error (an identity with no numbers), surfaced when the catalog is assembled.
  */
 const PART_ATTRIBUTES: Record<string, PartAttributes> = {
-  // ⚡ Electric — high power (top speed), low torque, light. Sum: power 13 / torque 8 / weight 4.
+  // ⚡ Electric — high power (top speed), low torque, light. Sum: power 11 / torque 7 / weight 4.
   'e-casing': { power: 1, torque: 1, weight: 2, durability: 5, burst: 0 },
-  'e-core': { power: 8, torque: 3, weight: 1, durability: 2, burst: 0 },
+  'e-core': { power: 6, torque: 3, weight: 1, durability: 2, burst: 0 },
   'e-coupling': { power: 2, torque: 1, weight: 0, durability: 1, burst: 0 },
-  'e-regulator': { power: 2, torque: 3, weight: 1, durability: 1, burst: 4 },
+  'e-regulator': { power: 2, torque: 2, weight: 1, durability: 1, burst: 4 },
 
-  // ♨ Steam — high torque (hauling), lower power, heavy. Sum: power 8 / torque 19 / weight 8.
+  // ♨ Steam — high torque (hauling), lower power, heavy. Sum: power 7 / torque 16 / weight 8.
   's-boiler': { power: 0, torque: 2, weight: 4, durability: 8, burst: 0 },
-  's-piston': { power: 5, torque: 10, weight: 2, durability: 4, burst: 0 },
+  's-piston': { power: 4, torque: 8, weight: 2, durability: 4, burst: 0 },
   's-driveshaft': { power: 1, torque: 3, weight: 1, durability: 2, burst: 0 },
-  's-throttle': { power: 2, torque: 4, weight: 1, durability: 2, burst: 3 },
+  's-throttle': { power: 2, torque: 3, weight: 1, durability: 2, burst: 3 },
 
   // 📦 Storage — weight/durability AND `capacity` (the scrap the container holds). power/torque/burst
   // stay 0 since a container does no engine work. A rusty (tier-1) container sums to capacity 4 — the
@@ -110,13 +113,16 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   'reclaimer-arm': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0 },
   'reclaimer-bucket': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
 
-  // 🛞 Chassis — each slot owns one chassis attribute plus its own weight; power/torque/durability/
-  // burst stay 0. There is a set PER SIZE: the 3×5 parts are heavier and rated higher than the 1×3's.
-  // (Tier is the orthogonal material axis on the part INSTANCE that scales these uniformly at resolve.)
-  'wheel-axle-1x3': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0, topSpeed: 12 },
+  // 🛞 Chassis — each slot owns one handling/structural attribute plus its own weight; power/torque/
+  // durability/burst stay 0. Per SIZE: wheel/axle → `grip` (off-throttle deceleration), suspension →
+  // `turning` (turn rate), frame → `loadCapacity`. The scout (1×3) turns sharper (turning 8 > 5); the
+  // hauler (3×5) is heavier and carries more (loadCapacity 60 > 24). grip rusty-sums to the old
+  // constant brake feel; the tier multiplier lifts it (and turning) from there — an iron chassis
+  // handles better. (Tier is the orthogonal material axis on the INSTANCE, scaled at resolve.)
+  'wheel-axle-1x3': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0, grip: 6 },
   'suspension-steering-1x3': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0, turning: 8 },
   'frame-1x3': { power: 0, torque: 0, weight: 6, durability: 0, burst: 0, loadCapacity: 24 },
-  'wheel-axle-3x5': { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, topSpeed: 16 },
+  'wheel-axle-3x5': { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, grip: 6 },
   'suspension-steering-3x5': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0, turning: 5 },
   'frame-3x5': { power: 0, torque: 0, weight: 14, durability: 0, burst: 0, loadCapacity: 60 },
 };

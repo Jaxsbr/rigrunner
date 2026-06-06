@@ -124,7 +124,7 @@ export const CHASSIS_1X3_RECIPE: Recipe = {
   output: 'Chassis (1×3)',
   productKind: 'chassis',
   slots: CHASSIS_SLOTS,
-  chassis: { size: '1x3', cols: 1, rows: 3, deckY: 0.70, engineMin: 1, engineMax: 2 },
+  chassis: { size: '1x3', cols: 1, rows: 3, deckY: 0.70, engineMin: 1, engineMax: 1 },
 };
 
 export const CHASSIS_3X5_RECIPE: Recipe = {
@@ -132,7 +132,7 @@ export const CHASSIS_3X5_RECIPE: Recipe = {
   output: 'Chassis (3×5)',
   productKind: 'chassis',
   slots: CHASSIS_SLOTS,
-  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.84, engineMin: 3, engineMax: 6 },
+  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.84, engineMin: 1, engineMax: 3 },
 };
 
 /** The chassis recipe for a size — the seam `spawnRig` composes its foundation through. */

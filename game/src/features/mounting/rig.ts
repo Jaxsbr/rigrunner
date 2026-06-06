@@ -38,11 +38,10 @@ import { Deploying } from '@features/chassis/deploying';
  *     starting rig is seeded through.
  *
  * The deck (`MountGrid`), rated load (`Chassis.loadCapacity`), engine envelope
- * (`Chassis.engineMin`..`engineMax`) and the rig's own mass (`Weight`) all come from the chassis,
- * not hard-coded here. Handling is the same constant `Drivetrain` for both sizes for now — the
- * chassis's own `topSpeed`/`turning` are summed but don't yet feed driving (the laden-weight
- * milestone wires that seam); with no engine mounted the rig still can't move (propulsion is the
- * engines').
+ * (`Chassis.engineMin`..`engineMax`), HANDLING (`Chassis.turning`/`grip` → the `Drivetrain`, see
+ * `chassisToRig`) and the rig's own mass (`Weight`) all come from the chassis, not hard-coded here —
+ * so a higher-tier chassis turns sharper and decelerates faster. With no engine mounted the rig still
+ * can't move (propulsion is the engines').
  */
 /**
  * The single tier finish the packed kit CRATE wears — its Frame sub-part's grade (`chassisTier`). The
@@ -56,8 +55,19 @@ function chassisFinish(world: World, chassis: EntityId): number | undefined {
   return t ? tierOf(t).finishColor : undefined;
 }
 
+// Handling derives from the chassis's own (tier-scaled) sub-part stats, so upgrading the running gear
+// — not just the engine — is felt. Turn rate is a constant FLOOR every chassis gets plus a small
+// tier-scaled bonus from its `turning`, so even rusty gear corners decently and the rusty→iron gap
+// stays modest (a steep linear scale once made iron turn far too sharply). The 3×5 hauler turns a
+// touch less than the 1×3 scout (lower `turning`). turnFullSpeed/reverseFactor aren't a tier axis yet.
+// All tunable to feel.    turnRate(1×3): rusty 8→2.7, iron 18→4.2    ·    friction(1×3): rusty 14, iron 21
+const BASE_TURN_RATE = 1.5;         // floor turn rate (rad/s) every chassis gets, before its `turning`
+const TURN_RATE_PER_TURNING = 0.15; // added rad/s per point of chassis `turning` (the tier-scaled part)
+const BASE_BRAKE = 8;               // constant off-throttle deceleration; the chassis `grip` adds to it
+
 export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): EntityId {
-  const size = world.get(chassis, Chassis)!.size;
+  const chassisSpec = world.get(chassis, Chassis)!;
+  const size = chassisSpec.size;
   // A staged kit already has a Transform (it had world presence on the deck) — reseat it on the
   // ground; a freshly-composed chassis (the starting rig) gets one. Either way y=0: a rig rolls on
   // the ground, it isn't hovering on a deck.
@@ -65,7 +75,12 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   if (t) { t.x = x; t.z = z; t.y = 0; }
   else world.add(chassis, Transform, { x, z, y: 0, rotationY: 0 });
   world.remove(chassis, Mount); // it's a rig now, not a product staged on a workshop deck
-  world.add(chassis, Drivetrain, { friction: 12, turnRate: 2.3, turnFullSpeed: 5, reverseFactor: 0.5 });
+  // Handling from the chassis: turn rate = a floor + the suspension `turning`; off-throttle deceleration
+  // = a constant brake + the wheel/axle `grip`. Both bonuses are tier-scaled, so an iron chassis handles
+  // better — but the floors keep rusty gear decent and hold the tier gap modest.
+  const friction = BASE_BRAKE + (chassisSpec.grip ?? 0);
+  const turnRate = BASE_TURN_RATE + (chassisSpec.turning ?? 0) * TURN_RATE_PER_TURNING;
+  world.add(chassis, Drivetrain, { friction, turnRate, turnFullSpeed: 5, reverseFactor: 0.5 });
   world.add(chassis, Velocity, { speed: 0 });
   world.add(chassis, DriveControl, { throttle: 0, steer: 0 });
   // The chassis's own collision footprint (a circle over the body). Each mounted part adds its own

@@ -122,6 +122,13 @@ portraits, and world models:
 
 The architecture already leans our way; the changes are small and mostly additive.
 
+> **Status (2026-06-06): §4 is built.** The data-model changes below shipped in Phases 0–2; the prose
+> still reads as the original plan, but each item is now live in code. Paths also moved with the
+> **feature-first** restructure ([ADR-003](architecture/adr-003-feature-first-src-structure.md)):
+> `content/*` → `common/parts/*` (registries) or `features/<x>/*` (feature code), `systems/*` →
+> `common/sim/*`, `components/*` → `common/components/*` (the part-instance vessel is
+> `common/parts/engine-part.ts`). The `content/`/`systems/` paths below are corrected to match.
+
 ### 4a. Tier lives on the part **instance**, not as catalog rows (the anti-explosion guardrail)
 **Do not** author `e-core@rusty`, `e-core@iron`, … as separate catalog entries — that 4×'s the catalog
 (and later the GLBs) per tier. Instead:
@@ -129,12 +136,12 @@ The architecture already leans our way; the changes are small and mostly additiv
   values.
 - A new `TIERS` table is the only place tiers are defined — ordered rows of
   `{ id, name, mult, finishColor }` (start with **two**: `rusty` mult 1, `iron` mult ≈ 2.2 — steep).
-- The part **instance** vessel (`components/engine-part.ts`, today `{ id }`) gains
+- The part **instance** vessel (`common/parts/engine-part.ts`, today `{ id }`) gains
   `{ id, tier, special? }`. Tier multiplies the base attributes at resolve time; special applies its
-  own multiplier.
+  own multiplier. (Built: it carries `{ id, tier }`; gold's `special` is Phase 4.)
 
 ### 4b. Resolve stats through tier × special, then add the set bonus
-- `systems/assembly.ts → sumPartStats` already **sums** per-part attributes. Change it to read each
+- `common/sim/assembly.ts → sumPartStats` already **sums** per-part attributes. Change it to read each
   part's **resolved** stats (`base × tier.mult × (special ? SPECIAL_MULT : 1)`) instead of raw
   `def.attributes`. Per-part-additive tiers then work **by construction** — no new summing logic.
 - `buildProduct` detects a **uniform tier** across the product's parts and applies the **set-bonus
@@ -150,25 +157,46 @@ Today `attachCapability` hardcodes `capacity: CONTAINER_CAPACITY`. To make "iron
   of the constant. `containers.ts` keeps a base for a directly-spawned (tier-1) container.
 
 ### 4d. Engine recipe split (vocabulary divergence)
-- `content/recipes.ts`: replace the single `ENGINE_RECIPE` with **`ELECTRIC_ENGINE_RECIPE`**
+- `common/parts/recipes.ts`: replace the single `ENGINE_RECIPE` with **`ELECTRIC_ENGINE_RECIPE`**
   (slots `casing/core/coupling/regulator`) and **`STEAM_ENGINE_RECIPE`**
   (slots `boiler/piston/driveshaft/throttle`). Both `productKind: 'engine'`. Add both to `RECIPES`.
 - `parts-catalog.ts`: rework `EnginePartSlot` into the two disjoint slot sets; rename the `m-*` parts'
   slots/ids/`displayName` to the steam vocabulary; strip electric flavour names to the nouns. Keep
   `type` on `PartDef` (drives drive-feel, visuals, the backstop type check) — though it's now derivable
   from the slot.
-- `content/engines.ts`: `engineParts(type)` → pick the recipe by type
+- `features/engine/engines.ts`: `engineParts(type)` → pick the recipe by type
   (`type === 'electric' ? ELECTRIC_ENGINE_RECIPE : STEAM_ENGINE_RECIPE`) and resolve its slots.
 - Knock-on id renames: `part-costs.ts` (the `m-*` ids; higher tiers get a cost multiplier — see §6),
   `product-visual.ts` (asset map), `main.ts` (the starting-engine seed), and the affected `*.test.ts`.
 
 ### 4e. Gold via the loot table — the source is a flagged fork
-- Repurpose the dormant **`recipe` epic tier** in `content/loot-table.ts` (Jaco dropped recipe-finding)
+- Repurpose the dormant **`recipe` epic tier** in `features/scrap/loot-table.ts` (Jaco dropped recipe-finding)
   into a **gold** epic tier — **activating the epic loot slot Option C already built**, no new drop system.
 - **What it grants is an open fork (§6):** a whole **gold assembled product** (the power find — performs
   ≈ tier 2.5) versus **gold sub-parts** (the money find — each sells for the matching iron part's buy
   price). The instance stamp still rides on `{ id, tier, special }`; how `special` resolves to a product
   grade vs a sellable piece is settled when Phase 4 is scoped against feel.
+
+### 4f. Chassis handling derives from the tier-scaled chassis stats (built 2026-06-06)
+The chassis sub-parts carry handling stats that resolve through tier like any attribute (§4b), then feed
+the rig's `Drivetrain` in `chassisToRig` (`features/mounting/rig.ts`) — so a higher-tier chassis isn't
+just a visual/capacity upgrade, it **handles** better. This realises §2c's "every single upgrade is felt"
+for the running gear:
+- **Suspension & Steering → `turning` → turn rate** (a constant floor + a tier-scaled bonus). An iron
+  suspension corners sharper, but the floor keeps rusty gear decent and the rusty→iron gap modest.
+- **Wheel & Axle → `grip` → off-throttle deceleration** (added to a constant brake floor). Iron wheels
+  scrub speed faster when you lift off the throttle, for tighter, more placeable control. *(The chassis
+  attribute formerly named `topSpeed` — inert, since engines own top speed now — was renamed `grip` for
+  this and is the only field rename.)*
+- **Frame → `loadCapacity`** (unchanged) — the rated carry weight the HUD reads.
+
+Per-part additive tiers (§2c) carry straight over: an iron suspension on a rusty frame gives sharp
+cornering while staying cheap to haul. Turn rate and braking are each a constant **floor** plus a
+tier-scaled **bonus**, so rusty gear handles decently and the tier gap stays modest — 1×3 turn rate
+≈ 2.7 rad/s rusty → 4.2 iron (a steep linear scale once made iron corner too hard); friction 14 rusty
+→ 21 iron. (A sibling balance rule landed alongside but
+lives outside this spec — engine **count** is capped low per chassis, 1 on the 1×3 and 3 on the 3×5, so
+engine **tier**, not engine stacking, is the power lever.)
 
 ---
 

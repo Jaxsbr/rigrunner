@@ -56,24 +56,24 @@ function placeOnSlot(world: World, id: string) {
 }
 
 describe('assembly — attribute summing', () => {
-  it('sums a full electric set to the spec profile (power 13 / torque 8 / weight 4)', () => {
+  it('sums a full electric set to the spec profile (power 11 / torque 7 / weight 4)', () => {
     const w = setup();
     const parts = ELECTRIC.map((id) => placeOnSlot(w, id));
-    expect(sumPartStats(w, parts)).toMatchObject({ power: 13, torque: 8, weight: 4 });
+    expect(sumPartStats(w, parts)).toMatchObject({ power: 11, torque: 7, weight: 4 });
   });
 
-  it('sums a full steam set to the spec profile (power 8 / torque 19 / weight 8)', () => {
+  it('sums a full steam set to the spec profile (power 7 / torque 16 / weight 8)', () => {
     const w = setup();
     loadRecipe(w, STEAM_ENGINE_RECIPE.id, STEAM_ENGINE_RECIPE.slots.map((s) => s.slot));
     const parts = STEAM.map((id) => placeOnSlot(w, id));
-    expect(sumPartStats(w, parts)).toMatchObject({ power: 8, torque: 19, weight: 8 });
+    expect(sumPartStats(w, parts)).toMatchObject({ power: 7, torque: 16, weight: 8 });
   });
 
   it('ignores unresolved (non-catalog) entities when summing', () => {
     const w = setup();
     expect(sumPartStats(w, [w.createEntity()])).toEqual({
       power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
-      topSpeed: 0, turning: 0, loadCapacity: 0, capacity: 0,
+      grip: 0, turning: 0, loadCapacity: 0, capacity: 0,
     });
   });
 });
@@ -232,7 +232,7 @@ describe('assembly — assembling an engine', () => {
 
     expect(product).toBeDefined();
     expect(w.get(product, Part)).toEqual({ kind: 'engine' });
-    expect(w.get(product, EngineSpec)).toEqual({ power: 13, torque: 8 });
+    expect(w.get(product, EngineSpec)).toEqual({ power: 11, torque: 7 });
     expect(w.get(product, Weight)).toEqual({ value: 4 });
     expect(w.get(product, Assembly)).toEqual({ recipeId: 'electric-engine', parts, type: 'electric' });
     expect(isProduct(w, product)).toBe(true);
@@ -318,7 +318,7 @@ describe('assembly — composeProduct seeds a product outside the bench', () => 
     const engine = composeProduct(w, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
 
     expect(w.get(engine, Part)).toEqual({ kind: 'engine' });
-    expect(w.get(engine, EngineSpec)).toEqual({ power: 13, torque: 8 });
+    expect(w.get(engine, EngineSpec)).toEqual({ power: 11, torque: 7 });
     expect(w.get(engine, Weight)).toEqual({ value: 4 });
     expect(w.get(engine, Assembly)!.type).toBe('electric');
     expect(w.get(engine, Assembly)!.parts).toHaveLength(4);
@@ -328,10 +328,10 @@ describe('assembly — composeProduct seeds a product outside the bench', () => 
     expect(w.get(engine, Renderable)).toBeUndefined();
   });
 
-  it('composes a steam engine to its profile (power 8 / torque 19 / weight 8)', () => {
+  it('composes a steam engine to its profile (power 7 / torque 16 / weight 8)', () => {
     const w = setup();
     const engine = composeProduct(w, STEAM_ENGINE_RECIPE, engineParts('steam'));
-    expect(w.get(engine, EngineSpec)).toEqual({ power: 8, torque: 19 });
+    expect(w.get(engine, EngineSpec)).toEqual({ power: 7, torque: 16 });
     expect(w.get(engine, Weight)).toEqual({ value: 8 });
     expect(w.get(engine, Assembly)!.type).toBe('steam');
   });

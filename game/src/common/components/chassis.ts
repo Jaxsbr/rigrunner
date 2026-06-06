@@ -11,21 +11,21 @@ export type ChassisSize = '1x3' | '3x5';
  * `MountGrid` (the deck the size also defines) and `Weight`.
  *
  * `size` is the structural choice — it sets the deck dimensions (`MountGrid` cols×rows) and how many
- * engines the deck accepts (`engineMin`..`engineMax`). The 1×3 is a light scout (1–2 engines); the
- * 3×5 a hauler (3–6).
+ * engines the deck accepts (`engineMin`..`engineMax`). The 1×3 is a light scout (1 engine); the
+ * 3×5 a hauler (1–3) — capped low on purpose, so engine TIER (not engine count) is the power lever.
  *
- * `topSpeed` and `turning` are summed from the sub-parts but do NOT affect how the rig drives yet:
- * handling still comes from the rig's constant `Drivetrain`, and propulsion from its engines. They
- * are the seam the future "laden weight" milestone reattaches to (turning → `Drivetrain.turnRate`,
- * topSpeed → a cap on engine-derived top speed). `loadCapacity` is the rig's rated carry weight; the
- * HUD reads it against the live mounted load, but nothing refuses an overload yet.
+ * `grip` and `turning` feed handling: `chassisToRig` derives the rig's `Drivetrain` from them, so a
+ * higher-tier chassis handles better (turning → `Drivetrain.turnRate`, grip → off-throttle
+ * deceleration on top of a constant brake). Propulsion still comes from the engines. `loadCapacity`
+ * is the rig's rated carry weight; the HUD reads it against the live mounted load, but nothing
+ * refuses an overload yet.
  */
 export interface Chassis {
   size: ChassisSize;
   engineMin: number;
   engineMax: number;
-  topSpeed: number;     // summed wheel/axle contribution — not yet consumed by driving
-  turning: number;      // summed suspension/steering contribution — not yet consumed by driving
+  grip: number;         // summed wheel/axle contribution — off-throttle deceleration (via chassisToRig)
+  turning: number;      // summed suspension/steering contribution — turn rate (via chassisToRig)
   loadCapacity: number; // summed frame contribution — the rig's rated carry weight (HUD readout)
 }
 

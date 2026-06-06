@@ -511,7 +511,7 @@ export class WorkshopOverlay {
     // storage container leads with capacity (so dropping an iron Shell/Rim previews the bigger hold
     // before you commit); every other product shows the engine-shaped power/torque/weight triple.
     const statRows = recipe.productKind === 'chassis'
-      ? `<span class="k">top speed</span><span class="v">${stats.topSpeed ?? 0}</span>` +
+      ? `<span class="k">grip</span><span class="v">${stats.grip ?? 0}</span>` +
         `<span class="k">turning</span><span class="v">${stats.turning ?? 0}</span>` +
         `<span class="k">load cap</span><span class="v">${stats.loadCapacity ?? 0}</span>`
       : recipe.productKind === 'storage'
@@ -752,7 +752,7 @@ export class WorkshopOverlay {
     // else shows the engine-shaped power/torque/weight + the reserved durability/burst. The numbers
     // are RESOLVED through tier, so an iron part reads its scaled values, not the base.
     const attrsHtml = view.colorKey === 'chassis'
-      ? `<span class="k">top speed</span><span class="v">${a.topSpeed ?? 0}</span>` +
+      ? `<span class="k">grip</span><span class="v">${a.grip ?? 0}</span>` +
         `<span class="k">turning</span><span class="v">${a.turning ?? 0}</span>` +
         `<span class="k">load cap</span><span class="v">${a.loadCapacity ?? 0}</span>` +
         `<span class="k">weight</span><span class="v">${a.weight}</span>`
