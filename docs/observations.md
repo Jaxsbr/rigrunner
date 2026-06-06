@@ -274,6 +274,26 @@ selected part", a no-truncation layout, and **real sub-part assets** so shape (n
 identity. The recipe-selector limit in #9 is part of the same pass. Pairs with the part-naming /
 rarity-visual-cues rebrand idea (see `ideas.md` 2026-06-03).
 
+**Follow-up (2026-06-06) — the workshop friction is now a direct loop problem.**
+Jaco's play feedback sharpened the issue from "dense" to "annoying to use":
+
+- Building a product requires manual drag-and-drop into every bench slot even when the right parts are
+  already owned; the bench should be able to auto-fill/build from available parts, with manual dragging
+  reserved for deliberate mixed-tier/custom builds.
+- Buying parts is hard to scan. The shop does not visually guide the player toward the part needed for
+  the active recipe; finding the right item depends on reading small text carefully.
+- Tier choice is too easy to miss. The active tier selector lives above the list, and it is easy to buy
+  the wrong grade because the whole shop silently reprices/regrades around that toggle.
+- Moving a finished product between inventory and the world is buried behind the Workshop Deck tab; if
+  the player is elsewhere in the overlay, that extra tab switch feels like interface work instead of
+  workshop work.
+- The overlay still reads like generic dark HTML: functional, but visually out of step with the game's
+  scavenged-machine / tactile rig-building vibe.
+
+**Implication:** the next workshop-UX pass should not be a cosmetic skin. It should reduce required
+drags/clicks, make recipe needs and tier choices visible before purchase, expose world staging from any
+workshop context, and use the existing 3D part/deck/portrait path as the primary visual language.
+
 ---
 
 ## 11. Adding engines made you *slower* — two damping algorithms compounding
