@@ -17,13 +17,18 @@ import { steeringPivotLz } from './steering';
  * engine has zero output: throttle is dead and it coasts to rest under friction — the "I built a rig
  * but forgot the engine" teaching moment, felt directly in the controls.
  *
- * Steering combines two effects: a turning-RADIUS model (yaw ∝ speed, so the rig arcs through a
- * fixed-radius circle like a real vehicle instead of pivoting on the spot), taken about an engine-set
- * longitudinal PIVOT (steering.ts) — where the engines sit decides whether the nose sweeps wide (rear
- * drive), the tail kicks out (front drive), or it turns about its centre (centred drive).
+ * Steering combines three effects: the applied steer RAMPS toward the input (STEER_RAMP) so a hard
+ * turn builds up rather than snapping 0→full; a turning-RADIUS model (yaw ∝ speed, so the rig arcs
+ * through a fixed-radius circle like a real vehicle instead of pivoting on the spot); taken about an
+ * engine-set longitudinal PIVOT (steering.ts) — where the engines sit decides whether the nose sweeps
+ * wide (rear drive), the tail kicks out (front drive), or it turns about its centre (centred drive).
  *
  * Pure over the world — state in, state out, no side effects — so it runs and is tested headless.
  */
+// How fast the applied steer ramps toward the input, per second — full lock reached in ~1/STEER_RAMP s,
+// so a turn builds up and eases out rather than snapping on/off. Tunable to feel.
+const STEER_RAMP = 3; // ≈ 0.33s from straight to full lock
+
 export function movementSystem(world: World, dt: number): void {
   for (const e of world.query(Transform, Drivetrain, Velocity, DriveControl)) {
     const t = world.get(e, Transform)!;
@@ -50,9 +55,17 @@ export function movementSystem(world: World, dt: number): void {
     //  • it turns about a longitudinal pivot set by where the engines sit (steeringPivotLz): a rear
     //    drive plants the back and sweeps the nose, a front drive kicks the tail out, a centred/absent
     //    pivot (0) turns about the origin. Where you bolt the engine changes how the rig handles.
-    if (ctl.steer !== 0) {
+    // Ramp the APPLIED steer toward the input at a limited rate (STEER_RAMP/s), so a hard turn builds
+    // up instead of snapping 0→full and eases back out when released. The yaw + pivot use this smoothed
+    // value, not the raw key state. (appliedSteer is sim state on DriveControl, never written by input.)
+    const prevSteer = ctl.appliedSteer ?? 0;
+    const maxStep = STEER_RAMP * dt;
+    const steer = prevSteer + Math.max(-maxStep, Math.min(maxStep, ctl.steer - prevSteer));
+    ctl.appliedSteer = steer;
+
+    if (steer !== 0) {
       const before = t.rotationY;
-      t.rotationY += ctl.steer * (vel.speed / drive.turnRadius) * dt;
+      t.rotationY += steer * (vel.speed / drive.turnRadius) * dt;
 
       // Hold the engine-set pivot (pivotLz along local Z) fixed through the yaw change by shifting the
       // origin to compensate. A centred/absent pivot (0) leaves the origin put — turn about centre.

@@ -343,3 +343,40 @@ direction for what a composed engine should even look like. The render seam alre
 sub-asset* (`assetTier` / `productTints`), so the data path is ready when the assets + layout exist;
 until then a tinted placeholder block for a missing sub-part asset is fine. Continues observation **#3**
 (parts read as random blocks; adjacency should *connect*).
+
+---
+
+## 13. Ramping the steering input — "turning acceleration" — is a surprise unlock
+
+**Context:** Driving (Section B) — applying a hard turn while running down a straight line, on top of
+the turning-radius steering model (the #2 follow-up).
+
+**Observation:** With the radius model the rig already *arced* like a vehicle, but the **application**
+of the turn was instant: slam A/D and the steer input jumps 0→full in one frame, so the rig snaps into
+the arc. Easing the *applied* steer toward the input over a short ramp instead — so the turn **builds
+up** and eases back out — was a disproportionately large improvement for how small the change is. It
+reads as the rig **leaning into** the turn, as if the wheels/tracks have to be turned before they bite.
+Jaco: "a super unlock for a unique driving mechanic." It's the steering analogue of throttle
+acceleration — turning now has its own *acceleration*, not just a rate.
+
+**Why it matters:** Driving is half the loop, and this is cheap weight on the controls that makes the
+rig feel like it has mass and a real steering linkage rather than a turret on a swivel. Crucially it
+**composes** under everything already there — ramp → turning-radius arc → engine-set pivot all stack —
+so it deepens the feel without fighting any of it. It also hands us a new **tuning surface** (and a
+candidate build-axis): *how fast a rig's steering bites* is now a feel we own.
+
+**Action taken:** `features/drive/movement.ts` ramps an `appliedSteer` toward the raw `steer` input at
+`STEER_RAMP` per second (≈0.33 s straight→full lock); the yaw + engine pivot use the ramped value, not
+the raw key state. Stored as a sim-managed `appliedSteer` on `DriveControl` (input still writes only the
+raw `steer`). One global constant for now — deliberately simple, because this wants more play.
+
+**Open directions (more exploration + tweaking likely):**
+- **Tune `STEER_RAMP` to feel** — 3/s is a first guess; lower reads heavier/lazier, higher snappier.
+- **Make it a chassis/tier axis** — a better suspension could bite *faster* (shorter ramp), the way tier
+  already tightens turn radius and braking. Steering *responsiveness* as a third handling stat.
+- **Asymmetric ramp** — a different ramp-in vs ramp-out (e.g. quick to release, slow to commit) may feel
+  better than the symmetric rate used now.
+- **Weight coupling** — a heavy, laden rig could ramp its steering in more slowly (steering inertia),
+  tying handling response to the central weight pillar.
+- **Drift/slip potential** — a ramped steer is the natural seam for a momentum/counter-steer feel later,
+  if play ever asks for it.
