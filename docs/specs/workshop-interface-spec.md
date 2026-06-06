@@ -22,7 +22,7 @@ The spec for milestone **MW**. It delivers, end to end:
 > ⚠️ **Status vs. the project's rules.** The four-slot grammar, the two types, and the no-hybrid
 > type-lock are now **decided for this milestone** (Jaco confirmed, 2026-06-01). The richer **energy
 > economy is deliberately deferred** (see "Deferred" below). MW stays a `pending` candidate in
-> [`milestones.md`](milestones.md) until delivered; promote the settled mechanics into `CLAUDE.md`
+> [`milestones.md`](../milestones.md) until delivered; promote the settled mechanics into `CLAUDE.md`
 > once they ship.
 
 ---
@@ -41,7 +41,7 @@ What that means concretely:
   **activatable special ability** it represents (electric *boost* / mechanical *overdrive*) is
   **deferred** — wiring a boost/overdrive input is a later PR, not part of MW.
 - The full energy economy (capacity, discharge/burst, fuel grades, recharge, fuel weight) lives raw
-  in [`ideas.md`](ideas.md) (2026-06-01 session) and is **out of scope here**.
+  in [`ideas.md`](../ideas.md) (2026-06-01 session) and is **out of scope here**.
 
 ---
 

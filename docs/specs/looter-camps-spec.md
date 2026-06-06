@@ -1,0 +1,215 @@
+# RIGRUNNER — Looter Camps: enemies around a structure (spec + plan)
+
+**What this is:** the design + phased implementation plan for **looter camps** — the game's first
+**flee-or-fight** content and its first **enemy + combat** systems (the candidate **Option D** in
+[`milestones.md`](../milestones.md)). It also plants the **trap-arm disarm** mechanic and the
+**restoration handoff seam** that the world-restoration work (M4) later subscribes to. The high-level
+intent + dependency chain stay in `milestones.md`; the worked decisions live here.
+
+> **Status:** ✏️ **Specced, not started.** The design below was resolved in a 2026-06-06 grill session
+> (every section is a decided answer, not a guess). Promote settled mechanics into `CLAUDE.md` once
+> they ship. Numbers (HP, damage, ranges, leash, costs) are **build-time tuning** unless called out.
+
+---
+
+## Essence
+
+A hostile **structure** ringed by simple **enemies** that shoot at you and an **environmental mess**
+(stains, damage) — the first real *flee-or-fight*. You **fight or evade**; clearing all enemies, then
+**disarming the camp's trap** with a trap arm, yields the loot. Clearing a camp leaves behind a
+**stump / soil site** the world can later heal, and the **stains fade** as the camp is cleaned up.
+
+---
+
+## 1. The player-verb loop (one camp, end to end)
+
+```
+spot a camp  →  read its level (visual)  →  ENGAGE or EVADE
+   engage:  shoot + ram enemies while dodging their fire  (flee-or-fight)
+          →  all enemies cleared  →  DISARM the trap (skill puzzle, gated on a trap arm)
+                 success → full loot · partial → common loot + damage risk · fail → no loot + damage
+          →  loot screen → inventory  →  stains fade, a restorable stump remains
+```
+
+A camp you don't engage just sits there — a threat only if you drive into its enemies' range. **Evade
+is a first-class option** (the flee half); a too-weak rig is taught to go back to the bay and build.
+
+---
+
+## 2. Combat primitives
+
+The new generic kernel. Born inside this feature; promoted only when a second consumer earns it.
+
+### 2.1 Rig health & death
+- **`Health { current, max }`** on the rig. **`max` aggregates** like `effectiveRigWeight` does: a
+  **chassis base** (tier-scaled in `chassisToRig`, the way `turning`/`braking` already are) **+ future
+  armour/shield part contributions** (the seam — *not built now*). The chassis is the **defense
+  envelope**; a better chassis tanks more.
+- **Damage** lowers `current` (enemy projectile hits — §2.3). **Repair** is **free at the workshop**:
+  parked in a workshop zone (already a safe zone — obs #8), `current` restores toward `max`. This
+  reuses the workshop proximity gate and reinforces home-base = safety + repair. *(A scrap-cost repair
+  is a clean later economy-sink seam — not now.)*
+- **Death:** `current ≤ 0` → **full reset to the boot seed** (Wallet, Inventory, owned chassis, world
+  all back to start). Nearly free to build (re-run the seed; an `R` reset already exists). **This is a
+  deliberately-placeholder stake** — flagged to revisit (a softer "lose the run, keep the bank" is the
+  likely real design) once combat feel is dialled. A minimal **health bar** in the HUD shows
+  `current / max`.
+
+### 2.2 Rig offense — two ways to clear
+- **Mounted directional weapon (a part).** A new mountable weapon that **auto-fires at any enemy
+  inside its forward cone + range**, reusing the exact `facingWithinFov` cone the Reclaimer gate uses.
+  No fire button — you "aim" by orienting the rig/weapon. **Placement matters:** a front gun forces
+  you to face the enemy (and eat fire); a rear/side gun lets you **flee and shoot**. Fire **rate**
+  (cooldown) is a stat; **no ammo** in the first cut (like engines run on unlimited energy).
+- **Ram.** Driving into a weak enemy kills/damages it on contact (reuses collision). **No rig
+  self-damage** from ramming in the first cut — but ramming a ranged enemy still means eating its fire
+  to close. (Ram self-damage vs tougher targets is a later tuning seam.)
+
+### 2.3 Projectiles
+- **One shared `Projectile { owner, team, … }`** for both the rig's weapon and enemy fire — so
+  collision resolves rig→enemy and enemy→rig with the **same** code. Shots **travel** at a set speed
+  (you can **dodge by driving**; your shots can miss a moving target). Readable tracers.
+- **`collision.ts` is promoted to `@common/sim/collision`** here — its own header mandates the move
+  "the day a second feature needs it … combat (projectile/enemy hits) is the expected one." This is
+  that day. Projectile-vs-target hits run through it.
+
+## 3. Enemies & AI
+
+- Each enemy is its **own entity** with its **own `Health`** — you clear them one at a time; no respawn
+  (clear once → the camp is clearable). Enemies do **not** move the rig's economy except via the camp's
+  loot on clear.
+- **Detection: range + arc, no occlusion.** An enemy engages when the rig is within a **detection
+  radius** (and optionally a facing arc) — *"in line of sight" ≈ "in range"*; no raycast against props
+  (the open field has no real sight-blockers yet). True-occlusion LOS (cover/peek) is a clean later
+  seam.
+- **State machine:** `GUARD` (at post) → `ENGAGE` (rig detected → fire travelling projectiles **and**
+  pursue) → `RETREAT` (rig beyond a **leash distance measured from the camp**, not the post → return to
+  post → back to `GUARD`). Pursuit + the camp-anchored leash are both **configured per level**.
+
+## 4. The camp (a stateful objective)
+
+- **`Camp { level, state }`** entity at a world position, **data-driven by `level`** (see §6). Its
+  structure (container + tent for level 1), enemy roster, trap difficulty, and loot table all come from
+  the level config.
+- **State machine:** `GUARDED` (enemies alive; trap armed; stains present) → *(all enemies cleared)* →
+  `DISARMABLE` → *(disarm attempted)* → `CLEARED` (loot granted per outcome; stains begin fading; a
+  restorable stump is emitted). **Loot is gated on BOTH** all-enemies-cleared **and** a non-fail disarm.
+- **Level read is visual-only:** the camp's composition (enemy type/count, camp size/silhouette)
+  carries its level — **no HUD level label**. *(Design constraint for later: each new level must be
+  visually distinct enough to read at a glance. Moot at one level.)*
+
+## 5. The trap arm & disarm
+
+- **A separate trap-arm part** (not a head-swap) — its own articulated, directional, **FOV-aimed** tool
+  that **mirrors the Reclaimer's construction** (arm grammar + the mounting/articulation/aim it already
+  uses), with its own **tier**. You can run a digger and a disarmer as distinct build choices. Bought
+  in the **Parts Shop** and built/mounted like any part.
+- **Disarm is a skill mini-game; tier sets difficulty (no separate RNG).** Concrete first puzzle: a
+  **timing sweet-spot (lockpick)** — a marker sweeps a bar, press to land it in a target zone, for
+  `N` rounds. **Tier sets zone WIDTH + round COUNT** (rusty = narrow zones, many rounds; top tier =
+  wide / one round / effectively automatic). The disarm runs **parked + arm aimed at the camp**, in a
+  **focused overlay that freezes the sim** — safe because disarm only happens **after** all enemies are
+  dead (no threat mid-solve). *(The puzzle is one **pluggable** mechanic — a seam for puzzle variety
+  later.)*
+- **Outcome → reward (gated on how cleanly you solved):**
+  | Outcome | Loot | Rig |
+  |---|---|---|
+  | **Success** (clean solve) | full camp loot (all eligible tiers) | unharmed |
+  | **Partial** (mostly) | **common** tier only | **chance** of damage |
+  | **Fail** (botched) | none | damage |
+
+## 6. Difficulty levels (build only level 1)
+
+- **`level` scalar → a data-driven `CAMP_LEVELS` table** mapping level → `{ enemy type, count, enemy
+  HP/damage, detection radius, leash, camp structure + size, trap difficulty, loot table }`. A new
+  level is a **new data row, no new code** — the scalable seam, mirroring how the loot table / part
+  costs are already data-driven.
+- **Level 1 (the only one built):** a **container + a small tent**, **two enemies** guarding. They
+  shoot once the rig is in range; pursue up to the configured leash from the camp; retreat when it's
+  exceeded.
+
+## 7. Loot
+
+- A data-driven **`CAMP_LOOT` table** (richer than the scrap pile's), rolled through the **shared
+  loot-table roller** (`rollLoot`) — the seam Option C already built for exactly this reuse. The
+  **disarm outcome gates which tiers are eligible** (§5). Finds are **granted to `Inventory` via the
+  existing loot overlay** (`LootDrop` + `loot-overlay`) — the loot screen you already have. A **scrap**
+  tier may grant straight to the `Wallet` (a camp isn't a heap, so no scatter-and-sweep). The **rare
+  full-part / recipe tiers** stay the same committed **stubs** the pile table carries until their
+  systems land.
+
+## 8. Environmental mess & the restoration seam
+
+- A camp carries **large stains + environment damage** (reuse/scale the `scrap-stains` fade system).
+  On reaching `CLEARED` the **stains fade gradually** — the world visibly cleans up as you finish the
+  camp.
+- A **`RestorableSite { x, z, kind, sourceLevel }`** marker (a richer sibling of `ClearedGround`) is
+  emitted on clear, with a **visible stump / soil prop**. **Nothing consumes it** — deliberately. This
+  is the exact handoff the **restoration** work (M4 camp-to-restored-ground) subscribes to later: the
+  camp publishes *"I'm cleared, here's a site,"* and knows nothing about restoration. *(Why a new
+  marker, not bare `ClearedGround`: a camp stump is a deliberate, visible, investable feature, not just
+  a "cleared earth" record.)*
+
+---
+
+## 9. Reuse map (what this leans on, what's new)
+
+| Reuses (shipped) | New (this feature) |
+|---|---|
+| `facingWithinFov` (weapon arc, trap-arm aim) | `Health` + HUD health bar; death/reset |
+| `collision.ts` → promote to `@common/sim/collision` | `Projectile` + projectile movement/hits |
+| Arm grammar: mounting · articulation · FOV gate (Reclaimer) | Directional **weapon** part; **trap-arm** part |
+| Loot table roller + `LootDrop` + loot-overlay | `Camp` + state machine; enemy + AI |
+| `scrap-stains` fade; `ClearedGround` pattern | disarm puzzle (timing sweet-spot); `CAMP_LEVELS`/`CAMP_LOOT` |
+| Parts Shop / `part-costs` (acquire weapon + trap arm) | `RestorableSite` marker + stump prop |
+| Chassis stat → rig pipeline (`chassisToRig`) | camp stains/damage |
+| Workshop safe zone (free repair) | |
+
+**Placement (ADR-003):** one new **`features/camps/`** slice owns the camp, enemy, AI, weapon,
+projectile, health, disarm, camp-stains, and restoration-site. **Promote `collision` to
+`@common/sim`** (second consumer). Keep `Health` / `Projectile` / `Weapon` **in-feature** until a
+second feature consumer earns a `@common` promotion (Rule of Three).
+
+**Acquisition / bootstrap:** the weapon + trap arm are Parts-Shop buys (Option B's `part-costs`),
+priced so **loose scrap + pile loot can afford the weapon *before* your first camp** — you can't loot
+your way to the tool that lets you loot (the Reclaimer bootstrap rule). The trap arm is the higher
+save-up goal.
+
+---
+
+## 10. Build phases (vertical-first — a thin whole camp, then enrich)
+
+Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; later phases deepen it.
+
+- **Phase 1 — A thin whole camp, end to end.** `Health` + HUD bar; purchasable **auto-fire weapon** +
+  ram; **`Projectile`** both ways (promote `collision`); two enemies with the detect → engage → pursue
+  → retreat AI; dodge; **HP=0 → reset**; `Camp` + state machine driven by `CAMP_LEVELS[1]`; **all
+  enemies cleared → loot screen → inventory** (`CAMP_LOOT`); **disarm STUBBED to auto-success** (no
+  trap arm yet); minimal camp stains + a `RestorableSite` stub on clear. A full, rewarding, playable
+  camp.
+- **Phase 2 — The trap arm + real disarm.** The trap-arm part (shop/build/mount); the **timing
+  sweet-spot** puzzle; tier → difficulty; **success/partial/fail → loot + rig damage** — replacing the
+  Phase-1 auto-success stub. Loot now gated behind a real disarm.
+- **Phase 3 — Environmental mess + restoration polish.** Large camp stains + damage that **fade** on
+  clear/disarm; the **visible stump/soil prop** on the `RestorableSite`. The world-reacts beat.
+- **Phase 4 — More levels.** Author level 2+ as **data rows**, each visually distinct; (future) wire
+  the **scaling-enemy** difficulty hook to the same `level`.
+
+---
+
+## 11. Deliberately NOT in scope
+
+Vehicle/advanced enemy AI; enemy respawn; true line-of-sight occlusion; armour/shield parts (the
+HP seam exists, unbuilt); scrap-cost repair; ram self-damage; the **restoration investment** itself
+(only the site marker is emitted); the rare full-part / recipe loot tiers (stubs); multi-camp world
+placement + the scaling-enemy system; a softer death model (placeholder full-reset for now).
+
+## 12. Open / tuning (decided at build time)
+
+- All numbers: rig + enemy HP, weapon/enemy damage + fire rate, projectile speed, detection radius,
+  **leash distance**, weapon + trap-arm **costs**, disarm round-count/zone-width per tier, partial-hit
+  **damage chance**, stain size + fade rate.
+- Whether the camp grants **scrap to the Wallet** as a loot tier, and how much.
+- Trap-arm **construction:** mirror the Reclaimer as a **composed** product (arm + disarm head) or a
+  single part — and, if composed, which sub-part carries the tier.
+- Exact **HP restore** shape at the workshop (over-time vs instant-on-park).

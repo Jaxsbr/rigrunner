@@ -14,7 +14,7 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 ## 2026-06-05 — A built part should *look* like the parts it's made of (composed sub-part rendering)
 
 **Mode:** reacting to the game, capturing a target. Sparked by playing the freshly-shipped MP **Phase 1**
-tiers ([`part-identity-spec.md`](part-identity-spec.md)): the per-piece tier **tint** is working, and on
+tiers ([`part-identity-spec.md`](specs/part-identity-spec.md)): the per-piece tier **tint** is working, and on
 the Reclaimer (two real assets — arm + bucket) I can clearly see an iron arm next to a rusty bucket. That
 made me want the *whole* thing this points at. **Not committed** — this is the ideal I'm aiming for, and
 it's a later, more polished job. For now the tint is a fine, easy stopgap that buys real progression.
@@ -67,7 +67,7 @@ progression. Revisit when we're doing the art pass and have a direction for what
 ## 2026-06-04 — Chassis tiers as the cap that makes part-tiers safe (+ refined energy identity, multiple rigs, cross-type viability)
 
 **Mode:** design session, firming. Sparked by the drivetrain rebalance (milestone MD) and the worry
-that the part-identity **tier** work (MP / [`part-identity-spec.md`](part-identity-spec.md)) would
+that the part-identity **tier** work (MP / [`part-identity-spec.md`](specs/part-identity-spec.md)) would
 either be too weak to feel or strong enough to wreck the slow, deliberate pace we want. The shape
 below feels like the missing constraint — but the open forks are real, so this stays **candidate,
 not committed.**
@@ -192,7 +192,7 @@ simple** and its **rarity is legible from the material** — and crucially that 
   palette of tier finishes shared across every part, defined once (like `rr_style`).
 
 **Status:** PROMOTED (2026-06-03). This raw thread has been worked into a structured spec +
-implementation plan — [`part-identity-spec.md`](part-identity-spec.md) — after a follow-up brainstorm.
+implementation plan — [`part-identity-spec.md`](specs/part-identity-spec.md) — after a follow-up brainstorm.
 Key shifts from this raw entry: tiers are **per-sub-part + additive with a matched-set bonus** (not a
 single product tier); "special" is reworked from a **rare recipe** to a **rare "gold" part variant**;
 and the engine vocabularies **diverge** (electric: Casing/Core/Coupling/Regulator · steam:
@@ -513,7 +513,7 @@ play shows the drain wait is a felt friction worth upgrading away.
 ## 2026-06-01 — Energy systems + the two engine paths
 
 **Mode:** brainstorm / design riff while spec'ing the engine-composition feature
-([`workshop-interface-spec.md`](workshop-interface-spec.md), milestone MW). Forward-looking texture
+([`workshop-interface-spec.md`](specs/workshop-interface-spec.md), milestone MW). Forward-looking texture
 for that spec's Phase 2 — **not committed**. Energy is **not implemented at all yet**.
 
 ### The framing: the engine converts energy, it doesn't carry it
@@ -590,7 +590,7 @@ The win is **silhouette + colour telling you a rig's role from across the field.
 
 ### Update 2026-06-01 (later) — parts of this firmed into decisions
 Jaco confirmed direction, so some of the above moved from raw idea → committed-for-the-milestone and
-into the reworked spec ([`workshop-interface-spec.md`](workshop-interface-spec.md), milestone MW):
+into the reworked spec ([`workshop-interface-spec.md`](specs/workshop-interface-spec.md), milestone MW):
 - **Decided:** the four-slot engine grammar (casing · converter core · energy coupling · regulator);
   **two** engine/energy types (electric, mechanical); **no hybrids** — a chassis is locked to one
   energy type (mounting a conflicting type won't snap; remove first to swap).

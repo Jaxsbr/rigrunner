@@ -81,7 +81,7 @@ stale-branch and push-race failures we hit before. The flow below is mandatory.
 **No placeholders for a new part — ever.** If your change adds a part the player can *see* (it shows in
 the shop, inventory inspect, the bench — anywhere a sub-part or product renders), the PR is **not
 complete** until all three hold. This is the enforcement arm of
-[`part-identity-spec.md`](../../../docs/part-identity-spec.md) Phase 2 ("the tint stand-in retires; every
+[`part-identity-spec.md`](../../../docs/specs/part-identity-spec.md) Phase 2 ("the tint stand-in retires; every
 new part ships as a real authored asset"). Shipping a tinted placeholder and moving on is the exact
 failure mode this rule exists to stop.
 

@@ -84,7 +84,7 @@ with one complete mounted electric engine so the player can drive immediately.
 **Depends on:** the existing workshop zone + mounting (done). Basic part acquisition now uses the
 Parts Shop spend sink; a future production chain can supersede that same cost/grant seam.
 
-**Full spec:** [`workshop-interface-spec.md`](workshop-interface-spec.md) — known-parts list, engine
+**Full spec:** [`workshop-interface-spec.md`](specs/workshop-interface-spec.md) — known-parts list, engine
 types, the type-lock rule, per-PR scope/files, and manual-test checklists.
 
 ---
@@ -261,7 +261,7 @@ ground-cleared seam (PR5). The build→run gate it set out to prove ("locked unt
 tool, then point it") is in and playable.
 
 **Build plan:** the full PR-by-PR record lives in
-[`option-c-build-plan.md`](option-c-build-plan.md) — now a historical staircase, all steps `done`.
+[`option-c-build-plan.md`](specs/option-c-build-plan.md) — now a historical staircase, all steps `done`.
 
 ### The gating tool — the Reclaimer
 
@@ -401,7 +401,7 @@ sub-part the game has today gets its own 3D model and is fully visible/usable in
 the remaining mechanic phases (now Phases 3–5: set bonus, specials, more tiers) — no new tier, special,
 or set bonus until every current part is modelled. See the spec's §5 for the sub-part coverage map.
 
-**Full spec + phased plan:** [`part-identity-spec.md`](part-identity-spec.md) — the three-axis model,
+**Full spec + phased plan:** [`part-identity-spec.md`](specs/part-identity-spec.md) — the three-axis model,
 data-model changes against the current seams, the PR-by-PR phases, and the open forks.
 
 **Depends on:** the parts/recipe/assembly system (shipped — and friendlier than expected: `sumPartStats`
