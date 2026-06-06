@@ -60,9 +60,12 @@ function chassisFinish(world: World, chassis: EntityId): number | undefined {
 // tier-scaled bonus from its `turning`, so even rusty gear corners decently and the rusty→iron gap
 // stays modest (a steep linear scale once made iron turn far too sharply). The 3×5 hauler turns a
 // touch less than the 1×3 scout (lower `turning`). turnFullSpeed/reverseFactor aren't a tier axis yet.
-// All tunable to feel.    turnRate(1×3): rusty 8→2.7, iron 18→4.2    ·    friction(1×3): rusty 14, iron 21
-const BASE_TURN_RATE = 1.5;         // floor turn rate (rad/s) every chassis gets, before its `turning`
-const TURN_RATE_PER_TURNING = 0.15; // added rad/s per point of chassis `turning` (the tier-scaled part)
+// Turn rate is kept low relative to top speed so the rig ARCS rather than pirouettes — the radius
+// stays well above the rig's own length at speed. All tunable to feel.
+//   turnRate(1×3): rusty 8→1.62, iron 18→2.52   ·   turnRate(3×5): rusty 5→1.35, iron 11→1.89
+//   friction(1×3): rusty 14, iron 21
+const BASE_TURN_RATE = 0.9;         // floor turn rate (rad/s) every chassis gets, before its `turning`
+const TURN_RATE_PER_TURNING = 0.09; // added rad/s per point of chassis `turning` (the tier-scaled part)
 const BASE_BRAKE = 8;               // constant off-throttle deceleration; the chassis `grip` adds to it
 
 export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): EntityId {
