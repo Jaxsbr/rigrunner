@@ -6,8 +6,8 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Renderable } from '@common/components/renderable';
-import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
-import { TIERS, tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
+import { partDef, type PartDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
+import { TIERS, tierOf, type TierId } from '@common/parts/tiers';
 import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
 import { shopStockForTier, shopItemForPart, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
 import { productAssetId, productRenderSpec } from '@features/workshop/product-visual';
@@ -35,6 +35,13 @@ import {
   assemble,
   dismantle,
 } from './assembly';
+import {
+  autoFillBench,
+  ownedCountForPart,
+  planAutoFillBench,
+  recipeSlotNeeds,
+  tierCountForPart,
+} from './bench-assist';
 import {
   workshopEntity,
   stagedProducts,
@@ -150,7 +157,6 @@ export class WorkshopOverlay {
   private open = false;
   private zoneActive = false;
   private tab: Tab = 'bench';
-  private shopTier: TierId = DEFAULT_TIER; // which grade the Parts Shop sells right now (the tier toggle)
   private selected: EntityId | null = null;
   private drag: DragState | null = null;
 
@@ -169,6 +175,7 @@ export class WorkshopOverlay {
   private readonly recipeEl: HTMLElement;
   private readonly benchEl: HTMLElement;
   private readonly benchPreviewEl: HTMLElement;
+  private readonly autoFillBtn: HTMLButtonElement;
   private readonly assembleBtn: HTMLButtonElement;
   private readonly detailEl: HTMLElement;
   private readonly portrait: ModelPortrait;
@@ -184,6 +191,7 @@ export class WorkshopOverlay {
 
   private readonly onCloseClick = (): void => this.closeOverlay();
   private readonly onTabClick = (): void => this.openOverlay();
+  private readonly onAutoFillClick = (): void => this.autoFillActive();
   private readonly onAssembleClick = (): void => this.assembleActive();
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (this.open) {
@@ -222,6 +230,7 @@ export class WorkshopOverlay {
     this.recipeEl = panel.querySelector<HTMLElement>('#wk-recipe')!;
     this.benchEl = panel.querySelector<HTMLElement>('#wk-bench-slots')!;
     this.benchPreviewEl = panel.querySelector<HTMLElement>('#wk-bench-preview')!;
+    this.autoFillBtn = panel.querySelector<HTMLButtonElement>('#wk-autofill')!;
     this.assembleBtn = panel.querySelector<HTMLButtonElement>('#wk-assemble')!;
     this.detailEl = panel.querySelector<HTMLElement>('#wk-detail')!;
     this.portrait = createModelPortrait(panel.querySelector<HTMLElement>('#wk-portrait-host')!, {
@@ -243,6 +252,7 @@ export class WorkshopOverlay {
     this.tabBenchBtn.addEventListener('click', () => this.switchTab('bench'));
     this.tabDeckBtn.addEventListener('click', () => this.switchTab('deck'));
     this.tabShopBtn.addEventListener('click', () => this.switchTab('shop'));
+    this.autoFillBtn.addEventListener('click', this.onAutoFillClick);
     this.assembleBtn.addEventListener('click', this.onAssembleClick);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('pointermove', this.onPointerMove);
@@ -422,6 +432,7 @@ export class WorkshopOverlay {
     // can read what it's made of before dismantling. The slot DOM is rebuilt only when the shape changes.
     const inspected = this.inspectedAssembly();
     const recipe = inspected ? inspected.recipe : this.activeRecipe();
+    const needs = recipeSlotNeeds(this.world, recipe);
     this.renderRecipeTabs();
     if (this.renderedRecipeId !== recipe.id) this.rebuildBenchSlots(recipe);
 
@@ -437,9 +448,13 @@ export class WorkshopOverlay {
         filled++;
         el.appendChild(this.makeChip(view, { disabled: inspected !== null }));
       } else {
+        const need = needs.find((n) => n.slot === slot);
+        const owned = need?.owned.length ?? 0;
         const empty = document.createElement('div');
-        empty.className = 'wk-slot-empty';
-        empty.textContent = 'empty';
+        empty.className = `wk-slot-empty ${owned > 0 ? 'owned' : 'missing'}`;
+        empty.innerHTML =
+          `<span>Needs ${need?.def?.displayName ?? slot}</span>` +
+          `<span>${owned > 0 ? `${owned} owned` : 'buy in shop'}</span>`;
         el.appendChild(empty);
       }
     }
@@ -530,12 +545,49 @@ export class WorkshopOverlay {
    * filled, one consistent energy type). Otherwise it's disabled and shows WHY.
    */
   private renderAssemble(recipe: Recipe, inspecting = false): void {
+    this.autoFillBtn.style.display = inspecting ? 'none' : '';
     this.assembleBtn.style.display = inspecting ? 'none' : '';
     if (inspecting) return;
+
+    const plan = planAutoFillBench(this.world, recipe);
+    if (plan.entries.length > 0 && plan.complete) {
+      this.autoFillBtn.disabled = false;
+      this.autoFillBtn.textContent = 'Build from Inventory';
+      this.autoFillBtn.title = 'Fill the bench with owned matching parts, then assemble the product.';
+    } else if (plan.entries.length > 0) {
+      this.autoFillBtn.disabled = false;
+      this.autoFillBtn.textContent = 'Auto-fill Available';
+      this.autoFillBtn.title = 'Fill every empty slot that has a matching owned part.';
+    } else if (!plan.complete) {
+      this.autoFillBtn.disabled = false;
+      this.autoFillBtn.textContent = 'Buy Missing Parts';
+      this.autoFillBtn.title = 'Open the shop list focused on the parts this recipe still needs.';
+    } else {
+      this.autoFillBtn.disabled = true;
+      this.autoFillBtn.textContent = 'Bench Filled';
+      this.autoFillBtn.title = '';
+    }
+
     const verdict = assembleVerdict(this.world, recipe);
     this.assembleBtn.disabled = !verdict.ok;
     this.assembleBtn.textContent = verdict.ok ? `⚙ Assemble ${recipe.output}` : verdict.reason;
     this.assembleBtn.title = verdict.ok ? '' : verdict.reason;
+  }
+
+  private autoFillActive(): void {
+    const recipe = this.activeRecipe();
+    const plan = planAutoFillBench(this.world, recipe);
+    if (plan.entries.length === 0 && !plan.complete) {
+      this.switchTab('shop');
+      return;
+    }
+
+    autoFillBench(this.world, recipe);
+    if (plan.complete && assembleVerdict(this.world, recipe).ok) {
+      this.assembleActive();
+      return;
+    }
+    this.refresh();
   }
 
   /** Assemble the active recipe's parts into a product; select it (→ inspect view) and pulse it. */
@@ -548,47 +600,21 @@ export class WorkshopOverlay {
 
   // ── Parts Shop ─────────────────────────────────────────────────────────────────────────────
 
-  /** Render the current stock against the live Wallet total, at the selected tier. */
+  /** Render the current stock against the live Wallet total, with the active recipe first. */
   private renderShop(): void {
     const scrap = getWallet(this.world)?.scrap ?? 0;
-    this.shopWalletEl.textContent = `SCRAP ${scrap}`;
+    this.shopWalletEl.innerHTML = `<span>SCRAP</span><strong>${scrap}</strong>`;
     this.shopListEl.innerHTML = '';
 
-    this.appendShopSectionTitle('Buy Parts');
-    this.appendShopTierToggle(); // the grade the buy list sells — Phase 1's iron source (§5)
-    for (const item of shopStockForTier(this.shopTier)) {
+    const recipe = this.activeRecipe();
+    this.appendShopSectionTitle(`${recipe.output} Parts`);
+    this.appendNeededPartCards(recipe);
+
+    this.appendShopSectionTitle('All Stock');
+    for (const item of shopStockForTier(TIERS[0]!.id)) {
       const def = shopPartDef(item);
       if (!def) continue;
-
-      const key = def.type ?? def.category;
-      const tier = tierOf(item.tier);
-      const verdict = purchaseVerdict(this.world, item);
-      const card = document.createElement('div');
-      card.className = `wk-shop-card ${key}`;
-      card.innerHTML =
-        `<div class="wk-shop-main">` +
-        `<div class="wk-shop-name-row">` +
-        `<span class="wk-shop-dot"></span>` +
-        finishSwatch(tier.finishColor) +
-        `<span class="wk-shop-name">${tier.name} ${def.displayName}</span>` +
-        slotTag(def) +
-        `</div>` +
-        `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
-        `</div>` +
-        `<div class="wk-shop-side">` +
-        `<div class="wk-shop-cost">${item.cost} scrap</div>` +
-        `</div>`;
-
-      const side = card.querySelector<HTMLElement>('.wk-shop-side')!;
-      const buy = document.createElement('button');
-      buy.type = 'button';
-      buy.className = 'wk-buy';
-      buy.disabled = !verdict.ok;
-      buy.textContent = verdict.ok ? 'Buy' : verdict.reason;
-      buy.addEventListener('click', () => this.buyShopItem(item));
-      side.appendChild(buy);
-
-      this.shopListEl.appendChild(card);
+      this.shopListEl.appendChild(this.shopBuyCard(def));
     }
 
     this.appendShopSectionTitle('Sell Loose Parts');
@@ -647,23 +673,70 @@ export class WorkshopOverlay {
     this.shopListEl.appendChild(title);
   }
 
-  /** The grade selector at the top of the buy list — one button per tier, swatch + name. Switching
-   *  reprices every buy card and is what the player builds an iron container from (the §5 source). */
-  private appendShopTierToggle(): void {
-    const row = document.createElement('div');
-    row.className = 'wk-shop-tier-row';
-    for (const tier of TIERS) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'wk-shop-tier' + (tier.id === this.shopTier ? ' active' : '');
-      btn.innerHTML = `${finishSwatch(tier.finishColor)}<span>${tier.name}</span>`;
-      btn.addEventListener('click', () => {
-        this.shopTier = tier.id;
-        this.renderShop();
-      });
-      row.appendChild(btn);
+  private appendNeededPartCards(recipe: Recipe): void {
+    for (const need of recipeSlotNeeds(this.world, recipe)) {
+      const def = need.def;
+      if (!def) continue;
+      const key = def.type ?? def.category;
+      const card = this.shopBuyCard(def);
+      card.classList.add('needed', key, need.onBench ? 'filled' : 'missing');
+      const state = card.querySelector<HTMLElement>('.wk-shop-state')!;
+      if (need.onBench !== null) {
+        const view = this.viewOf(need.onBench);
+        state.textContent = view ? `on bench · ${view.displayName}` : 'on bench';
+      } else if (need.owned.length > 0) {
+        const best = this.viewOf(need.owned[0]!);
+        state.textContent = best ? `${need.owned.length} owned · best ${best.displayName}` : `${need.owned.length} owned`;
+      } else {
+        state.textContent = 'missing';
+      }
+      this.shopListEl.appendChild(card);
     }
-    this.shopListEl.appendChild(row);
+  }
+
+  private shopBuyCard(def: PartDef): HTMLElement {
+    const key = def.type ?? def.category;
+    const owned = ownedCountForPart(this.world, def.id);
+    const card = document.createElement('div');
+    card.className = `wk-shop-card ${key}`;
+    card.innerHTML =
+      `<div class="wk-shop-main">` +
+      `<div class="wk-shop-name-row">` +
+      `<span class="wk-shop-dot"></span>` +
+      `<span class="wk-shop-name">${def.displayName}</span>` +
+      slotTag(def) +
+      `</div>` +
+      `<div class="wk-shop-meta">${cap(def.category)} part · ${owned} owned</div>` +
+      `<div class="wk-shop-state"></div>` +
+      `</div>` +
+      `<div class="wk-shop-side wk-tier-buy-row"></div>`;
+
+    const side = card.querySelector<HTMLElement>('.wk-shop-side')!;
+    for (const tier of TIERS) {
+      const item = shopItemForPart(def.id, tier.id);
+      if (!item) continue;
+      side.appendChild(this.tierBuyButton(item));
+    }
+    return card;
+  }
+
+  private tierBuyButton(item: PartShopItem): HTMLButtonElement {
+    const tier = tierOf(item.tier);
+    const verdict = purchaseVerdict(this.world, item);
+    const ownedAtTier = tierCountForPart(this.world, item.partId, item.tier);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'wk-buy-tier';
+    btn.disabled = !verdict.ok;
+    btn.title = verdict.ok
+      ? `${tier.name} · ${item.cost} scrap · ${ownedAtTier} owned`
+      : `${verdict.reason} · ${tier.name} costs ${item.cost} scrap`;
+    btn.innerHTML =
+      finishSwatch(tier.finishColor) +
+      `<span class="wk-buy-tier-name">${tier.name}</span>` +
+      `<span class="wk-buy-tier-cost">${item.cost}</span>`;
+    btn.addEventListener('click', () => this.buyShopItem(item));
+    return btn;
   }
 
   /** Execute one shop transaction and select the newly owned part. */
@@ -707,6 +780,24 @@ export class WorkshopOverlay {
     this.refresh();
   }
 
+  private autoStageCell(product: EntityId): { col: number; row: number } | null {
+    const workshop = workshopEntity(this.world);
+    if (workshop === null) return null;
+    const fp = partFootprint(this.world, product);
+    return closestFreeCellLocal(this.world, workshop, 0, 0, Infinity, fp);
+  }
+
+  private stageSelected(): void {
+    if (this.selected === null || this.isStaged(this.selected)) return;
+    const workshop = workshopEntity(this.world);
+    const cell = this.autoStageCell(this.selected);
+    if (workshop === null || cell === null) {
+      this.switchTab('deck');
+      return;
+    }
+    if (stageProduct(this.world, this.selected, workshop, cell.col, cell.row)) this.refresh();
+  }
+
   /** True if a product is currently staged on the workshop deck (mounted on the workshop). */
   private isStaged(entity: EntityId): boolean {
     const m = this.world.get(entity, Mount);
@@ -747,6 +838,7 @@ export class WorkshopOverlay {
     }
     const a = view.attrs;
     const staged = view.isProduct && this.isStaged(view.entity);
+    const stageCell = view.isProduct && !staged ? this.autoStageCell(view.entity) : null;
     // The attribute readout fits the part: a chassis shows its three contributed attributes + mass; a
     // storage part/container leads with capacity (the felt "iron holds more" stat) + mass; everything
     // else shows the engine-shaped power/torque/weight + the reserved durability/burst. The numbers
@@ -773,16 +865,23 @@ export class WorkshopOverlay {
       // hint that it builds on the bench (it isn't directly stageable).
       (view.isProduct
         ? `<div class="wk-actions">` +
-          (staged ? `<button id="wk-unstage" class="wk-unstage" type="button">Return to Inventory</button>` : '') +
+          (staged
+            ? `<button id="wk-unstage" class="wk-unstage" type="button">Return to Inventory</button>`
+            : `<button id="wk-stage" class="wk-stage" type="button" ${stageCell ? '' : 'disabled'}>` +
+              `${stageCell ? 'Stage on Deck' : 'Deck Full'}</button>`) +
           `<button id="wk-dismantle" class="wk-dismantle" type="button">Dismantle</button>` +
           `</div>` +
-          (staged ? '' : `<div class="wk-hint">Drag onto the Workshop Deck to stage it.</div>`)
+          (staged ? '' : `<div class="wk-hint">Stage to place it on the workshop deck, then close the panel and grab it in-world.</div>`)
         : `<div class="wk-hint">A sub-part — drop it on a Bench slot to build with it.</div>`);
     if (view.isProduct) {
       if (staged) {
         this.detailEl
           .querySelector<HTMLButtonElement>('#wk-unstage')!
           .addEventListener('click', () => this.unstageSelected());
+      } else {
+        this.detailEl
+          .querySelector<HTMLButtonElement>('#wk-stage')!
+          .addEventListener('click', () => this.stageSelected());
       }
       this.detailEl
         .querySelector<HTMLButtonElement>('#wk-dismantle')!
@@ -1159,6 +1258,7 @@ export class WorkshopOverlay {
     this.deck.dispose();
     this.tabEl.removeEventListener('click', this.onTabClick);
     this.closeBtn.removeEventListener('click', this.onCloseClick);
+    this.autoFillBtn.removeEventListener('click', this.onAutoFillClick);
     this.assembleBtn.removeEventListener('click', this.onAssembleClick);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('pointermove', this.onPointerMove);
