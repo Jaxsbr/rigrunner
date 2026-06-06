@@ -9,9 +9,9 @@ import { MountGrid } from '@common/components/mount-grid';
 import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Digging } from '@features/scrap/digging';
 import { Collectible } from '@features/scrap/collectible';
-import { LootDrop } from '@features/scrap/loot-drop';
+import { LootDrop } from '@common/components/loot-drop';
 import { ClearedGround } from '@features/scrap/cleared-ground';
-import { scrapPileSystem, scrapRummageSystem, facingWithinFov } from './scrap-pile-system';
+import { scrapPileSystem, scrapRummageSystem } from './scrap-pile-system';
 
 const FOV = (120 * Math.PI) / 180;
 
@@ -39,27 +39,6 @@ function pile(world: World, x: number, z: number, waves = 8): EntityId {
   world.add(e, ScrapPile, { radius: 4, fov: FOV, total: waves, remaining: waves, worked: 0, scrapScattered: 0, active: false });
   return e;
 }
-
-describe('facingWithinFov', () => {
-  it('admits a target dead ahead (front is local −Z at yaw 0)', () => {
-    // arm at origin, yaw 0 → front points toward −Z; a pile at −Z is straight ahead.
-    expect(facingWithinFov(0, 0, 0, 0, -5, FOV)).toBe(true);
-  });
-
-  it('rejects a target behind the arm', () => {
-    expect(facingWithinFov(0, 0, 0, 0, 5, FOV)).toBe(false);
-  });
-
-  it('admits up to 60° off-axis and rejects beyond it (120° full FOV)', () => {
-    // A target 59° off the −Z axis is inside; 61° is outside.
-    const r = 5;
-    const inAng = (59 * Math.PI) / 180;
-    const outAng = (61 * Math.PI) / 180;
-    // off-axis toward −Z: direction (−sin a, −cos a)
-    expect(facingWithinFov(0, 0, 0, -Math.sin(inAng) * r, -Math.cos(inAng) * r, FOV)).toBe(true);
-    expect(facingWithinFov(0, 0, 0, -Math.sin(outAng) * r, -Math.cos(outAng) * r, FOV)).toBe(false);
-  });
-});
 
 describe('scrapPileSystem (the gate)', () => {
   it('stays dormant without a mounted Reclaimer, even in range', () => {

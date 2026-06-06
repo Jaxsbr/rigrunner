@@ -99,7 +99,7 @@ rigrunner/
       common/             #   strict domain kernel (shared by ≥2 features): components/ parts/ sim/
                           #     render/ input/ — see the admission rule below
       features/           #   vertical slices, ONE folder per mechanic — open one, see the whole thing:
-                          #     drive engine mounting scrap storage workshop economy hud (tests co-located)
+                          #     drive engine mounting scrap storage workshop economy hud camps (tests co-located)
       main.ts             #   composition root — the ONLY file that imports across features
   viewer/                 # asset viewer — inspect any GLB in isolation           -> npm run dev:viewer
   shared/                 # modules promoted for use by both apps (explicit, never implicit)

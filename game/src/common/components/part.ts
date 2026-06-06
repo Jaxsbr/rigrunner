@@ -3,7 +3,7 @@ import { defineComponent } from '@core/component';
 /**
  * Marks an entity as a *part* — a discrete module the player grabs, carries, and mounts onto a
  * rig's deck. `kind` is the open vocabulary of part types ('engine', 'storage', 'reclaimer',
- * 'chassis' today; 'gun', … as they earn their place). New kinds are new string values plus the
+ * 'chassis', 'weapon' today; more as they earn their place). New kinds are new string values plus the
  * systems that give them meaning — never new subclasses.
  *
  * 'chassis' is the odd one out: it is composed on the bench like the others, but it is not mounted
@@ -20,7 +20,7 @@ import { defineComponent } from '@core/component';
  * `@common/components/chassis`); mounting's occupancy and snap honour the whole region (see
  * `@features/mounting/mounting`).
  */
-export type PartKind = 'engine' | 'storage' | 'reclaimer' | 'chassis';
+export type PartKind = 'engine' | 'storage' | 'reclaimer' | 'chassis' | 'weapon';
 
 export interface Part {
   kind: PartKind;

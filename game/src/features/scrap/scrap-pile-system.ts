@@ -6,10 +6,11 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Digging } from '@features/scrap/digging';
-import { LootDrop } from '@features/scrap/loot-drop';
+import { LootDrop } from '@common/components/loot-drop';
 import { ClearedGround } from '@features/scrap/cleared-ground';
 import { scatterScrapAround } from '@features/scrap/scrap';
 import { rollLoot, rollScrapBurst } from '@features/scrap/loot-table';
+import { facingWithinFov } from '@common/sim/fov';
 
 /**
  * The scrap-pile interaction: the capability-gated, hold-to-work rummage (Option C / PR4).
@@ -38,30 +39,6 @@ function mountedReclaimer(world: World, rig: EntityId): EntityId | null {
     if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === 'reclaimer') return p;
   }
   return null;
-}
-
-/**
- * Does an arm facing `armRotationY` at (armX, armZ) have the point (px, pz) within its `fov`?
- * The arm's front is local −Z — direction (−sin θ, −cos θ) at yaw θ (the convention shared with
- * movement and MountFacing). We compare the angle between that front and the direction to the point
- * against half the full FOV via a dot product, so a 120° FOV admits anything up to 60° off-axis.
- */
-export function facingWithinFov(
-  armX: number,
-  armZ: number,
-  armRotationY: number,
-  px: number,
-  pz: number,
-  fov: number,
-): boolean {
-  const toX = px - armX;
-  const toZ = pz - armZ;
-  const len = Math.hypot(toX, toZ);
-  if (len === 0) return true; // standing on it — trivially "facing"
-  const fwdX = -Math.sin(armRotationY);
-  const fwdZ = -Math.cos(armRotationY);
-  const cosTo = (fwdX * toX + fwdZ * toZ) / len; // both fwd and to/len are unit-length
-  return cosTo >= Math.cos(fov / 2);
 }
 
 /**

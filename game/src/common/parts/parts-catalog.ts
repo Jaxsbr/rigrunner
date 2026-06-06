@@ -125,6 +125,11 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   'wheel-axle-3x5': { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, grip: 6 },
   'suspension-steering-3x5': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0, turning: 5 },
   'frame-3x5': { power: 0, torque: 0, weight: 14, durability: 0, burst: 0, loadCapacity: 60 },
+
+  // 🔫 Weapon — its only stat in Phase 1 is the WEIGHT it adds to the rig (you feel the gun in the
+  // handling); its combat numbers (damage/rate/range) are the `WEAPON` constant in `@features/camps`,
+  // not per-instance attributes yet. power/torque/durability/burst stay 0.
+  'weapon-gun': { power: 0, torque: 0, weight: 4, durability: 0, burst: 0 },
 };
 
 /** The full catalog — each shared identity record paired with its gameplay attributes, in roster order. */
@@ -138,6 +143,17 @@ export const PARTS_CATALOG: readonly PartDef[] = PART_IDENTITIES.map((identity) 
 export function partDef(id: string): PartDef | undefined {
   return PARTS_CATALOG.find((p) => p.id === id);
 }
+
+/**
+ * The COMMON sub-part loot pool: the loose engine + storage building blocks (not the premium
+ * Reclaimer / weapon parts, which are save-up goals in the shop). Derived from the catalog so a new
+ * buildable sub-part is lootable the moment it joins — no edit to any loot table. Shared by every loot
+ * table that drops sub-parts (the scrap pile, a cleared camp), which is why it sits with the catalog
+ * it's drawn from rather than in any one feature.
+ */
+export const SUB_PART_POOL: readonly string[] = PARTS_CATALOG
+  .filter((p) => p.category === 'engine' || p.category === 'storage')
+  .map((p) => p.id);
 
 /**
  * Spawn one catalog sub-part as a loose world entity carrying the `EnginePart` vessel — the catalog

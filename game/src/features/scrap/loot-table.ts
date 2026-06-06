@@ -1,10 +1,12 @@
-import { PARTS_CATALOG } from '@common/parts/parts-catalog';
+import { SUB_PART_POOL } from '@common/parts/parts-catalog';
+import { rollCount, rollTable, type LootTier, type LootFind } from '@common/sim/loot';
 
 /**
  * The scrap-pile LOOT TABLE (Option C / PR5) — the single, data-driven config for what rummaging an
  * emptied pile yields. Tuning the rewards is a data change here, never a code change in the rummage
- * system or the loot UI. This is also the seam Option D (enemy drops) and the later rare-recipe
- * scavenging reuse: they roll the same kind of table.
+ * system or the loot UI. The roller itself (`rollTable`/`rollCount`, the `LootTier`/`LootFind` shapes)
+ * is the shared `@common/sim/loot` kernel; this module is just the scrap-specific table that rolls
+ * through it — the SAME kernel a cleared camp rolls its own table through (`@features/camps/camp-loot`).
  *
  * A pile's yield comes from two distinct moments, and the table names both for one readable picture:
  *
@@ -22,35 +24,10 @@ import { PARTS_CATALOG } from '@common/parts/parts-catalog';
  * and recipe tiers below are stubs — see their notes).
  */
 
-export type LootRarity = 'guaranteed' | 'common' | 'rare' | 'epic';
-
-export interface LootTier {
-  /** Stable id for the tier. */
-  id: string;
-  /** Human label (shown in the loot UI as the find's tier). */
-  label: string;
-  /** Rarity band — drives the loot UI's colour/sort and reads the tier's intent. */
-  rarity: LootRarity;
-  /** Where the tier's loot enters play: scattered during the dig (`burst`) or rolled on empty. */
-  source: 'burst' | 'empty-roll';
-  /** Probability (0..1) this tier drops on a single empty-roll. Ignored for `burst` tiers. */
-  chance: number;
-  /** How many items the tier yields when it drops (inclusive range; drawn with replacement). */
-  count: { min: number; max: number };
-  /** Candidate ids the tier draws from — catalog part ids today, recipe ids when that lands. */
-  pool: readonly string[];
-  /** A dormant STUB when false: carried for shape/visibility but never drops (system not built). */
-  enabled: boolean;
-}
-
-/**
- * The COMMON sub-part pool: the loose engine + storage building blocks (not the premium Reclaimer
- * parts, which are a save-up goal in the shop). Drawing from the catalog keeps the pool honest — a
- * new buildable sub-part is lootable the moment it joins the catalog, no edit here.
- */
-export const SUB_PART_POOL: readonly string[] = PARTS_CATALOG
-  .filter((p) => p.category === 'engine' || p.category === 'storage')
-  .map((p) => p.id);
+// Re-export the loot shapes from the shared kernel so this module's existing importers (loot-drop,
+// loot-overlay) keep one import site even though the canonical definitions now live in `@common/sim`.
+export type { LootRarity, LootFind, LootTier } from '@common/sim/loot';
+export { SUB_PART_POOL } from '@common/parts/parts-catalog';
 
 /**
  * The loot table itself. Order is the display order in the loot UI. Today only the sub-part tier
@@ -112,19 +89,6 @@ export const LOOT_TABLE: { readonly tiers: readonly LootTier[] } = {
   ],
 };
 
-/** One rolled find — the tier it came from plus the drawn id. The loot UI turns these into grants. */
-export interface LootFind {
-  tierId: string;
-  rarity: LootRarity;
-  /** The catalog/recipe id drawn from the tier's pool. */
-  itemId: string;
-}
-
-/** A uniform integer in `[range.min, range.max]` inclusive — the shared count roller for all tiers. */
-function rollCount(range: { min: number; max: number }, rng: () => number): number {
-  return range.min + Math.floor(rng() * (range.max - range.min + 1));
-}
-
 /** The scrap (burst) tier — the per-wave scatter config, looked up once. */
 const SCRAP_TIER = LOOT_TABLE.tiers.find((t) => t.id === 'scrap')!;
 
@@ -147,15 +111,5 @@ export function rollScrapBurst(rng: () => number = Math.random): number {
  * find list (empty when nothing rolled — at the 50% sub-part chance, about half the piles).
  */
 export function rollLoot(rng: () => number = Math.random): LootFind[] {
-  const finds: LootFind[] = [];
-  for (const tier of LOOT_TABLE.tiers) {
-    if (tier.source !== 'empty-roll' || !tier.enabled || tier.pool.length === 0) continue;
-    if (rng() >= tier.chance) continue; // tier didn't drop this roll
-    const n = rollCount(tier.count, rng);
-    for (let i = 0; i < n; i++) {
-      const itemId = tier.pool[Math.floor(rng() * tier.pool.length)]!;
-      finds.push({ tierId: tier.id, rarity: tier.rarity, itemId });
-    }
-  }
-  return finds;
+  return rollTable(LOOT_TABLE.tiers, rng);
 }

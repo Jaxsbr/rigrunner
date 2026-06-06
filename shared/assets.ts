@@ -51,6 +51,13 @@ export const MODEL_ASSETS: Record<string, string> = {
   'wheel-axle-sm': '/assets/wheel-axle-sm.glb',
   'suspension-steering': '/assets/suspension-steering.glb',
   'suspension-steering-sm': '/assets/suspension-steering-sm.glb',
+
+  // 🔫 Looter camps. The weapon-gun is an articulated PART (a `barrel` node the render layer swivels);
+  // the enemy / tent / camp-cache are world props that make up the camp's silhouette.
+  'weapon-gun': '/assets/weapon-gun.glb',
+  'enemy': '/assets/enemy.glb',
+  'tent': '/assets/tent.glb',
+  'camp-cache': '/assets/camp-cache.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

@@ -7,20 +7,16 @@ import { Collider } from '@common/components/collider';
  * Collision detection: report every pair of entities whose circular Colliders overlap this frame.
  *
  * It is a *pure read* of the World — it returns data and mutates nothing, so what a collision
- * *means* is decided entirely by the consumer (scrap collection today, projectile damage later),
- * and the same call serves both. Returning a fresh list each frame (rather than stashing state or
- * publishing to a bus) keeps it trivially testable: feed entities, assert the pairs.
+ * *means* is decided entirely by the consumer, and the same call serves all of them. Returning a
+ * fresh list each frame (rather than stashing state or publishing to a bus) keeps it trivially
+ * testable: feed entities, assert the pairs.
  *
  * The test is purely planar (x/z) because driving is planar — a Collider is a circle on the ground,
  * and two overlap when the distance between their centres is less than the sum of their radii.
  *
- * ── PROMOTION CANDIDATE (ADR-003) ───────────────────────────────────────────────────────────────
- * This system is GENERIC by construction (no scrap semantics) but lives in `features/scrap/` because
- * scrap is its only consumer today. When a SECOND feature needs it — combat is the expected one
- * (projectile/enemy hits) — PROMOTE this file to `@common/sim/collision` rather than adding a second
- * copy. At that point it earns the `common/` admission rule (≥2 distinct feature consumers); the path
- * aliases make the move a near-free import-string change. Do NOT duplicate collision.
- * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * A shared `@common/sim` primitive (ADR-003): two features consume it — scrap (drive-over collection)
+ * and camps (projectile/enemy/ram hits) — and it carries no feature semantics, so it earns its place
+ * in the kernel rather than being duplicated. Each consumer decides what a returned pair means.
  */
 
 /** An unordered pair of entities whose colliders overlap this frame. */

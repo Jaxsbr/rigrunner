@@ -5,6 +5,8 @@ import { Drivetrain } from '@features/drive/drivetrain';
 import { Velocity } from '@features/drive/velocity';
 import { DriveControl } from '@features/drive/drive-control';
 import { Collider } from '@common/components/collider';
+import { Health } from '@common/components/health';
+import { rigMaxHealth } from '@common/sim/health';
 import { Renderable } from '@common/components/renderable';
 import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
@@ -93,6 +95,11 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   // Collider, so the rig's true collision area is the union of these circles — it grows with the
   // build. Sized to the size's central body; the 3×5 hauler is wider so its disc is larger.
   world.add(chassis, Collider, { radius: size === '1x3' ? 1.0 : 1.9 });
+  // The rig's hit points — the chassis defence envelope (`rigMaxHealth`: per-size base × the chassis's
+  // grade), so a better chassis tanks more. Starts full; combat damage lowers it, a workshop zone heals
+  // it, and 0 resets the run. A redeploy (a packed kit hauled out again) refills to a fresh max.
+  const maxHealth = rigMaxHealth(world, chassis);
+  world.add(chassis, Health, { current: maxHealth, max: maxHealth });
   // The deployed rig renders as its COMPOSED sub-parts — the per-size Frame deck holding a Wheel +
   // Suspension unit at every corner station, each at its own grade — through the same shared assembler the
   // viewer composes by, so a build reads identically in both. The `assembly` Renderable carries the group
@@ -127,6 +134,7 @@ export function chassisToKit(world: World, chassis: EntityId): EntityId {
   world.remove(chassis, Velocity);
   world.remove(chassis, DriveControl);
   world.remove(chassis, Collider);
+  world.remove(chassis, Health); // a packed kit isn't a damageable rig; redeploy refills a fresh max
   world.remove(chassis, Deploying); // a settled rig isn't mid-unfold, but never leave a stale marker
   const kitTint = chassisFinish(world, chassis);
   world.add(chassis, Renderable, {

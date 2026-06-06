@@ -68,13 +68,15 @@ export type StoragePartSlot = 'shell' | 'rim';
 export type ReclaimerPartSlot = 'arm' | 'head';
 /** A chassis part role — wheel/axle (top speed), suspension/steering (turning), frame (load). */
 export type ChassisPartSlot = 'wheel-axle' | 'suspension-steering' | 'frame';
+/** A weapon part role — the single mountable `gun` (the looter-camp combat tool). */
+export type WeaponPartSlot = 'gun';
 /** Any part role, across all recipes — the role a bench slot matches a part against. */
-export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot;
+export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot | WeaponPartSlot;
 /** An engine's energy type — the electric/steam fork that drives type-lock, feel, and visuals. */
 export type EnergyType = 'electric' | 'steam';
 /** What a part is for — groups the catalog and drives the chip/portrait tint when there's no energy
- *  type (storage, reclaimer and chassis parts aren't electric/steam). */
-export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis';
+ *  type (storage, reclaimer, chassis and weapon parts aren't electric/steam). */
+export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis' | 'weapon';
 
 /**
  * One sub-part's identity — everything descriptive and SHARED across every instance of it, minus the
@@ -138,6 +140,10 @@ export const PART_IDENTITIES: readonly PartIdentity[] = [
   { id: 'wheel-axle-3x5', slot: 'wheel-axle', category: 'chassis', chassisSize: '3x5', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle' },
   { id: 'suspension-steering-3x5', slot: 'suspension-steering', category: 'chassis', chassisSize: '3x5', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering' },
   { id: 'frame-3x5', slot: 'frame', category: 'chassis', chassisSize: '3x5', displayName: 'Chassis Frame', assetId: 'frame-3x5' },
+
+  // 🔫 Weapon — the auto-fire gun (looter camps). A single mountable part; the GLB carries a `barrel`
+  // node the render layer swivels toward the target it fires on.
+  { id: 'weapon-gun', slot: 'gun', category: 'weapon', displayName: 'Gun', assetId: 'weapon-gun' },
 ];
 
 /** Resolve a sub-part id to its identity record, or `undefined` if the id isn't known. */
@@ -170,6 +176,7 @@ export const PRODUCT_GROUPS: readonly ProductGroup[] = [
   { id: 'reclaimer', label: 'Reclaimer', emoji: '🦾', subPartIds: ['reclaimer-arm', 'reclaimer-bucket'] },
   { id: 'chassis-1x3', label: 'Chassis (1×3)', emoji: '🛞', subPartIds: ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3'] },
   { id: 'chassis-3x5', label: 'Chassis (3×5)', emoji: '🛞', subPartIds: ['wheel-axle-3x5', 'suspension-steering-3x5', 'frame-3x5'] },
+  { id: 'weapon', label: 'Weapon', emoji: '🔫', subPartIds: ['weapon-gun'] },
 ];
 
 /** Resolve a product group id to its definition, or `undefined` if it isn't known. */
@@ -234,6 +241,13 @@ export const PRODUCT_COMPOSITION: Readonly<Record<string, ProductComposition>> =
   'chassis-3x5': {
     host: 'frame-3x5',
     children: { 'wheel-axle-3x5': 'socket_axle', 'suspension-steering-3x5': 'socket_susp' },
+  },
+  // The weapon is a single part — it hosts no children, so the assembler just loads + grades the one
+  // GLB. Composing it (rather than a single-GLB fallback) keeps it on the SAME render path as every
+  // other product in both the game and the viewer.
+  weapon: {
+    host: 'weapon-gun',
+    children: {},
   },
 };
 
