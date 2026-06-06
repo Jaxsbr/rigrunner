@@ -20,7 +20,7 @@ import { rigPerformance } from './drive';
 
 function rig(world: World, weight: number): EntityId {
   const e = world.createEntity();
-  world.add(e, Drivetrain, { friction: 8, turnRate: 2, turnFullSpeed: 5, reverseFactor: 0.5 });
+  world.add(e, Drivetrain, { friction: 8, turnRadius: 4, reverseFactor: 0.5 });
   world.add(e, Weight, { value: weight });
   return e;
 }

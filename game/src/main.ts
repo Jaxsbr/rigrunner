@@ -7,9 +7,16 @@ import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
 import { DriveControl } from '@features/drive/drive-control';
 import { Wallet } from '@features/economy/wallet';
-import { Inventory } from '@features/economy/inventory';
+import { Inventory, addToInventory } from '@features/economy/inventory';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
-import { ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE, RECLAIMER_RECIPE } from '@common/parts/recipes';
+import {
+  ELECTRIC_ENGINE_RECIPE,
+  STEAM_ENGINE_RECIPE,
+  STORAGE_RECIPE,
+  RECLAIMER_RECIPE,
+  chassisRecipeForSize,
+} from '@common/parts/recipes';
+import { chassisParts } from '@features/chassis/chassis';
 import { partDef } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
 import { placeProductInWorld } from '@features/workshop/assembly';
@@ -140,6 +147,17 @@ world.add(bench, Bench, {
 
 // The inventory starts empty: every build sub-part comes from the Parts Shop. The rig still starts
 // with a complete mounted electric engine so the player can drive immediately.
+
+// TESTING SEED — two pre-built IRON-tier products dropped straight into the inventory so the high-tier
+// handling/power can be exercised without grinding the shop first: an iron 1×3 chassis kit (deploy it
+// to feel the tighter turning radius + faster braking) and an iron steam engine (mount it for the
+// torquey, tight-turning iron build). Remove this block once tier balance is dialled in.
+{
+  const ironChassisKit = composeProduct(world, chassisRecipeForSize('1x3'), chassisParts('1x3'), 'iron');
+  addToInventory(world, ironChassisKit);
+  const ironSteamEngine = composeProduct(world, STEAM_ENGINE_RECIPE, engineParts('steam'), 'iron');
+  addToInventory(world, ironSteamEngine);
+}
 
 const input = createDriveInput();
 const cameraInput = createCameraInput(canvas);

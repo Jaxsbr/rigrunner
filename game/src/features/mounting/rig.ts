@@ -56,17 +56,17 @@ function chassisFinish(world: World, chassis: EntityId): number | undefined {
 }
 
 // Handling derives from the chassis's own (tier-scaled) sub-part stats, so upgrading the running gear
-// — not just the engine — is felt. Turn rate is a constant FLOOR every chassis gets plus a small
-// tier-scaled bonus from its `turning`, so even rusty gear corners decently and the rusty→iron gap
-// stays modest (a steep linear scale once made iron turn far too sharply). The 3×5 hauler turns a
-// touch less than the 1×3 scout (lower `turning`). turnFullSpeed/reverseFactor aren't a tier axis yet.
-// Turn rate is kept low relative to top speed so the rig ARCS rather than pirouettes — the radius
-// stays well above the rig's own length at speed. All tunable to feel.
-//   turnRate(1×3): rusty 8→1.62, iron 18→2.52   ·   turnRate(3×5): rusty 5→1.35, iron 11→1.89
+// — not just the engine — is felt. Steering is a turning-RADIUS model (see movement.ts): yaw rate =
+// speed / turnRadius, so the rig arcs like a vehicle instead of pivoting on the spot. A higher-tier
+// (more `turning`) chassis gets a TIGHTER radius — sharper handling — floored so it never collapses
+// back into a pirouette. The 3×5 hauler turns wider (lower `turning`). Radii are a couple rig-lengths,
+// so turns read as real arcs. reverseFactor isn't a tier axis yet. All tunable to feel.
+//   turnRadius(1×3): rusty 8→6.4, iron 18→4.4   ·   turnRadius(3×5): rusty 5→7.0, iron 11→5.8
 //   friction(1×3): rusty 14, iron 21
-const BASE_TURN_RATE = 0.9;         // floor turn rate (rad/s) every chassis gets, before its `turning`
-const TURN_RATE_PER_TURNING = 0.09; // added rad/s per point of chassis `turning` (the tier-scaled part)
-const BASE_BRAKE = 8;               // constant off-throttle deceleration; the chassis `grip` adds to it
+const TURN_RADIUS_BASE = 8;          // turning radius (units) before the chassis `turning` tightens it
+const TURN_RADIUS_PER_TURNING = 0.2; // units the radius tightens per point of `turning` (tier-scaled)
+const TURN_RADIUS_MIN = 3.5;         // floor — keeps even a high-turning chassis arcing, never pivoting
+const BASE_BRAKE = 8;                // constant off-throttle deceleration; the chassis `grip` adds to it
 
 export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): EntityId {
   const chassisSpec = world.get(chassis, Chassis)!;
@@ -78,12 +78,15 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   if (t) { t.x = x; t.z = z; t.y = 0; }
   else world.add(chassis, Transform, { x, z, y: 0, rotationY: 0 });
   world.remove(chassis, Mount); // it's a rig now, not a product staged on a workshop deck
-  // Handling from the chassis: turn rate = a floor + the suspension `turning`; off-throttle deceleration
-  // = a constant brake + the wheel/axle `grip`. Both bonuses are tier-scaled, so an iron chassis handles
-  // better — but the floors keep rusty gear decent and hold the tier gap modest.
+  // Handling from the chassis: turning radius tightens with the suspension `turning`; off-throttle
+  // deceleration = a constant brake + the wheel/axle `grip`. Both are tier-scaled, so an iron chassis
+  // arcs tighter and brakes harder — floored so it stays an arc and rusty gear stays decent.
   const friction = BASE_BRAKE + (chassisSpec.grip ?? 0);
-  const turnRate = BASE_TURN_RATE + (chassisSpec.turning ?? 0) * TURN_RATE_PER_TURNING;
-  world.add(chassis, Drivetrain, { friction, turnRate, turnFullSpeed: 5, reverseFactor: 0.5 });
+  const turnRadius = Math.max(
+    TURN_RADIUS_MIN,
+    TURN_RADIUS_BASE - (chassisSpec.turning ?? 0) * TURN_RADIUS_PER_TURNING,
+  );
+  world.add(chassis, Drivetrain, { friction, turnRadius, reverseFactor: 0.5 });
   world.add(chassis, Velocity, { speed: 0 });
   world.add(chassis, DriveControl, { throttle: 0, steer: 0 });
   // The chassis's own collision footprint (a circle over the body). Each mounted part adds its own

@@ -15,7 +15,7 @@ export type ChassisSize = '1x3' | '3x5';
  * 3×5 a hauler (1–3) — capped low on purpose, so engine TIER (not engine count) is the power lever.
  *
  * `grip` and `turning` feed handling: `chassisToRig` derives the rig's `Drivetrain` from them, so a
- * higher-tier chassis handles better (turning → `Drivetrain.turnRate`, grip → off-throttle
+ * higher-tier chassis handles better (turning → a tighter `Drivetrain.turnRadius`, grip → off-throttle
  * deceleration on top of a constant brake). Propulsion still comes from the engines. `loadCapacity`
  * is the rig's rated carry weight; the HUD reads it against the live mounted load, but nothing
  * refuses an overload yet.
