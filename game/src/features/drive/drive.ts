@@ -32,8 +32,12 @@ import { effectiveRigWeight } from '@common/sim/weight';
  *
  * WEIGHT_DRAG is the master tuning knob for "how much weight hurts"; expect to tune it to feel
  * alongside the part/engine weights and `SCRAP_UNIT_WEIGHT` in content/`common/sim/weight.ts`.
+ *
+ * Absolute pace (how fast the whole game moves) is tuned at the source — the engines' own
+ * power/torque in `common/parts/parts-catalog.ts` — NOT by a global multiplier here. Lower the
+ * catalog numbers to slow everything down; this file only resolves engine output against weight.
  */
-const WEIGHT_DRAG = 0.5;
+const WEIGHT_DRAG = 0.7;
 
 export interface RigPerformance {
   topSpeed: number;     // forward top speed (units/s) = combined engine power × mobility

@@ -48,19 +48,19 @@ describe('parts catalog', () => {
 
   // The attribute numbers are distributed to sum to the spec's suggested engine profiles. Guarding
   // the totals means tuning a single part can't silently drift the assembled engine off-profile.
-  it('sums electric parts to the snappy/light profile (power 13 / torque 8 / weight 4)', () => {
+  it('sums electric parts to the snappy/light profile (power 11 / torque 7 / weight 4)', () => {
     const sum = (key: 'power' | 'torque' | 'weight') =>
       PARTS_CATALOG.filter((p) => p.type === 'electric').reduce((n, p) => n + p.attributes[key], 0);
-    expect(sum('power')).toBe(13);
-    expect(sum('torque')).toBe(8);
+    expect(sum('power')).toBe(11);
+    expect(sum('torque')).toBe(7);
     expect(sum('weight')).toBe(4);
   });
 
-  it('sums steam parts to the torquey/heavy profile (power 8 / torque 19 / weight 8)', () => {
+  it('sums steam parts to the torquey/heavy profile (power 7 / torque 16 / weight 8)', () => {
     const sum = (key: 'power' | 'torque' | 'weight') =>
       PARTS_CATALOG.filter((p) => p.type === 'steam').reduce((n, p) => n + p.attributes[key], 0);
-    expect(sum('power')).toBe(8);
-    expect(sum('torque')).toBe(19);
+    expect(sum('power')).toBe(7);
+    expect(sum('torque')).toBe(16);
     expect(sum('weight')).toBe(8);
   });
 

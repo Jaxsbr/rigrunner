@@ -137,9 +137,9 @@ describe('rigPerformance', () => {
     const r = rig(w, 10); // effective weight 10 (weightless engine, no cargo)
     mountEngine(w, r, { power: 13, torque: 8 });
     const perf = rigPerformance(w, r);
-    // mobility = torque / (torque + 0.5·weight) = 8 / (8 + 5) = 8/13
-    expect(perf.topSpeed).toBeCloseTo(13 * (8 / 13)); // = 8
-    expect(perf.acceleration).toBeCloseTo(8 * (8 / 13));
+    // mobility = torque / (torque + 0.7·weight) = 8 / (8 + 7) = 8/15
+    expect(perf.topSpeed).toBeCloseTo(13 * (8 / 15));
+    expect(perf.acceleration).toBeCloseTo(8 * (8 / 15));
     expect(perf.reverse).toBeCloseTo(perf.topSpeed * 0.5);
   });
 

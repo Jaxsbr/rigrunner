@@ -9,12 +9,12 @@ import { Chassis } from '@common/components/chassis';
 /**
  * How much one unit of carried scrap weighs. A container's own shell/rim weight is fixed (it counts
  * in `totalRigWeight` like any part), but the scrap *inside* it is dynamic — this converts that
- * count into mass. At 2, a full tier-1 container (4 scrap) carries 8 of cargo on top of its 4 dry
- * weight, so a full tank weighs ~3× an empty one — collecting scrap is felt as the rig getting
+ * count into mass. At 3, a full tier-1 container (4 scrap) carries 12 of cargo on top of its 4 dry
+ * weight, so a full tank weighs ~4× an empty one — collecting scrap is felt as the rig getting
  * heavier. This is the primary "how much does cargo bite" tuning knob; expect to tune it to feel
  * alongside `WEIGHT_DRAG` in `features/drive/drive.ts`.
  */
-export const SCRAP_UNIT_WEIGHT = 2;
+export const SCRAP_UNIT_WEIGHT = 3;
 
 /**
  * The rig's DRY mass: the chassis's own weight plus every weighted part mounted on it. Engines are

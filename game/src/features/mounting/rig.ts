@@ -65,7 +65,10 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   if (t) { t.x = x; t.z = z; t.y = 0; }
   else world.add(chassis, Transform, { x, z, y: 0, rotationY: 0 });
   world.remove(chassis, Mount); // it's a rig now, not a product staged on a workshop deck
-  world.add(chassis, Drivetrain, { friction: 12, turnRate: 2.3, turnFullSpeed: 5, reverseFactor: 0.5 });
+  // friction is the off-throttle deceleration: release W and the rig sheds speed at this rate/s.
+  // Higher = the rig stops sooner (tighter control); too high reads as an instant stop. 14 is a
+  // touch above the old 12 for a firmer hand on the brakes without slamming to a halt.
+  world.add(chassis, Drivetrain, { friction: 14, turnRate: 2.3, turnFullSpeed: 5, reverseFactor: 0.5 });
   world.add(chassis, Velocity, { speed: 0 });
   world.add(chassis, DriveControl, { throttle: 0, steer: 0 });
   // The chassis's own collision footprint (a circle over the body). Each mounted part adds its own
