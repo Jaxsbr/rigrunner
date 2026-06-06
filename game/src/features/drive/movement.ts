@@ -11,10 +11,10 @@ import { rigPerformance } from './drive';
  *
  * Propulsion comes from the rig's engines, resolved by rigPerformance (drive.ts). A stronger engine
  * drives faster and accelerates harder, and engines sum linearly — two beat one, six give the most,
- * with no diminishing-returns cliff. (Weight is parked: it doesn't drag performance yet — that
- * returns with the felt-weight feature.) A rig with NO engine has zero output: throttle is dead and
- * it coasts to rest under friction — the "I built a rig but forgot the engine" teaching moment, felt
- * directly in the controls.
+ * with no diminishing-returns cliff. Weight drags on that output (rigPerformance's mobility factor),
+ * so a rig laden with cargo is slower and slower to respond than the same rig empty. A rig with NO
+ * engine has zero output: throttle is dead and it coasts to rest under friction — the "I built a rig
+ * but forgot the engine" teaching moment, felt directly in the controls.
  *
  * Pure over the world — state in, state out, no side effects — so it runs and is tested headless.
  */

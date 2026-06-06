@@ -37,9 +37,9 @@ loop ("drive, collect, see the number grow").
 **Status:** The *collection* half is in (PR #2, `cc356d6`) — scrap scatters in a ring, driving the
 rig (chassis or any mounted part) over a piece sweeps it into mounted `Storage`, atomic per-piece and
 gated on having a tank bolted on, with a HUD readout and a visible fill fraction. The economy
-destination is now also in via **Option B (Spend Sink)** / the Parts Shop. **Still open before M1 is
-`done`:** **Option A (Laden & Weighted)** — now **`parked` pending MD** (drivetrain rebalance first) —
-plus minor deferred polish (collect FX, a run lifecycle/reset frame).
+destination is now also in via **Option B (Spend Sink)** / the Parts Shop, and collected cargo now
+has **felt weight** via **Option A (Laden & Weighted)** (`done`). **Still open before M1 is `done`:**
+minor deferred polish (collect FX, a run lifecycle/reset frame).
 
 ---
 
@@ -122,7 +122,7 @@ already encode.
 single-engine baseline is faster than before, six engines markedly so. Per-engine catalog
 `power`/`torque` are the live tuning knob; tune to feel.
 
-**Deliberately NOT in scope:** felt cargo weight (→ Option A, parked), boost/overdrive specials,
+**Deliberately NOT in scope:** felt cargo weight (→ Option A, now `done`), boost/overdrive specials,
 per-type qualitative abilities, top-speed hard caps (superseded by "more engines = more"), and
 speed-proportional coast deceleration (raised, deferred to keep this tight).
 
@@ -151,15 +151,34 @@ it's sized right. If it only makes sense once three other systems exist, it's to
 
 ---
 
-## Option A — Laden & Weighted (cargo has felt weight) · `parked`
+## Option A — Laden & Weighted (cargo has felt weight) · `done`
 
-*(Promoted from M1's deferred "laden weight" item.)*
+*(Promoted from M1's deferred "laden weight" item. **Delivered 2026-06-06.**)*
 
-**Status (2026-06-04):** **Parked pending MD.** Layering felt weight onto the *old* drivetrain would
-have made a loaded rig feel immobile — and the drivetrain was already mis-tuned (engines backfired
-past ~3; see `observations.md` #11). MD fixes that first. The seam is held open: `totalRigWeight` is
-kept live but unconsumed, so un-parking is the one-line re-wire in `features/drive/drive.ts` MD calls
-out. Un-park once MD's higher absolute speeds are tuned to feel.
+**Delivered (2026-06-06):**
+- **Cargo has mass.** `common/sim/weight.ts → cargoWeight` reads each mounted container's
+  `Storage.amount` and converts it to mass by `SCRAP_UNIT_WEIGHT` — the dynamic half of rig weight,
+  climbing as you collect and falling when you dump or spend.
+- **One effective-weight aggregation point.** `effectiveRigWeight` = dry `totalRigWeight` + live
+  `cargoWeight`. This single value is the seam every future load source (fuel, living-reward cargo)
+  joins by contributing here — the drive consumes only this, so the feel never re-plumbs.
+- **Weight is consumed again.** `rigPerformance` (`features/drive/drive.ts`) reattaches the mobility
+  tug-of-war `mobility = torque / (torque + WEIGHT_DRAG·weight)` over the effective weight, scaling
+  top speed and acceleration. A loaded rig is slower and slower to respond than the same rig empty —
+  and because torque fights weight, the SAME cargo barely dents a steam hauler but visibly slows an
+  electric runner, turning the energy-type identity into a hauling identity. With the *linear* engine
+  sum (MD), more engines stay strictly more performance — reattaching weight does not bring back the
+  engines-backfire MD removed (proven monotonic in the drive tests).
+- **Load-ratio signal.** `rigLoad` returns `{ load, capacity, ratio }` — load (mounted parts + cargo,
+  minus the chassis frame) against the chassis's rated capacity. The HUD reads load/capacity now
+  (the load line climbs live as you collect); `ratio` is the seam a future region/difficulty gate or
+  fuel-pressure teaching signal reads. Nothing refuses an overload yet (that gate is a future system).
+- **Felt in-game:** the starter rig (heavy with its Reclaimer) goes empty → full small container as
+  load 16 → 24, top speed 4.8 → ~4.1, acceleration 3.0 → ~2.5 — top speed/accel tick down live as the
+  HUD load climbs.
+
+**Tuning knobs (set to feel):** `SCRAP_UNIT_WEIGHT` (`common/sim/weight.ts`, how much cargo bites) and
+`WEIGHT_DRAG` (`features/drive/drive.ts`, how much weight hurts overall) are the two live dials.
 
 **Essence:** Scrap you're carrying makes the rig physically heavier — collecting has a felt cost.
 

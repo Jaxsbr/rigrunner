@@ -2,8 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Assembly } from '@common/components/assembly';
 import { Chassis } from '@common/components/chassis';
-import { Weight } from '@common/components/weight';
-import { totalRigWeight } from '@common/sim/weight';
+import { rigLoad } from '@common/sim/weight';
 import { mountedEngines } from '@features/engine/engine';
 import { rigPerformance } from '@features/drive/drive';
 
@@ -11,10 +10,12 @@ import { rigPerformance } from '@features/drive/drive';
  * The rig stat readout (top-left). A pure projection of the world, like the renderer: it reads the
  * rig's capabilities each frame and writes text, owning no truth. The point is legibility of the
  * build — mount an engine and you immediately see top speed / acceleration climb, so the benefit of
- * what you just bolted on is obvious.
+ * what you just bolted on is obvious; load up on scrap and watch them fall, so the cost of the cargo
+ * is just as obvious.
  *
- * It only rewrites the DOM when the text actually changes (which, since these are capability stats,
- * is only when you mount/unmount an engine) — so it costs nothing per frame while you just drive.
+ * It only rewrites the DOM when the displayed text changes — on a mount/unmount, and now also as the
+ * carried load shifts performance while you collect or dump scrap — so it costs nothing per frame
+ * while the rig drives unladen and unchanged.
  */
 export class StatsHud {
   private last = '';
@@ -40,8 +41,8 @@ export class StatsHud {
     });
     const type = labels.length === 0 ? '— none (no drive)' : groupLabels(labels);
 
-    // Engine output IS the performance now (weight parked, no diminishing returns), so top speed and
-    // acceleration are read straight off the rig — mount another engine and watch both climb.
+    // Performance is engine output scaled by weight (rigPerformance's mobility), so these move two
+    // ways: mount another engine and they climb; load the rig with scrap and they fall.
     return [
       'RIG',
       `  type          ${type}`,
@@ -55,21 +56,22 @@ export class StatsHud {
   /**
    * The chassis readout: its size, how many engines are mounted against the size's allowed range
    * (flagged when under the minimum — a legal but under-powered build), and the live carried load
-   * against the rated capacity. Capacity is a READOUT only — nothing refuses an overload yet (weight
-   * is parked); the chassis's own top-speed/turning stats don't affect driving yet either, so they're
-   * left off the readout rather than shown as inert numbers. Empty when the rig has no Chassis.
+   * (mounted parts + cargo) against the rated capacity. The load number climbs as you collect scrap,
+   * which is the same mass that drags the performance lines above. Capacity is a READOUT only —
+   * nothing refuses an overload yet (that gate is a future system); the chassis's own
+   * top-speed/turning stats don't affect driving yet either, so they're left off the readout rather
+   * than shown as inert numbers. Empty when the rig has no Chassis.
    */
   private chassisLines(world: World, rig: EntityId, engineCount: number): string[] {
     const chassis = world.get(rig, Chassis);
     if (!chassis) return [];
-    const ownWeight = world.get(rig, Weight)?.value ?? 0;
-    const load = totalRigWeight(world, rig) - ownWeight; // mounted parts only — what's loaded ON the chassis
+    const { load, capacity } = rigLoad(world, rig);
     const under = engineCount < chassis.engineMin ? ' (under)' : '';
     return [
       'CHASSIS',
       `  size          ${chassis.size.replace('x', '×')}`,
       `  engines       ${engineCount} / ${chassis.engineMin}–${chassis.engineMax}${under}`,
-      `  load          ${fmt(load)} / ${fmt(chassis.loadCapacity)}`,
+      `  load          ${fmt(load)} / ${fmt(capacity)}`,
     ];
   }
 }
