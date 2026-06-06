@@ -182,8 +182,10 @@ The chassis sub-parts carry handling stats that resolve through tier like any at
 the rig's `Drivetrain` in `chassisToRig` (`features/mounting/rig.ts`) — so a higher-tier chassis isn't
 just a visual/capacity upgrade, it **handles** better. This realises §2c's "every single upgrade is felt"
 for the running gear:
-- **Suspension & Steering → `turning` → turn rate** (a constant floor + a tier-scaled bonus). An iron
-  suspension corners sharper, but the floor keeps rusty gear decent and the rusty→iron gap modest.
+- **Suspension & Steering → `turning` → a tighter turning radius.** Steering is a turning-RADIUS model
+  (`movement.ts`): yaw rate = speed / `turnRadius`, so the rig arcs like a vehicle instead of pivoting on
+  the spot, and `turning` tightens the radius. An iron suspension corners sharper; a floor keeps even a
+  high-turning chassis arcing and the rusty→iron gap modest.
 - **Wheel & Axle → `grip` → off-throttle deceleration** (added to a constant brake floor). Iron wheels
   scrub speed faster when you lift off the throttle, for tighter, more placeable control. *(The chassis
   attribute formerly named `topSpeed` — inert, since engines own top speed now — was renamed `grip` for
@@ -191,10 +193,10 @@ for the running gear:
 - **Frame → `loadCapacity`** (unchanged) — the rated carry weight the HUD reads.
 
 Per-part additive tiers (§2c) carry straight over: an iron suspension on a rusty frame gives sharp
-cornering while staying cheap to haul. Turn rate and braking are each a constant **floor** plus a
-tier-scaled **bonus**, so rusty gear handles decently and the tier gap stays modest — 1×3 turn rate
-≈ 2.7 rad/s rusty → 4.2 iron (a steep linear scale once made iron corner too hard); friction 14 rusty
-→ 21 iron. (A sibling balance rule landed alongside but
+cornering while staying cheap to haul. Turning radius and braking are each tier-scaled within bounds, so
+rusty gear handles decently and the tier gap stays modest — 1×3 turning radius ≈ 6.4 units rusty → 4.4
+iron (yaw is proportional to speed, so the rig arcs instead of pirouetting); friction 14 rusty → 21 iron.
+(A sibling balance rule landed alongside but
 lives outside this spec — engine **count** is capped low per chassis, 1 on the 1×3 and 3 on the 3×5, so
 engine **tier**, not engine stacking, is the power lever.)
 

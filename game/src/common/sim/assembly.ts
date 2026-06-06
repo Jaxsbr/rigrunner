@@ -15,7 +15,7 @@ import {
   type EnergyType,
   type PartAttributes,
 } from '@common/parts/parts-catalog';
-import { tierOf, type TierId } from '@common/parts/tiers';
+import { tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import type { Recipe } from '@common/parts/recipes';
 
 /**
@@ -255,9 +255,17 @@ export function buildProduct(world: World, recipe: Recipe, parts: readonly Entit
  * entity for each def, then build the product from them. For seeding pre-assembled products (the
  * rig's starting engine) — the result is identical to what the bench would produce. Not added to
  * inventory and not placed in the world; the caller mounts or stores it.
+ *
+ * `tier` stamps every spawned sub-part at that grade (default rusty), so seeding an iron product is a
+ * one-liner — the tier multiplier flows through `resolvePartStats` exactly as a bench-built one would.
  */
-export function composeProduct(world: World, recipe: Recipe, defs: readonly PartDef[]): EntityId {
-  const parts = defs.map((d) => spawnCatalogPart(world, d));
+export function composeProduct(
+  world: World,
+  recipe: Recipe,
+  defs: readonly PartDef[],
+  tier: TierId = DEFAULT_TIER,
+): EntityId {
+  const parts = defs.map((d) => spawnCatalogPart(world, d, tier));
   return buildProduct(world, recipe, parts);
 }
 

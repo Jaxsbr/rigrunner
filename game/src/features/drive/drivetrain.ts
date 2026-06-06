@@ -11,8 +11,7 @@ import { defineComponent } from '@core/component';
  */
 export interface Drivetrain {
   friction: number;       // deceleration/s when coasting (or when unpowered)
-  turnRate: number;       // rad/s at full steering authority
-  turnFullSpeed: number;  // speed at which steering reaches full authority
+  turnRadius: number;     // turning-circle radius (units): yaw rate = speed / turnRadius. Smaller = tighter.
   reverseFactor: number;  // reverse top speed as a fraction of the engine's forward top speed
 }
 

@@ -15,7 +15,7 @@ import { movementSystem } from './movement';
 function drivable(world: World, withEngine = true): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x: 0, z: 0, rotationY: 0 });
-  world.add(e, Drivetrain, { friction: 8, turnRate: 2, turnFullSpeed: 5, reverseFactor: 0.5 });
+  world.add(e, Drivetrain, { friction: 8, turnRadius: 4, reverseFactor: 0.5 });
   world.add(e, Velocity, { speed: 0 });
   world.add(e, DriveControl, { throttle: 0, steer: 0 });
   if (withEngine) mountEngine(world, e, { power: 12, torque: 10 });
@@ -96,7 +96,7 @@ describe('movementSystem', () => {
       const w = new World();
       const e = w.createEntity();
       w.add(e, Transform, { x: 0, z: 0, rotationY: 0 });
-      w.add(e, Drivetrain, { friction: 8, turnRate: 2, turnFullSpeed: 5, reverseFactor: 0.5 });
+      w.add(e, Drivetrain, { friction: 8, turnRadius: 4, reverseFactor: 0.5 });
       w.add(e, Velocity, { speed: 0 });
       w.add(e, DriveControl, { throttle: 1, steer: 0 });
       mountEngine(w, e, spec);

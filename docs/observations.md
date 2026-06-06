@@ -56,6 +56,23 @@ the rig should feel like it has mass and traction.
 "full-authority" speed) for both forward and reverse, so it fades in/out smoothly
 instead of snapping. Sharp-at-speed is preserved.
 
+**Follow-up (2026-06-06) — the ramp wasn't enough; switched to a turning-RADIUS model.**
+The smoothstep "authority" ramp faded turning in near zero speed, but above the full-authority
+speed it set a fixed *angular* rate (rad/s) decoupled from how fast the rig actually travelled. So
+the *turning radius* (speed ÷ yaw) collapsed to roughly a rig-length and the rig still spun nearly
+on the spot — "super turn on the spot" in play. Lowering the rate only widened the pivot a little; it
+never reconnected rotation to motion.
+
+The fix is a **turning-radius model** (`features/drive/movement.ts`): `yaw = steer × speed ÷ turnRadius`.
+Rotation is now *proportional to forward speed*, so the rig always **arcs through a circle of fixed
+radius** like a real vehicle — standing still it can't turn at all (the speed-gate falls out for free),
+faster just travels that same circle quicker, and reversing flips the arc. The radius comes from the
+chassis's suspension `turning` stat, tier-scaled in `chassisToRig` (tighter = sharper), floored at
+`TURN_RADIUS_MIN` so even a high tier still arcs instead of pivoting. A 1×3 traces a 6.4-unit circle
+rusty, 4.4-unit iron. (`Drivetrain.turnRadius` replaced the old `turnRate`/`turnFullSpeed`.) The
+"sharp-at-speed reads as tracked/wheeled" intuition above still holds — but the radius is now
+consistent across the whole speed range, which is what actually removes the pivot.
+
 ---
 
 ## 3. Parts read as random blocks on a slab — adjacency should *connect*

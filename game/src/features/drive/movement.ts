@@ -37,12 +37,13 @@ export function movementSystem(world: World, dt: number): void {
     }
     vel.speed = Math.max(-perf.reverse, Math.min(perf.topSpeed, vel.speed));
 
-    // Steering authority ramps with speed (smoothstep): can't turn a parked rig, and it
-    // fades in/out smoothly rather than snapping.
+    // Turning-RADIUS model: yaw rate is proportional to forward speed (yaw = speed / turnRadius), so
+    // the rig ARCS through a turn of fixed radius like a real vehicle instead of pivoting on the spot.
+    // Standing still it can't turn at all; the faster it rolls, the faster the heading comes round —
+    // but always along the same-radius circle. Reversing (negative speed) flips the arc, like backing
+    // up a car. A tighter turnRadius (better chassis) corners sharper.
     if (ctl.steer !== 0) {
-      const s = Math.min(Math.abs(vel.speed) / drive.turnFullSpeed, 1);
-      const authority = s * s * (3 - 2 * s);
-      t.rotationY += ctl.steer * drive.turnRate * authority * dt;
+      t.rotationY += ctl.steer * (vel.speed / drive.turnRadius) * dt;
     }
 
     // Advance along the heading (forward = -z).
