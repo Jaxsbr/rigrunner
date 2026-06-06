@@ -73,7 +73,7 @@ describe('assembly — attribute summing', () => {
     const w = setup();
     expect(sumPartStats(w, [w.createEntity()])).toEqual({
       power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
-      topSpeed: 0, turning: 0, loadCapacity: 0, capacity: 0,
+      grip: 0, turning: 0, loadCapacity: 0, capacity: 0,
     });
   });
 });

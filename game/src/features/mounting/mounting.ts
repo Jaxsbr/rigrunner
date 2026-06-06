@@ -155,7 +155,7 @@ export function countMountedPartKind(world: World, rig: EntityId, kind: PartKind
 /**
  * The engine-count side of the chassis envelope: would mounting `part` keep `rig` within its
  * chassis's `engineMax`? True for any non-engine part, and for an engine while the rig is still below
- * its cap. The 1×3 deck accepts at most 2 engines, the 3×5 at most 6 (`Chassis.engineMax`); a rig
+ * its cap. The 1×3 deck accepts at most 1 engine, the 3×5 at most 3 (`Chassis.engineMax`); a rig
  * with no `Chassis` is uncapped. There is no MIN gate — an under-engined rig is a legal, weak build
  * (the HUD warns), never a refused mount. Lifting an already-mounted engine frees its cell first, so
  * REPOSITIONING an engine never trips this — only adding one past the cap does.

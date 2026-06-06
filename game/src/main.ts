@@ -58,7 +58,7 @@ import { ScrapPrompt } from '@features/scrap/scrap-prompt';
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
 const world = new World();
-const player = spawnRig(world); // a scrap 1×3 chassis — a 3-cell deck (col 0, rows 0–2) that runs 1–2 engines
+const player = spawnRig(world); // a scrap 1×3 chassis — a 3-cell deck (col 0, rows 0–2) that runs a single engine
 // The starter is the player's first owned chassis and the one they control at boot. Any chassis they
 // build and deploy in the world becomes another owned chassis (capped at MAX_OWNED); the chassis bar
 // + 1/2 keys switch which one input/camera/HUD/zones follow.

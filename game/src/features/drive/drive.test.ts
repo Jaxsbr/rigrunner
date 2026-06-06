@@ -101,8 +101,8 @@ describe('rigLoad', () => {
     w.add(r, Chassis, {
       size: '1x3',
       engineMin: 1,
-      engineMax: 2,
-      topSpeed: 0,
+      engineMax: 1,
+      grip: 0,
       turning: 0,
       loadCapacity: 24,
     });

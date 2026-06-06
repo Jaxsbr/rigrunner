@@ -57,7 +57,7 @@ describe('composing a chassis', () => {
     expect(w.get(c, Part)!.kind).toBe('chassis');
     expect(w.get(c, Part)!.footprint).toEqual({ cols: 2, rows: 2 }); // composed as a packed 2×2 kit
     expect(w.get(c, Chassis)).toMatchObject({
-      size: '1x3', engineMin: 1, engineMax: 2, topSpeed: 12, turning: 8, loadCapacity: 24,
+      size: '1x3', engineMin: 1, engineMax: 1, grip: 6, turning: 8, loadCapacity: 24,
     });
     // Deck dimensions come from the recipe, not the sub-parts.
     expect(w.get(c, MountGrid)).toMatchObject({ cols: 1, rows: 3, cellSize: 1, deckY: 0.70 });
@@ -70,7 +70,7 @@ describe('composing a chassis', () => {
     const c = composeProduct(w, chassisRecipeForSize('3x5'), chassisParts('3x5'));
 
     expect(w.get(c, Chassis)).toMatchObject({
-      size: '3x5', engineMin: 3, engineMax: 6, topSpeed: 16, turning: 5, loadCapacity: 60,
+      size: '3x5', engineMin: 1, engineMax: 3, grip: 6, turning: 5, loadCapacity: 60,
     });
     expect(w.get(c, MountGrid)).toMatchObject({ cols: 3, rows: 5 });
     expect(w.get(c, Weight)!.value).toBe(26); // 7 + 5 + 14
@@ -96,34 +96,29 @@ describe('spawnRig', () => {
   it('builds a 3×5 rig when asked', () => {
     const w = new World();
     const rig = spawnRig(w, 0, 0, '3x5');
-    expect(w.get(rig, Chassis)!.engineMax).toBe(6);
+    expect(w.get(rig, Chassis)!.engineMax).toBe(3);
     expect(w.get(rig, MountGrid)).toMatchObject({ cols: 3, rows: 5 });
     expect(w.get(rig, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'chassis-3x5' });
   });
 });
 
 describe('engine-capacity gate', () => {
-  it('admits engines up to the 1×3 cap (2), then refuses a third even over a free cell', () => {
+  it('admits one engine on the 1×3 cap, then refuses a second even over a free cell', () => {
     const w = new World();
-    const rig = spawnRig(w); // 1×3 → engineMax 2
+    const rig = spawnRig(w); // 1×3 → engineMax 1
 
     const e1 = engine(w);
     expect(withinEngineCapacity(w, rig, e1)).toBe(true);
     mountPart(w, e1, rig, 0, 0);
 
-    const e2 = engine(w);
-    expect(withinEngineCapacity(w, rig, e2)).toBe(true);
-    mountPart(w, e2, rig, 0, 1);
-
-    // At the cap: a third is refused though cell (0,2) is still free.
+    // At the cap: a second is refused though cells (0,1)/(0,2) are still free.
     expect(withinEngineCapacity(w, rig, engine(w))).toBe(false);
   });
 
   it('never caps a non-engine part', () => {
     const w = new World();
     const rig = spawnRig(w);
-    mountPart(w, engine(w), rig, 0, 0);
-    mountPart(w, engine(w), rig, 0, 1); // rig at the engine cap
+    mountPart(w, engine(w), rig, 0, 0); // rig at the engine cap (1)
     expect(withinEngineCapacity(w, rig, container(w))).toBe(true);
   });
 });
