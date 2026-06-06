@@ -124,7 +124,7 @@ The architecture already leans our way; the changes are small and mostly additiv
 
 > **Status (2026-06-06): §4 is built.** The data-model changes below shipped in Phases 0–2; the prose
 > still reads as the original plan, but each item is now live in code. Paths also moved with the
-> **feature-first** restructure ([ADR-003](architecture/adr-003-feature-first-src-structure.md)):
+> **feature-first** restructure ([ADR-003](../architecture/adr-003-feature-first-src-structure.md)):
 > `content/*` → `common/parts/*` (registries) or `features/<x>/*` (feature code), `systems/*` →
 > `common/sim/*`, `components/*` → `common/components/*` (the part-instance vessel is
 > `common/parts/engine-part.ts`). The `content/`/`systems/` paths below are corrected to match.

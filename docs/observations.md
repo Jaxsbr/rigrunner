@@ -313,7 +313,7 @@ feel.
 
 ## 12. A flat tier *tint* reads clearly — but a built part should look like the parts it's made of
 
-**Context:** MP **Phase 1** tiers ([`part-identity-spec.md`](part-identity-spec.md)). Each part wears a
+**Context:** MP **Phase 1** tiers ([`part-identity-spec.md`](specs/part-identity-spec.md)). Each part wears a
 tier finish: a loose part, and each rendered sub-asset of a composed product, is washed toward its tier's
 colour (rusty → brown, iron → grey). Tested on the Reclaimer, whose product renders as two real assets —
 the arm and the bucket on its wrist socket.

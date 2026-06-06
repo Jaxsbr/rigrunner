@@ -79,14 +79,17 @@ none is committed until it has earned a place here or on the milestone list.
 rigrunner/
   CLAUDE.md            # this file — source of truth
   AGENTS.md            # pointer to this file
-  docs/
+  docs/                   # NON-spec docs live at the top level; per-feature specs live in docs/specs/
+    milestones.md         # HIGH-LEVEL DIRECTION — candidate milestones discovered by exploration
     observations.md       # concrete findings accumulated while building (what's fun / wrong)
     ideas.md              # raw brainstorm sessions — forward-looking, NOT committed direction
-    milestones.md         # candidate "pending" milestones discovered while building by exploration
+    world-progression-guidance.md  # the connective vision (maps · tech · restoration · progression)
     asset-style.md        # the 3D asset visual + technical contract (palette/scale/orient/export)
     blender-mcp-setup.md  # one-time Blender + blender-mcp wiring
     references.md         # visual-reference scrapbook (index for docs/references/ images)
     references/           # drop inspiration images here (the visual companion to ideas.md)
+    architecture/         # ADRs — structural decisions (+ the system-review evidence trail)
+    specs/                # individual feature SPECS & work-tracking (one *-spec.md per feature)
   tools/blender/          # asset pipeline: rr_style.py kit + build_asset.py + assets/ generators
   game/                   # the game (the active build)                          -> npm run dev:game
     public/assets/        # committed runtime GLBs (served at /assets/*.glb, by game AND viewer)
