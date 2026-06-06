@@ -25,4 +25,4 @@ Non-spec docs (ideas, observations, the world-progression vision, asset/setup co
 | [chassis-spec.md](chassis-spec.md) | Chassis as the tiered envelope (engine cap) | Built |
 | [scrap-stain-decals-spec.md](scrap-stain-decals-spec.md) | Scrap seepage stain decals | Shipped |
 | [option-c-build-plan.md](option-c-build-plan.md) | Scrap Piles / the Reclaimer rummage (Option C) | Done — historical staircase |
-| [looter-camps-spec.md](looter-camps-spec.md) | Looter camps — enemies around a structure (Option D) | 🚧 Draft skeleton |
+| [looter-camps-spec.md](looter-camps-spec.md) | Looter camps — enemies around a structure (Option D) | ✏️ Specced, not started |
