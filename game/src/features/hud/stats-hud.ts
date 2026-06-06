@@ -5,6 +5,7 @@ import { Chassis } from '@common/components/chassis';
 import { rigLoad } from '@common/sim/weight';
 import { mountedEngines } from '@features/engine/engine';
 import { rigPerformance } from '@features/drive/drive';
+import { engineDriveBias, type DriveBias } from '@features/drive/steering';
 
 /**
  * The rig stat readout (top-left). A pure projection of the world, like the renderer: it reads the
@@ -42,13 +43,16 @@ export class StatsHud {
     const type = labels.length === 0 ? '— none (no drive)' : groupLabels(labels);
 
     // Performance is engine output scaled by weight (rigPerformance's mobility), so these move two
-    // ways: mount another engine and they climb; load the rig with scrap and they fall.
+    // ways: mount another engine and they climb; load the rig with scrap and they fall. Steering
+    // reads where the engines put the turn pivot (engineDriveBias) — shown only with a drive fitted,
+    // so moving an engine front/back makes its handling effect legible back in the bay.
     return [
       'RIG',
       `  type          ${type}`,
       `  acceleration  ${fmt(perf.acceleration)} u/s²`,
       `  top speed     ${fmt(perf.topSpeed)} u/s`,
       `  reverse       ${fmt(perf.reverse)} u/s`,
+      ...(labels.length > 0 ? [`  steering      ${biasLabel(engineDriveBias(world, rig))}`] : []),
       ...this.chassisLines(world, rig, labels.length),
     ].join('\n');
   }
@@ -88,6 +92,11 @@ function groupLabels(labels: string[]): string {
 /** 'electric' → 'Electric'. */
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** The drive bias as the handling it produces — how the rig pivots when steering. */
+function biasLabel(bias: DriveBias): string {
+  return { rear: 'Rear pivot', middle: 'Centre pivot', front: 'Front pivot' }[bias];
 }
 
 function fmt(n: number): string {
