@@ -9,9 +9,10 @@ intent + dependency chain stay in `milestones.md`; the worked decisions live her
 > **Status:** ✅ **Phase 1 built + merged** (PR #55, 2026-06-07) — a complete, playable level-1 camp,
 > tuned across two playtests. ✅ **Phase 2 built + merged** (PR #56, 2026-06-07) — the trap arm + real
 > disarm puzzle, replacing Phase 1's auto-success stub (decided in a 2026-06-07 grill), plus a "Press E"
-> prompt + proximity ring added in playtest. ✅ **Phase 3 built** (2026-06-07) — the layered stain mess +
-> scattered debris, and the on-clear teardown (structures sink, a sprout rises out of the soil) that resolves
-> the world-reacts beat + the restoration handoff (decided in a 2026-06-07 grill). **Phase 4 not started.**
+> prompt + proximity ring added in playtest. ✅ **Phase 3 built + merged** (PR #57, 2026-06-07) — the
+> environmental mess (a contamination that bleeds past the camp) + scattered debris, and the on-clear teardown
+> (structures sink, a sprouting cut stump rises) that resolves the world-reacts beat + the restoration handoff
+> (decided in a 2026-06-07 grill, tuned across two playtests). **Phase 4 (more levels) not started.**
 > The design below was resolved in a 2026-06-06 grill session (every section is a decided answer, not a
 > guess). Numbers (HP, damage, ranges, leash, costs) are **build-time tuning** unless called out. See §10
 > for exactly what each phase shipped and the places it deviated from this plan as play demanded.
@@ -254,8 +255,8 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
     a shop save-up (trap parts aren't in the lootable `SUB_PART_POOL`); the head is the dearer upgrade.
   - **Reuse:** loot still flows through the shared `LootDrop` + loot overlay (disarm → spoils popup);
     the grade + damage are surfaced via the existing HUD toast.
-- **Phase 3 — Environmental mess + restoration polish. ✅ built (2026-06-07).** Large camp stains + damage
-  that **fade** on clear/disarm; the **visible stump/soil prop** on the `RestorableSite`. The world-reacts beat.
+- **Phase 3 — Environmental mess + restoration polish. ✅ built + merged (PR #57, 2026-06-07).** Large camp
+  stains + damage that **fade** on clear/disarm; the **visible prop** on the `RestorableSite`. The world-reacts beat.
 
   **What shipped / decided at build time** (a 2026-06-07 grill resolved every §12 Phase-3 item; all
   build-time-tuning calls, none changing the design intent):
