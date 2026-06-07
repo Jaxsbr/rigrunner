@@ -60,10 +60,14 @@ import { weaponFireSystem } from '@features/camps/weapon-fire-system';
 import { enemyAiSystem } from '@features/camps/enemy-ai-system';
 import { projectileMoveSystem } from '@features/camps/projectile-system';
 import { combatSystem } from '@features/camps/combat-system';
-import { campSystem } from '@features/camps/camp-system';
+import { campSystem, resolveDisarm } from '@features/camps/camp-system';
 import { repairSystem } from '@features/camps/repair-system';
 import { CampStains } from '@features/camps/camp-stains';
 import { animateWeapons } from '@features/camps/weapon-animator';
+import { animateTrapArm } from '@features/camps/trap-arm-animator';
+import { DisarmOverlay } from '@features/camps/disarm-overlay';
+import { findDisarmTarget } from '@features/camps/disarm-gate';
+import { DEFAULT_TIER } from '@common/parts/tiers';
 import { HealthHud } from '@features/hud/health-hud';
 
 /**
@@ -212,13 +216,14 @@ const zones = new ZoneOverlays(view.scene);
 const stains = new ScrapStains(view.scene);
 const campStains = new CampStains(view.scene);
 
-// Two overlays can each freeze the simulation: the workshop interface and the loot popup. Main owns
-// one `paused` flag that is the OR of both, so whichever is up holds the sim still and resuming needs
-// both down. Each overlay flips its own bit through its callback.
+// Three overlays can each freeze the simulation: the workshop interface, the loot popup, and the disarm
+// puzzle. Main owns one `paused` flag that is the OR of all three, so whichever is up holds the sim
+// still and resuming needs them all down. Each overlay flips its own bit through its callback.
 let paused = false;
 let workshopPaused = false;
 let lootPaused = false;
-const syncPaused = (): void => { paused = workshopPaused || lootPaused; };
+let disarmPaused = false;
+const syncPaused = (): void => { paused = workshopPaused || lootPaused || disarmPaused; };
 
 // The workshop interface shell. Opening its tab freezes the simulation; the tab's visibility tracks
 // zone proximity, which main pushes in each frame (the overlay never touches the World).
@@ -238,6 +243,18 @@ const loot = new LootOverlay(
   world,
   {
     onPauseChange: (p) => { lootPaused = p; syncPaused(); },
+  },
+);
+
+// The disarm puzzle. When the active rig parks a mounted trap arm in reach of a DISARMABLE camp, E
+// opens the timing mini-game; it freezes the sim, and on finish resolves the outcome (loot + damage +
+// clear the camp) and announces it. The loot overlay reveals any spoils the next frame.
+const disarm = new DisarmOverlay(
+  document.querySelector<HTMLElement>('#disarm-overlay')!,
+  {
+    onPauseChange: (p) => { disarmPaused = p; syncPaused(); },
+    onResolve: (camp, grade) => resolveDisarm(world, camp, getActiveRig(world)!, grade),
+    announce: (msg) => capToast.show(msg),
   },
 );
 
@@ -347,8 +364,8 @@ function frame(now: number): void {
     scrapCollectionSystem(world, pairs);
     combatSystem(world, activeRig, pairs);
 
-    // camps: advance each camp's state machine — all guards down → (auto-disarm stub) → cleared, which
-    // queues the loot drop + emits the restorable site.
+    // camps: advance each camp's state machine — all guards down → DISARMABLE. The second transition
+    // (DISARMABLE → CLEARED) is the player's: solving the disarm puzzle, handled by the disarm overlay.
     campSystem(world);
 
     // free repair while parked in a workshop zone (home base = safety + repair).
@@ -371,6 +388,13 @@ function frame(now: number): void {
   // and when the controlled chassis is empty with a backup to fall back to (`canPackUp`). Read fresh
   // from getActiveRig so the frame a pack-up happens it reflects the backup (not the just-packed crate).
   packPrompt.sync(!paused && !anyZoneActive() && canPackUp(world, getActiveRig(world)!));
+
+  // the disarm gate: is the active rig parked with a mounted trap arm in reach of a DISARMABLE camp?
+  // Push it (and the head tier that sets the puzzle difficulty) into the overlay, then advance the
+  // marker sweep — both run always so the puzzle animates while it holds the sim frozen.
+  const disarmTarget = findDisarmTarget(world, activeRig);
+  disarm.setReady(disarmTarget !== null, disarmTarget?.camp ?? null, disarmTarget?.headTier ?? DEFAULT_TIER);
+  disarm.tick(dt);
 
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
@@ -404,6 +428,7 @@ function frame(now: number): void {
     animateReclaimer(view.entityViews, world, dt);
     animateScrapPile(view.entityViews, world, dt);
     animateWeapons(view.entityViews, world, dt);
+    animateTrapArm(view.entityViews, world, dt);
   }
   view.render();
 

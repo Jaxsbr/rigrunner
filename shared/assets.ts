@@ -59,6 +59,11 @@ export const MODEL_ASSETS: Record<string, string> = {
   'enemy': '/assets/enemy.glb',
   'tent': '/assets/tent.glb',
   'camp-cache': '/assets/camp-cache.glb',
+  // 🧰 Trap arm (Phase 2). The Boom is the host (carrying the `socket_head` node the animator rocks); the
+  // Disarm Head — fine probes + a glow_green pick tip — seats on it, the disarm tool the player aims at a
+  // camp's trap. Same composed arm + head grammar as the weapon and Reclaimer.
+  'trap-boom': '/assets/trap-boom.glb',
+  'disarm-head': '/assets/disarm-head.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

@@ -42,6 +42,14 @@ export const PART_COSTS: readonly PartCost[] = [
   { partId: 'weapon-mount', buyCost: 14 },
   { partId: 'weapon-barrel', buyCost: 16 },
 
+  // Trap arm (looter camps Phase 2) — the disarm tool: Boom + Disarm Head. Priced on a par with the
+  // Reclaimer (Boom 16 + Head 20 ≈ 36), the spec's "higher save-up goal" alongside the weapon. The
+  // Head is the dearer, tier-bearing sub-part: buying an iron Head (the meaningful disarm upgrade) is a
+  // deliberate, costly choice the shop scales up the tier ladder. A shop save-up, not a camp drop (trap
+  // parts aren't in the lootable SUB_PART_POOL).
+  { partId: 'trap-boom', buyCost: 16 },
+  { partId: 'disarm-head', buyCost: 20 },
+
   // Chassis sub-parts — built into a chassis-kit on the bench, then hauled out of the workshop to
   // assemble into a new rig. The 1×3 scout set (~30 total) is an early save-up, on a par with an
   // engine; the 3×5 hauler set (~68) is a major goal. Strawman numbers — tune here against feel.

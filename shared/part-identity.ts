@@ -74,13 +74,17 @@ export type ChassisPartSlot = 'wheel-axle' | 'suspension-steering' | 'frame';
 /** A weapon part role — a base `gun-mount` (the directional turret) plus the `gun-barrel` that seats on
  *  it. Two parts compose the weapon, like the Reclaimer's arm + head; swapping barrels = other weapons. */
 export type WeaponPartSlot = 'gun-mount' | 'gun-barrel';
+/** A trap-arm part role — a base `trap-boom` (the directional arm HOST) plus the `disarm-head` that seats
+ *  on it. The head is the lockpick business end whose tier sets disarm difficulty (looter camps Phase 2),
+ *  the same arm + head grammar as the Reclaimer and weapon; a future head is the same boom, a new tool. */
+export type TrapPartSlot = 'trap-boom' | 'disarm-head';
 /** Any part role, across all recipes — the role a bench slot matches a part against. */
-export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot | WeaponPartSlot;
+export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot | WeaponPartSlot | TrapPartSlot;
 /** An engine's energy type — the electric/steam fork that drives type-lock, feel, and visuals. */
 export type EnergyType = 'electric' | 'steam';
 /** What a part is for — groups the catalog and drives the chip/portrait tint when there's no energy
- *  type (storage, reclaimer, chassis and weapon parts aren't electric/steam). */
-export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis' | 'weapon';
+ *  type (storage, reclaimer, chassis, weapon and trap-arm parts aren't electric/steam). */
+export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis' | 'weapon' | 'trap';
 
 /**
  * One sub-part's identity — everything descriptive and SHARED across every instance of it, minus the
@@ -150,6 +154,13 @@ export const PART_IDENTITIES: readonly PartIdentity[] = [
   // like the Reclaimer (arm + head); a future barrel is the same Mount, a different gun.
   { id: 'weapon-mount', slot: 'gun-mount', category: 'weapon', displayName: 'Mount', assetId: 'weapon-mount' },
   { id: 'weapon-barrel', slot: 'gun-barrel', category: 'weapon', displayName: 'Barrel', assetId: 'weapon-barrel' },
+
+  // 🧰 Trap arm — the disarm tool (looter camps Phase 2), composed from a Boom (the directional arm HOST,
+  // carrying a `socket_head` empty the render layer probes) + a Disarm Head that seats on it. The HEAD is
+  // the lockpick business end: its tier sets the timing-puzzle difficulty (rusty = narrow/many rounds,
+  // iron = wide/one). Same arm + head grammar as the Reclaimer and weapon; a future head is the same boom.
+  { id: 'trap-boom', slot: 'trap-boom', category: 'trap', displayName: 'Arm', assetId: 'trap-boom' },
+  { id: 'disarm-head', slot: 'disarm-head', category: 'trap', displayName: 'Disarm Head', assetId: 'disarm-head' },
 ];
 
 /** Resolve a sub-part id to its identity record, or `undefined` if the id isn't known. */
@@ -183,6 +194,7 @@ export const PRODUCT_GROUPS: readonly ProductGroup[] = [
   { id: 'chassis-1x3', label: 'Chassis (1×3)', emoji: '🛞', subPartIds: ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3'] },
   { id: 'chassis-3x5', label: 'Chassis (3×5)', emoji: '🛞', subPartIds: ['wheel-axle-3x5', 'suspension-steering-3x5', 'frame-3x5'] },
   { id: 'weapon', label: 'Weapon', emoji: '🔫', subPartIds: ['weapon-mount', 'weapon-barrel'] },
+  { id: 'trap-arm', label: 'Trap Arm', emoji: '🧰', subPartIds: ['trap-boom', 'disarm-head'] },
 ];
 
 /** Resolve a product group id to its definition, or `undefined` if it isn't known. */
@@ -253,6 +265,12 @@ export const PRODUCT_COMPOSITION: Readonly<Record<string, ProductComposition>> =
   weapon: {
     host: 'weapon-mount',
     children: { 'weapon-barrel': 'socket_barrel' },
+  },
+  // The trap arm — the Boom is the host (its GLB carries `socket_head` at the arm tip); the Disarm Head
+  // seats there. The render layer rotates `socket_head` so the head idles and probes during a disarm.
+  'trap-arm': {
+    host: 'trap-boom',
+    children: { 'disarm-head': 'socket_head' },
   },
 };
 
