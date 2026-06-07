@@ -9,7 +9,7 @@
 /** The mounted auto-fire weapon. Fires any enemy inside its forward cone + range; no ammo, no button. */
 export const WEAPON = {
   damage: 10,
-  cooldown: 0.5, // seconds between shots (≈ 1.5 s to kill a 30-HP grunt with sustained fire)
+  cooldown: 1.0, // seconds between shots — halved from 0.5 (rusty gun was OP): ~3 s to kill a 30-HP grunt
   range: 18,
   cone: (50 * Math.PI) / 180, // full FOV; placement still matters — the cone is the part's mount facing
   projectileSpeed: 30, // snappy, and a touch faster than enemy fire (24) so your shots connect cleanly

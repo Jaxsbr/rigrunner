@@ -128,10 +128,12 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   'suspension-steering-3x5': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0, turning: 5 },
   'frame-3x5': { power: 0, torque: 0, weight: 14, durability: 0, burst: 0, loadCapacity: 60 },
 
-  // 🔫 Weapon — its only stat in Phase 1 is the WEIGHT it adds to the rig (you feel the gun in the
-  // handling); its combat numbers (damage/rate/range) are the `WEAPON` constant in `@features/camps`,
-  // not per-instance attributes yet. power/torque/durability/burst stay 0.
-  'weapon-gun': { power: 0, torque: 0, weight: 4, durability: 0, burst: 0 },
+  // 🔫 Weapon — Mount + Barrel. Their only stat in Phase 1 is the WEIGHT they add to the rig (you feel
+  // the gun in the handling); the combat numbers (damage/rate/range) are the `WEAPON` constant in
+  // `@features/camps`, not per-instance attributes yet. power/torque/durability/burst stay 0. The two
+  // sum to the same ~4 weight the single gun carried.
+  'weapon-mount': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0 },
+  'weapon-barrel': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0 },
 };
 
 /** The full catalog — each shared identity record paired with its gameplay attributes, in roster order. */

@@ -104,15 +104,19 @@ export const RECLAIMER_RECIPE: Recipe = {
 };
 
 /**
- * The weapon recipe (looter camps) — a single `gun` slot stamping a `weapon`-kind product. Untyped (no
- * electric/steam), so it never engages the no-hybrid rule; one part, but built/mounted through the same
- * bench → stage → mount path as the Reclaimer, so the gun is acquired and fitted like any tool.
+ * The weapon recipe (looter camps) — a Mount + Barrel stamping a `weapon`-kind product, the same arm +
+ * head grammar as the Reclaimer. Untyped (no electric/steam), so it never engages the no-hybrid rule;
+ * built/mounted through the same bench → stage → mount path. Two parts make the bench step meaningful
+ * (and set up barrel variety later: same Mount, different Barrel = a different weapon).
  */
 export const WEAPON_RECIPE: Recipe = {
   id: 'weapon',
   output: 'Weapon',
   productKind: 'weapon',
-  slots: [{ slot: 'gun', label: 'Gun' }],
+  slots: [
+    { slot: 'gun-mount', label: 'Mount' },
+    { slot: 'gun-barrel', label: 'Barrel' },
+  ],
 };
 
 /**

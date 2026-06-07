@@ -8,14 +8,15 @@ import { Weapon } from './weapon';
 import { WEAPON } from './combat';
 
 /**
- * The weapon's sim-driven render: swivel each mounted gun's `barrel` node to track the target it's
- * firing on. It READS the sim's `Weapon.aimYaw` (the world yaw toward the nearest in-cone enemy, set by
- * the fire system) and eases the barrel's LOCAL yaw toward (aim − mount-facing), clamped to the cone so
- * it never points past where the gun can shoot; with no target it eases back to rest (straight ahead).
+ * The weapon's sim-driven render: swivel each mounted gun's barrel to track the target it's firing on.
+ * It READS the sim's `Weapon.aimYaw` (the world yaw toward the nearest in-cone enemy, set by the fire
+ * system) and eases the barrel's LOCAL yaw toward (aim − mount-facing), clamped to the cone so it never
+ * points past where the gun can shoot; with no target it eases back to rest (straight ahead).
  *
- * Pure view polish — it owns only the eased barrel angle, mutating nothing in the sim. The barrel node
- * is found by name within the weapon's model (cached once it loads); a model without one (the grey-box
- * placeholder before the GLB lands) simply no-ops. Dispatched from `main.ts` (ADR-003 §4).
+ * The barrel rides the Mount's `socket_barrel` node (the shared assembler seats the Barrel sub-part
+ * there), so rotating that node swivels the barrel about the turret pivot. Pure view polish — it owns
+ * only the eased angle, mutating nothing in the sim. The node is found by name within the composed
+ * weapon (cached once it loads); before the GLBs compose it simply no-ops. Dispatched from `main.ts`.
  */
 
 const SWIVEL_RATE = 8; // how fast the barrel eases toward its target angle (radians/s-ish blend)
@@ -26,10 +27,11 @@ export function animateWeapons(views: EntityViews, world: World, dt: number): vo
     const obj = views.get(w);
     if (!obj) continue;
 
-    // Find + cache the barrel node once the model loads; null until then (placeholder no-ops).
+    // Find + cache the barrel swivel node (the Mount's socket the Barrel seats on) once the weapon
+    // composes; null until then (no-ops before the GLBs load).
     let barrel = obj.userData['barrel'] as THREE.Object3D | null | undefined;
     if (barrel === undefined || barrel === null) {
-      barrel = obj.getObjectByName('barrel') ?? null;
+      barrel = obj.getObjectByName('socket_barrel') ?? null;
       if (barrel) obj.userData['barrel'] = barrel;
     }
     if (!barrel) continue;

@@ -52,9 +52,10 @@ export const MODEL_ASSETS: Record<string, string> = {
   'suspension-steering': '/assets/suspension-steering.glb',
   'suspension-steering-sm': '/assets/suspension-steering-sm.glb',
 
-  // 🔫 Looter camps. The weapon-gun is an articulated PART (a `barrel` node the render layer swivels);
-  // the enemy / tent / camp-cache are world props that make up the camp's silhouette.
-  'weapon-gun': '/assets/weapon-gun.glb',
+  // 🔫 Looter camps. The weapon composes from a Mount (host, carrying the `socket_barrel` swivel node)
+  // + a Barrel; the enemy / tent / camp-cache are world props that make up the camp's silhouette.
+  'weapon-mount': '/assets/weapon-mount.glb',
+  'weapon-barrel': '/assets/weapon-barrel.glb',
   'enemy': '/assets/enemy.glb',
   'tent': '/assets/tent.glb',
   'camp-cache': '/assets/camp-cache.glb',

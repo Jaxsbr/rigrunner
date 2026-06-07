@@ -18,7 +18,7 @@ describe('recipes', () => {
     expect(STEAM_ENGINE_RECIPE.slots).toHaveLength(4);
     expect(STORAGE_RECIPE.slots).toHaveLength(2);
     expect(RECLAIMER_RECIPE.slots).toHaveLength(2);
-    expect(WEAPON_RECIPE.slots).toHaveLength(1);
+    expect(WEAPON_RECIPE.slots).toHaveLength(2);
     expect(RECIPES.map((r) => r.id)).toEqual([
       'electric-engine', 'steam-engine', 'storage', 'reclaimer', 'weapon', 'chassis-1x3', 'chassis-3x5',
     ]);
