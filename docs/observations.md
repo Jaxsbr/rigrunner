@@ -400,3 +400,39 @@ raw `steer`). One global constant for now — deliberately simple, because this 
   tying handling response to the central weight pillar.
 - **Drift/slip potential** — a ramped steer is the natural seam for a momentum/counter-steer feel later,
   if play ever asks for it.
+
+---
+
+## 14. The starter rusty rig was too slow to *fight* — pace vs. the reference (Machine Mind)
+
+**Context:** First playtest of looter camps (Phase 1) — driving a starting rusty rig (rusty engine +
+rusty chassis) out to a camp to clear it. Compared against a screen-recording of **Machine Mind** (the
+reference game) and the actual drive/camera code.
+
+**Observation:** Two things made our combat feel sluggish where Machine Mind felt fluid:
+
+1. **The rig couldn't out-pace the enemies it was meant to overrun.** Camp guards reposition at
+   **4 u/s**. A *combat-configured* rusty rig (chassis + electric engine + the weapon) topped out at
+   **~3.8 u/s** — *below* the enemies. So when a ranged guard backed off, the rig closed at ~0 (or
+   negative when laden): you literally could not catch one to ram it. The arithmetic, not perception:
+   `topSpeed = power × torque/(torque + 0.7·weight)`, and bringing the weapon's weight pushed mobility
+   below the enemy's speed.
+2. **The tier gap amplified it.** With iron's mult at 2.2, `iron = base × 2.2`, so any base-pace bump big
+   enough to make rusty playable would have ballooned iron. The *starting* tier was the worst-feeling one.
+
+What Machine Mind does (from the footage): a **tight, close camera** (the machine is a real on-screen
+object, ~1/12 of width; you read your machine + nearby enemies clearly), and a machine that **clearly
+out-runs the threats** and **fires while repositioning**. Kiting is easy because the machine is *fast and
+legible*, not because the enemies are weak.
+
+**Why it matters:** The flee-or-fight pillar needs the rig to actually be able to flee OR fight — and
+"overrun by driving in" only works if the rig out-paces the enemy. A starter rig that can't is a dead end.
+
+**Takeaway / what we did (2026-06-07):** Lifted the engines' base pace (electric 11/7 → 15/10, steam
+7/16 → 10/22 — profiles + the weight-feel preserved; `WEIGHT_DRAG` untouched, so weight still bites) so a
+combat rusty rig tops **~6.4 u/s** (laden ~4.7), comfortably above the 4 u/s guards. Eased iron's mult
+**2.2 → 1.8** so the lift didn't balloon iron — the rusty→iron *gap* narrowed (the upgrade is still
+clearly worth it) rather than the whole band sliding up. **Camera left as-is** (its zoom range already
+mirrors Machine Mind's; a *speed-based auto-zoom* — out while moving, in while settling — is a captured
+idea for later, not done). Open question for a later pass: whether turn-radius (handling) also wants a
+tighter base for kiting, or whether the higher top speed already supplies enough turn *rate*.

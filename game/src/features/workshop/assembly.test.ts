@@ -56,17 +56,17 @@ function placeOnSlot(world: World, id: string) {
 }
 
 describe('assembly — attribute summing', () => {
-  it('sums a full electric set to the spec profile (power 11 / torque 7 / weight 4)', () => {
+  it('sums a full electric set to the spec profile (power 15 / torque 10 / weight 4)', () => {
     const w = setup();
     const parts = ELECTRIC.map((id) => placeOnSlot(w, id));
-    expect(sumPartStats(w, parts)).toMatchObject({ power: 11, torque: 7, weight: 4 });
+    expect(sumPartStats(w, parts)).toMatchObject({ power: 15, torque: 10, weight: 4 });
   });
 
-  it('sums a full steam set to the spec profile (power 7 / torque 16 / weight 8)', () => {
+  it('sums a full steam set to the spec profile (power 10 / torque 22 / weight 8)', () => {
     const w = setup();
     loadRecipe(w, STEAM_ENGINE_RECIPE.id, STEAM_ENGINE_RECIPE.slots.map((s) => s.slot));
     const parts = STEAM.map((id) => placeOnSlot(w, id));
-    expect(sumPartStats(w, parts)).toMatchObject({ power: 7, torque: 16, weight: 8 });
+    expect(sumPartStats(w, parts)).toMatchObject({ power: 10, torque: 22, weight: 8 });
   });
 
   it('ignores unresolved (non-catalog) entities when summing', () => {
@@ -94,11 +94,11 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     expect(sumPartStats(w, [shell])).toMatchObject({ weight: 3, capacity: 3 });
   });
 
-  it('an iron part resolves steeper — base × ~2.2, rounded', () => {
+  it('an iron part resolves up — base × 1.8, rounded', () => {
     const w = setup();
     const shell = placeOnSlotAtTier(w, 'container-shell', 'iron');
-    // base capacity 3 × 2.2 = 6.6 → 7; base weight 3 × 2.2 = 6.6 → 7
-    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 7, capacity: 7 });
+    // base capacity 3 × 1.8 = 5.4 → 5; base weight 3 × 1.8 = 5.4 → 5
+    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 5, capacity: 5 });
   });
 
   it('a rusty-shell + iron-rim container is a valid mid-value between all-rusty and all-iron', () => {
@@ -115,11 +115,11 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     ]);
     const mixed = sumPartStats(w, [
       spawnCatalogPart(w, partDef('container-shell')!, 'rusty'), // 3
-      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(1 × 2.2) = 2
+      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(1 × 1.8) = 2
     ]);
 
     expect(rusty.capacity).toBe(4);  // 3 + 1 — the tier-1 CONTAINER_CAPACITY
-    expect(iron.capacity).toBe(9);   // 7 + 2 — the steep jump that "iron holds more" is felt as
+    expect(iron.capacity).toBe(7);   // 5 + 2 — the jump that "iron holds more" is felt as (eased mult)
     expect(mixed.capacity).toBe(5);  // 3 + 2 — strictly between, no special blending logic
     expect(rusty.capacity).toBeLessThan(mixed.capacity!);
     expect(mixed.capacity).toBeLessThan(iron.capacity!);
@@ -132,8 +132,8 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     placeOnSlotAtTier(w, 'container-rim', 'iron');
 
     const container = assemble(w, STORAGE_RECIPE)!;
-    expect(w.get(container, Storage)).toEqual({ amount: 0, capacity: 9 });
-    // The mixed/rusty baseline is CONTAINER_CAPACITY (4), so the iron one more than doubles it.
+    expect(w.get(container, Storage)).toEqual({ amount: 0, capacity: 7 });
+    // The mixed/rusty baseline is CONTAINER_CAPACITY (4), so the iron one still clearly holds more.
     expect(w.get(container, Storage)!.capacity).toBeGreaterThan(CONTAINER_CAPACITY);
   });
 });
@@ -232,7 +232,7 @@ describe('assembly — assembling an engine', () => {
 
     expect(product).toBeDefined();
     expect(w.get(product, Part)).toEqual({ kind: 'engine' });
-    expect(w.get(product, EngineSpec)).toEqual({ power: 11, torque: 7 });
+    expect(w.get(product, EngineSpec)).toEqual({ power: 15, torque: 10 });
     expect(w.get(product, Weight)).toEqual({ value: 4 });
     expect(w.get(product, Assembly)).toEqual({ recipeId: 'electric-engine', parts, type: 'electric' });
     expect(isProduct(w, product)).toBe(true);
@@ -318,7 +318,7 @@ describe('assembly — composeProduct seeds a product outside the bench', () => 
     const engine = composeProduct(w, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
 
     expect(w.get(engine, Part)).toEqual({ kind: 'engine' });
-    expect(w.get(engine, EngineSpec)).toEqual({ power: 11, torque: 7 });
+    expect(w.get(engine, EngineSpec)).toEqual({ power: 15, torque: 10 });
     expect(w.get(engine, Weight)).toEqual({ value: 4 });
     expect(w.get(engine, Assembly)!.type).toBe('electric');
     expect(w.get(engine, Assembly)!.parts).toHaveLength(4);
@@ -328,10 +328,10 @@ describe('assembly — composeProduct seeds a product outside the bench', () => 
     expect(w.get(engine, Renderable)).toBeUndefined();
   });
 
-  it('composes a steam engine to its profile (power 7 / torque 16 / weight 8)', () => {
+  it('composes a steam engine to its profile (power 10 / torque 22 / weight 8)', () => {
     const w = setup();
     const engine = composeProduct(w, STEAM_ENGINE_RECIPE, engineParts('steam'));
-    expect(w.get(engine, EngineSpec)).toEqual({ power: 7, torque: 16 });
+    expect(w.get(engine, EngineSpec)).toEqual({ power: 10, torque: 22 });
     expect(w.get(engine, Weight)).toEqual({ value: 8 });
     expect(w.get(engine, Assembly)!.type).toBe('steam');
   });

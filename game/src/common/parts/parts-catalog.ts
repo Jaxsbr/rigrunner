@@ -29,10 +29,12 @@ import { PART_IDENTITIES, type PartIdentity } from '@shared/part-identity';
  *
  * A complete engine = all four slots filled with parts of ONE type; the resulting EngineSpec +
  * Weight is the SUM of the four parts' contributions (computed at assembly). The numbers below are
- * distributed so a full electric set sums to ≈ power 11 / torque 7 / weight 4 (snappy/light — the
- * Runner) and a full steam set to ≈ power 7 / torque 16 / weight 8 (torquey/heavy — the Hauler).
- * They are tunable against feel — these are the engines' absolute pace, lowered here to slow the
- * whole game at the source (rather than a multiplier downstream).
+ * distributed so a full electric set sums to ≈ power 15 / torque 10 / weight 4 (snappy/light — the
+ * Runner) and a full steam set to ≈ power 10 / torque 22 / weight 8 (torquey/heavy — the Hauler).
+ * They are tunable against feel — these are the engines' absolute pace, and `drive.ts` reads them as
+ * THE pace knob (raise here to make the whole game faster, lower to slow it; never a downstream
+ * multiplier). They were raised from the original 11/7 · 7/16 in the 2026-06-07 playtest pass so a
+ * starting rusty rig out-paces the looter-camp guards (4 u/s) and can kite/overrun rather than crawl.
  *
  * `durability` and `burst` are reserved placeholders for later milestones (housing durability;
  * output-control boost/overdrive magnitude) — carried so the shape is stable, but nothing consumes
@@ -89,17 +91,17 @@ export interface PartDef extends PartIdentity {
  * build error (an identity with no numbers), surfaced when the catalog is assembled.
  */
 const PART_ATTRIBUTES: Record<string, PartAttributes> = {
-  // ⚡ Electric — high power (top speed), low torque, light. Sum: power 11 / torque 7 / weight 4.
+  // ⚡ Electric — high power (top speed), low torque, light. Sum: power 15 / torque 10 / weight 4.
   'e-casing': { power: 1, torque: 1, weight: 2, durability: 5, burst: 0 },
-  'e-core': { power: 6, torque: 3, weight: 1, durability: 2, burst: 0 },
-  'e-coupling': { power: 2, torque: 1, weight: 0, durability: 1, burst: 0 },
-  'e-regulator': { power: 2, torque: 2, weight: 1, durability: 1, burst: 4 },
+  'e-core': { power: 9, torque: 5, weight: 1, durability: 2, burst: 0 },
+  'e-coupling': { power: 2, torque: 2, weight: 0, durability: 1, burst: 0 },
+  'e-regulator': { power: 3, torque: 2, weight: 1, durability: 1, burst: 4 },
 
-  // ♨ Steam — high torque (hauling), lower power, heavy. Sum: power 7 / torque 16 / weight 8.
-  's-boiler': { power: 0, torque: 2, weight: 4, durability: 8, burst: 0 },
-  's-piston': { power: 4, torque: 8, weight: 2, durability: 4, burst: 0 },
-  's-driveshaft': { power: 1, torque: 3, weight: 1, durability: 2, burst: 0 },
-  's-throttle': { power: 2, torque: 3, weight: 1, durability: 2, burst: 3 },
+  // ♨ Steam — high torque (hauling), lower power, heavy. Sum: power 10 / torque 22 / weight 8.
+  's-boiler': { power: 0, torque: 3, weight: 4, durability: 8, burst: 0 },
+  's-piston': { power: 6, torque: 11, weight: 2, durability: 4, burst: 0 },
+  's-driveshaft': { power: 1, torque: 4, weight: 1, durability: 2, burst: 0 },
+  's-throttle': { power: 3, torque: 4, weight: 1, durability: 2, burst: 3 },
 
   // 📦 Storage — weight/durability AND `capacity` (the scrap the container holds). power/torque/burst
   // stay 0 since a container does no engine work. A rusty (tier-1) container sums to capacity 4 — the
