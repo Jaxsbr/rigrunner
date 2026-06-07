@@ -66,7 +66,9 @@ import { CampStains } from '@features/camps/camp-stains';
 import { animateWeapons } from '@features/camps/weapon-animator';
 import { animateTrapArm } from '@features/camps/trap-arm-animator';
 import { DisarmOverlay } from '@features/camps/disarm-overlay';
+import { DisarmPrompt } from '@features/camps/disarm-prompt';
 import { findDisarmTarget } from '@features/camps/disarm-gate';
+import { campDiscs } from '@features/camps/overlays';
 import { DEFAULT_TIER } from '@common/parts/tiers';
 import { HealthHud } from '@features/hud/health-hud';
 
@@ -266,6 +268,11 @@ const scrapPrompt = new ScrapPrompt(document.querySelector<HTMLElement>('#scrap-
 // can fold back into a kit. Main computes the gate (off the workshop, off a pile) and pushes it here.
 const packPrompt = new PackPrompt(document.querySelector<HTMLElement>('#pack-prompt')!);
 
+// The disarm prompt, sharing that bottom-centre slot: shown when the rig is parked in reach of a
+// DISARMABLE camp with a trap arm mounted. Main pushes the same gate the camp's proximity disc lights
+// on, so the ring and the prompt appear together.
+const disarmPrompt = new DisarmPrompt(document.querySelector<HTMLElement>('#disarm-prompt')!);
+
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
 function anyZoneActive(): boolean {
   for (const w of world.query(WorkshopZone)) {
@@ -395,6 +402,8 @@ function frame(now: number): void {
   const disarmTarget = findDisarmTarget(world, activeRig);
   disarm.setReady(disarmTarget !== null, disarmTarget?.camp ?? null, disarmTarget?.headTier ?? DEFAULT_TIER);
   disarm.tick(dt);
+  // the disarm prompt mirrors that gate, shown only while the sim runs (the overlay hides it once open).
+  disarmPrompt.sync(disarmTarget !== null && !paused && !dying);
 
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
@@ -415,7 +424,7 @@ function frame(now: number): void {
   // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
   // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
   // overlay rather than popping on resume.
-  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)], dt);
+  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);

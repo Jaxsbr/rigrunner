@@ -33,8 +33,9 @@ export const DISARM_DIFFICULTY: Record<TierId, DisarmDifficulty> = {
 
 /** The shared, non-per-tier disarm tuning. */
 export const DISARM = {
-  /** How close (world units) to the camp centre the rig must be for the disarm gate to open. */
-  range: 9,
+  /** How close (world units) to the camp centre the rig must be for the disarm gate to open. Doubles as
+   *  the proximity-disc radius, so the lit ring's edge IS the gate boundary (disc + prompt in lockstep). */
+  range: 6,
   /** Seconds for the marker to sweep the bar once; it bounces back and forth at this constant pace. */
   crossSeconds: 0.9,
   /** A botched-but-not-failed disarm has this CHANCE of nicking the rig… */

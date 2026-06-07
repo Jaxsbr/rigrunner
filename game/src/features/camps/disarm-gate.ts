@@ -45,9 +45,10 @@ export function findDisarmTarget(world: World, rig: EntityId): DisarmTarget | nu
  * The HEAD tier of a trap arm mounted on this rig, or null if the rig carries none. The disarm head is
  * the lockpick business end, so ITS grade — not the boom's — is what sets the puzzle difficulty (read
  * off the composed product's sub-part tiers). A trap arm somehow missing its head sub-part falls back to
- * the base tier (the hardest puzzle), never undefined.
+ * the base tier (the hardest puzzle), never undefined. Exported so the proximity-disc adapter shares the
+ * one "does the rig carry a trap arm?" check (non-null ⇒ yes) the gate uses.
  */
-function mountedTrapArmHeadTier(world: World, rig: EntityId): TierId | null {
+export function mountedTrapArmHeadTier(world: World, rig: EntityId): TierId | null {
   for (const w of world.query(Part, Mount)) {
     if (world.get(w, Part)!.kind !== 'trap-arm') continue;
     if (world.get(w, Mount)!.rig !== rig) continue;

@@ -19,8 +19,10 @@ What's here:
   the outcome-aware `resolveDisarm` payout), `disarm-gate` (the proximity gate: a DISARMABLE camp in
   reach + the rig's mounted trap-arm head tier), `repair-system`, plus `camp-spawn` (the builder).
 - **Render** (dispatched from `main.ts`, never from `@common/render`): `camp-stains`, `weapon-animator`
-  (the barrel swivel), `trap-arm-animator` (the disarm-head idle sway). `disarm-overlay` is the
-  timing-puzzle UI (a sim-freezing overlay, like the loot popup).
+  (the barrel swivel), `trap-arm-animator` (the disarm-head idle sway), and `overlays` (`campDiscs` — the
+  proximity ring under a DISARMABLE camp, fed to the shared `ZoneOverlays`). `disarm-overlay` is the
+  timing-puzzle UI (a sim-freezing overlay, like the loot popup); `disarm-prompt` is the bottom-centre
+  "Press E" HUD cue (the `ScrapPrompt`/`PackPrompt` sibling).
 
 Single-owner / placement rules at the point of edit:
 
@@ -62,7 +64,9 @@ the `RestorableSite` marker is emitted — nothing consumes it).
 Phase 2 build note (the trap arm + real disarm — decided in a 2026-06-07 grill): disarm is a timing
 sweet-spot in a sim-freezing overlay, opened by **E** on a `DISARMABLE` camp in range with a trap arm
 mounted (**proximity-only gate — no FOV-aim**, a deliberate deviation from spec §5: the disarm is a
-safe, post-combat act, so aiming the arm would be ceremony; the arm still articulates for feel). The
+safe, post-combat act, so aiming the arm would be ceremony; the arm still articulates for feel). A
+bottom-centre **"Press E" prompt** + a **proximity ring** light up in lockstep on that gate (added in a
+follow-up — the grill's "no prompt" call read as confusing in play; both key off `findDisarmTarget`). The
 HEAD tier sets difficulty (`disarm.ts`: rusty 3×narrow / iron 1×wide). You play all N rounds and tally
 hits → success / partial / fail; **all three CLEAR the camp** (one-shot — a fail permanently loses that
 camp's loot), differing only in loot (success = full, partial = common + half scrap, fail = none) and

@@ -232,7 +232,9 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
   - **Proximity-only gate — NO FOV aim** (deviation from §5). Disarm is a safe, post-combat act, so
     aiming the arm at the camp would be ceremony; the gate is "DISARMABLE camp within range + a trap arm
     mounted." E opens the puzzle (the workshop's "E in zone" pattern). The arm still articulates (idle
-    sway) for feel. No prompt — the camp sits DISARMABLE silently; the E-habit + the overlay teach it.
+    sway) for feel. A bottom-centre **"Press E" prompt** + a **proximity ring** light up in lockstep on
+    that gate, matching the workshop/scrap-pile affordances. *(The grill first chose "no prompt"; that
+    read as confusing in play, so the prompt + ring were added as a follow-up — both off the same gate.)*
   - **Commit model:** opening the overlay is free (Esc backs out, camp stays DISARMABLE); the **first
     Space commits** to the full N-round attempt. This reconciles *no-prompt* + *one-shot* so a habitual
     E never accidentally burns a camp.
