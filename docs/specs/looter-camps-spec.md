@@ -7,8 +7,9 @@
 intent + dependency chain stay in `milestones.md`; the worked decisions live here.
 
 > **Status:** ✅ **Phase 1 built + merged** (PR #55, 2026-06-07) — a complete, playable level-1 camp,
-> tuned across two playtests. ✅ **Phase 2 built** (2026-06-07) — the trap arm + real disarm puzzle,
-> replacing Phase 1's auto-success stub (decided in a 2026-06-07 grill). **Phases 3–4 not started.**
+> tuned across two playtests. ✅ **Phase 2 built + merged** (PR #56, 2026-06-07) — the trap arm + real
+> disarm puzzle, replacing Phase 1's auto-success stub (decided in a 2026-06-07 grill), plus a "Press E"
+> prompt + proximity ring added in playtest. **Phases 3–4 not started.**
 > The design below was resolved in a 2026-06-06 grill session (every section is a decided answer, not a
 > guess). Numbers (HP, damage, ranges, leash, costs) are **build-time tuning** unless called out. See §10
 > for exactly what each phase shipped and the places it deviated from this plan as play demanded.
@@ -220,7 +221,7 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
     `camp-cache` — each validated per-tier in the viewer (`check:assets` green).
   - **Parked as captured ideas** (not built): a speed-based **camera auto-zoom** (out while moving, in
     while settling), and a possible tighter base **turn-radius** for kiting.
-- **Phase 2 — The trap arm + real disarm. ✅ built (2026-06-07).** The trap-arm part (shop/build/mount);
+- **Phase 2 — The trap arm + real disarm. ✅ built + merged (PR #56, 2026-06-07).** The trap-arm part (shop/build/mount);
   the **timing sweet-spot** puzzle; tier → difficulty; **success/partial/fail → loot + rig damage** —
   replacing the Phase-1 auto-success stub. Loot now gated behind a real disarm.
 
