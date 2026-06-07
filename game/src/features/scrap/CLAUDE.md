@@ -9,20 +9,18 @@ What's here:
 
 - **Components:** `collectible` (loose scrap), `scrap-pile`, `digging` (the rummage marker the
   Reclaimer animator reads), `loot-drop`, `cleared-ground`.
-- **Systems:** `collision` (see below), `scrap-collection`, `scrap-pile-system` (the rummage/slump
-  sim — suffixed `-system` to sit beside the like-named `scrap-pile` component), `scrap` (the spawner
-  /scatter), `loot-table`.
+- **Systems:** `scrap-collection`, `scrap-pile-system` (the rummage/slump sim — suffixed `-system` to
+  sit beside the like-named `scrap-pile` component), `scrap` (the spawner /scatter), `loot-table`.
+  (Collision is no longer here — see below.)
 - **Render** (dispatched from `main.ts`, never from `@common/render`): `scrap-stains`,
   `scrap-pile-animator`, `reclaimer-animator`, and the `overlays` adapter (its pile disc/hint
   entries). `loot-overlay` is the loot-popup UI.
 
 Single-owner / placement rules at the point of edit:
 
-- **`collision.ts` is a PROMOTION CANDIDATE, not scrap-owned forever.** It is generic by construction
-  (no scrap semantics) but lives here because scrap is its only consumer today. The day a **second**
-  feature needs it — combat (projectile/enemy hits) is the expected one — **promote it to
-  `@common/sim/collision`**, don't add a second copy. The header comment in `collision.ts` says the
-  same; honour it.
+- **Collision now lives in `@common/sim/collision`** — it was promoted out of scrap when camps became
+  its second consumer (projectile/enemy/ram hits), exactly as its header always said it should be. Both
+  scrap (drive-over collection) and camps call the one shared pair finder; don't re-add a copy here.
 - **The Reclaimer animator lives in scrap** (`reclaimer-animator.ts`) because it reads scrap's
   `Digging` marker; keep that edge pointing at scrap, not at mounting (which would cycle).
 - Cross-feature: scrap depends downhill on `storage` (`mounted-storages`) and `economy` (loot grant)

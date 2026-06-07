@@ -7,7 +7,7 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { Storage } from '@common/components/storage';
 import { Collectible } from '@features/scrap/collectible';
-import type { CollisionPair } from './collision';
+import type { CollisionPair } from '@common/sim/collision';
 import { scrapCollectionSystem } from './scrap-collection';
 
 function rig(world: World): EntityId {

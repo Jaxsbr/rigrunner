@@ -4,7 +4,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Storage } from '@common/components/storage';
 import { Collectible } from '@features/scrap/collectible';
-import type { CollisionPair } from './collision';
+import type { CollisionPair } from '@common/sim/collision';
 import { mountedStorages } from '@features/storage/mounted-storages';
 
 /**

@@ -35,6 +35,13 @@ export const PART_COSTS: readonly PartCost[] = [
   { partId: 'reclaimer-arm', buyCost: 24 },
   { partId: 'reclaimer-bucket', buyCost: 12 },
 
+  // Weapon (looter camps) — the auto-fire gun: Mount + Barrel. Same bootstrap rule as the Reclaimer:
+  // you can't loot your way to the tool that lets you loot, so the pair must be affordable from loose
+  // scrap + pile finds BEFORE your first camp. Together ≈ a Reclaimer (a real save-up); the two-part
+  // split also lets a future barrel be bought separately onto the same mount.
+  { partId: 'weapon-mount', buyCost: 14 },
+  { partId: 'weapon-barrel', buyCost: 16 },
+
   // Chassis sub-parts — built into a chassis-kit on the bench, then hauled out of the workshop to
   // assemble into a new rig. The 1×3 scout set (~30 total) is an early save-up, on a par with an
   // engine; the 3×5 hauler set (~68) is a major goal. Strawman numbers — tune here against feel.

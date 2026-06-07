@@ -1,6 +1,7 @@
 import type { World } from '@core/world';
-import { LootDrop } from '@features/scrap/loot-drop';
+import { LootDrop } from '@common/components/loot-drop';
 import { addToInventory } from '@features/economy/inventory';
+import { getWallet } from '@features/economy/wallet';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 import type { LootFind, LootRarity } from '@features/scrap/loot-table';
 
@@ -78,11 +79,16 @@ export class LootOverlay {
     this.syncPanel();
   }
 
-  /** Grant every queued find to inventory, destroy the drops, and resume — the only way to close. */
+  /** Grant every queued find to inventory + any wallet scrap to the wallet, destroy the drops, resume. */
   private collect(): void {
     if (!this.open) return;
+    const wallet = getWallet(this.world);
     for (const d of this.world.query(LootDrop)) {
-      for (const find of this.world.get(d, LootDrop)!.finds) {
+      const drop = this.world.get(d, LootDrop)!;
+      // Camp loot banks scrap straight to the wallet (a camp isn't a heap to sweep); pile loot leaves
+      // this 0 — its scrap was already scattered for drive-over collection.
+      if (wallet && drop.walletScrap) wallet.scrap += drop.walletScrap;
+      for (const find of drop.finds) {
         const def = partDef(find.itemId);
         if (def) addToInventory(this.world, spawnCatalogPart(this.world, def));
       }
@@ -101,27 +107,27 @@ export class LootOverlay {
    */
   private render(): void {
     let scrap = 0;
+    let walletScrap = 0;
     const rows = new Map<string, FindRow>();
     for (const d of this.world.query(LootDrop)) {
       const drop = this.world.get(d, LootDrop)!;
       scrap += drop.scrap;
+      walletScrap += drop.walletScrap ?? 0;
       for (const find of drop.finds) this.tally(rows, find);
     }
 
     this.listEl.innerHTML = '';
 
-    // The guaranteed scrap haul — always shown. Scrap is collected by driving over the burst, so
-    // this reports the amount unearthed, it is not granted again here.
     const scrapColor = RARITY_COLOR.guaranteed;
-    const scrapCard = document.createElement('div');
-    scrapCard.className = 'loot-card';
-    scrapCard.style.borderLeftColor = scrapColor;
-    scrapCard.innerHTML =
-      `<span class="loot-dot" style="background:${scrapColor}"></span>` +
-      `<span class="loot-name">Scrap unearthed</span>` +
-      `<span class="loot-count">×${scrap}</span>` +
-      `<span class="loot-tier" style="color:${scrapColor}">scattered</span>`;
-    this.listEl.appendChild(scrapCard);
+    // Scattered scrap (a pile's burst) — shown only when there is some; collected by driving over the
+    // burst, so this reports the amount unearthed, it is not granted again here.
+    if (scrap > 0) {
+      this.listEl.appendChild(this.scrapCard(scrapColor, 'Scrap unearthed', scrap, 'scattered'));
+    }
+    // Banked scrap (a camp's payout) — granted straight to the wallet on collect.
+    if (walletScrap > 0) {
+      this.listEl.appendChild(this.scrapCard(scrapColor, 'Scrap banked', walletScrap, 'to wallet'));
+    }
 
     if (rows.size === 0) {
       const none = document.createElement('div');
@@ -145,6 +151,19 @@ export class LootOverlay {
         `<span class="loot-tier" style="color:${color}">${tierLabel}</span>`;
       this.listEl.appendChild(card);
     }
+  }
+
+  /** A scrap summary card (scattered or banked) — same shape as a find row, no part behind it. */
+  private scrapCard(color: string, name: string, count: number, note: string): HTMLElement {
+    const card = document.createElement('div');
+    card.className = 'loot-card';
+    card.style.borderLeftColor = color;
+    card.innerHTML =
+      `<span class="loot-dot" style="background:${color}"></span>` +
+      `<span class="loot-name">${name}</span>` +
+      `<span class="loot-count">×${count}</span>` +
+      `<span class="loot-tier" style="color:${color}">${note}</span>`;
+    return card;
   }
 
   private tally(rows: Map<string, FindRow>, find: LootFind): void {

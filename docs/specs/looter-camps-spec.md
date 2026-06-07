@@ -6,9 +6,11 @@
 **restoration handoff seam** that the world-restoration work (M4) later subscribes to. The high-level
 intent + dependency chain stay in `milestones.md`; the worked decisions live here.
 
-> **Status:** ✏️ **Specced, not started.** The design below was resolved in a 2026-06-06 grill session
-> (every section is a decided answer, not a guess). Promote settled mechanics into `CLAUDE.md` once
-> they ship. Numbers (HP, damage, ranges, leash, costs) are **build-time tuning** unless called out.
+> **Status:** ✅ **Phase 1 built + merged** (PR #55, 2026-06-07) — a complete, playable level-1 camp,
+> tuned across two playtests. **Phases 2–4 not started.** The design below was resolved in a 2026-06-06
+> grill session (every section is a decided answer, not a guess). Numbers (HP, damage, ranges, leash,
+> costs) are **build-time tuning** unless called out. See §10 for exactly what Phase 1 shipped and the
+> handful of places it deviated from this plan as play demanded.
 
 ---
 
@@ -181,12 +183,42 @@ save-up goal.
 
 Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; later phases deepen it.
 
-- **Phase 1 — A thin whole camp, end to end.** `Health` + HUD bar; purchasable **auto-fire weapon** +
-  ram; **`Projectile`** both ways (promote `collision`); two enemies with the detect → engage → pursue
-  → retreat AI; dodge; **HP=0 → reset**; `Camp` + state machine driven by `CAMP_LEVELS[1]`; **all
-  enemies cleared → loot screen → inventory** (`CAMP_LOOT`); **disarm STUBBED to auto-success** (no
-  trap arm yet); minimal camp stains + a `RestorableSite` stub on clear. A full, rewarding, playable
-  camp.
+- **Phase 1 — A thin whole camp, end to end. ✅ built + merged (PR #55, 2026-06-07).** `Health` + HUD
+  bar; purchasable **auto-fire weapon** + ram; **`Projectile`** both ways (promote `collision`); two
+  enemies with the detect → engage → pursue → retreat AI; dodge; **HP=0 → reset**; `Camp` + state
+  machine driven by `CAMP_LEVELS[1]`; **all enemies cleared → loot screen → inventory** (`CAMP_LOOT`);
+  **disarm STUBBED to auto-success** (no trap arm yet); minimal camp stains + a `RestorableSite` stub on
+  clear. A full, rewarding, playable camp. Built as `features/camps/` (its own slice CLAUDE.md).
+
+  **What shipped beyond / differently from the plan above** (decided during the build + two playtests —
+  all build-time-tuning calls, none changing the design intent):
+  - **`features/camps/` slice + kernel promotions (Rule of Three).** `collision` → `@common/sim/collision`,
+    `facingWithinFov` → `@common/sim/fov`, the loot roller → `@common/sim/loot`, `SUB_PART_POOL` →
+    `@common/parts`, `LootDrop` → `@common/components`. And **`Health` lives in `@common/components`**
+    (not in-feature as §2.1 tentatively said): it's a rig-level aggregated stat with two consumers from
+    day one (rig assembly sets it via `@common/sim/health` `rigMaxHealth`, combat spends it), like `Weight`.
+  - **Death/reset is a page reload** that re-runs the boot seed (+ `R` for dev). §2.1's "an `R` reset
+    already exists" was wrong, so it was built here.
+  - **The weapon is a two-part product — `Mount` + `Barrel`** (the Reclaimer's arm+head grammar), not a
+    single part: buying one sub-part to "assemble" a weapon read as pointless. Sets up barrel variety
+    later. The barrel swivels on the Mount's `socket_barrel` node.
+  - **Enemies are ranged kiters,** not chargers: they hold a `standoff` inside `fireRange` (< `detection`)
+    and back off rather than ram — being overrun is the RIG's job (drive in). (First cut had them suicide
+    into the rig; fixed in playtest #2.)
+  - **Four camps, one per corner of the map** (not the single camp the plan implied) — this is the
+    "multi-camp world placement" §11 deferred, brought forward as fixed placements (the *scaling-enemy*
+    system stays deferred).
+  - **Rig-pace + tier tuning (vs the Machine Mind reference).** The starting rusty rig couldn't out-pace
+    the guards, so engine base pace was raised (electric 11/7 → 15/10, steam 7/16 → 10/22) and iron's
+    tier **mult eased 2.2 → 1.8** so the lift didn't balloon iron (a `part-identity-spec` change, noted
+    there). Combat numbers settled at: weapon 10 dmg @ **1.0 s**, proj 30 u/s, range 18, cone 50°; enemy
+    6 dmg @ **3.0 s**, proj 24 u/s, detection 16 / fireRange 13 / standoff 10 / leash 28; workshop repair
+    20 HP/s; `CAMP_LOOT` = 15–30 wallet scrap + 2–4 sub-parts. The finding + reference comparison are
+    written up in `observations.md` #14.
+  - **All assets authored** (no placeholders): `weapon-mount`, `weapon-barrel`, `enemy`, `tent`,
+    `camp-cache` — each validated per-tier in the viewer (`check:assets` green).
+  - **Parked as captured ideas** (not built): a speed-based **camera auto-zoom** (out while moving, in
+    while settling), and a possible tighter base **turn-radius** for kiting.
 - **Phase 2 — The trap arm + real disarm.** The trap-arm part (shop/build/mount); the **timing
   sweet-spot** puzzle; tier → difficulty; **success/partial/fail → loot + rig damage** — replacing the
   Phase-1 auto-success stub. Loot now gated behind a real disarm.
@@ -201,15 +233,18 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
 
 Vehicle/advanced enemy AI; enemy respawn; true line-of-sight occlusion; armour/shield parts (the
 HP seam exists, unbuilt); scrap-cost repair; ram self-damage; the **restoration investment** itself
-(only the site marker is emitted); the rare full-part / recipe loot tiers (stubs); multi-camp world
-placement + the scaling-enemy system; a softer death model (placeholder full-reset for now).
+(only the site marker is emitted); the rare full-part / recipe loot tiers (stubs); the **scaling-enemy
+system**; a softer death model (placeholder full-reset for now). *(Phase 1 did place **four fixed
+level-1 camps**, one per corner — basic multi-camp placement; the procedural/scaling side stays out.)*
 
 ## 12. Open / tuning (decided at build time)
 
-- All numbers: rig + enemy HP, weapon/enemy damage + fire rate, projectile speed, detection radius,
-  **leash distance**, weapon + trap-arm **costs**, disarm round-count/zone-width per tier, partial-hit
-  **damage chance**, stain size + fade rate.
-- Whether the camp grants **scrap to the Wallet** as a loot tier, and how much.
+**Phase 1 resolved** (the live values are in §10's "what shipped" note + `features/camps/`): rig + enemy
+HP, weapon/enemy damage + fire rate, projectile speeds, detection/fireRange/standoff/leash, weapon
+costs, stain size/fade. The camp **does** grant wallet scrap (15–30) plus sub-parts. Workshop **HP
+restore is over-time** (20 HP/s while parked). Still open (Phase 2+):
+
+- Trap-arm **costs**, disarm round-count/zone-width per tier, partial-hit **damage chance**.
 - Trap-arm **construction:** mirror the Reclaimer as a **composed** product (arm + disarm head) or a
-  single part — and, if composed, which sub-part carries the tier.
-- Exact **HP restore** shape at the workshop (over-time vs instant-on-park).
+  single part — and, if composed, which sub-part carries the tier. *(Phase 1's weapon went composed —
+  Mount + Barrel — so the trap arm has a precedent to follow.)*

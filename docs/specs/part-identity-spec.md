@@ -135,7 +135,12 @@ The architecture already leans our way; the changes are small and mostly additiv
 - `PARTS_CATALOG` keeps **one `PartDef` per slot×type**, whose `attributes` are the **base (tier-1)**
   values.
 - A new `TIERS` table is the only place tiers are defined — ordered rows of
-  `{ id, name, mult, finishColor }` (start with **two**: `rusty` mult 1, `iron` mult ≈ 2.2 — steep).
+  `{ id, name, mult, finishColor }` (start with **two**: `rusty` mult 1, `iron` mult **1.8**).
+  > **Eased 2026-06-07 (looter-camps playtest):** iron's mult was **2.2 → 1.8**. At 2.2 the starting
+  > rusty rig sat so far below iron it couldn't out-pace the camp guards (4 u/s), and lifting the engine
+  > base pace to fix that would have ballooned iron (iron = base × mult). Easing the mult narrows the
+  > rusty→iron gap so the floor is playable while iron stays the clear upgrade. The "steep curve"
+  > language elsewhere in this spec (§2c, §3) predates this and is now "a clear step up", not brutal.
 - The part **instance** vessel (`common/parts/engine-part.ts`, today `{ id }`) gains
   `{ id, tier, special? }`. Tier multiplies the base attributes at resolve time; special applies its
   own multiplier. (Built: it carries `{ id, tier }`; gold's `special` is Phase 4.)

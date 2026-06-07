@@ -145,7 +145,10 @@ export function placeProductInWorld(world: World, product: EntityId, x: number, 
         ...(spec.headTint !== undefined ? { headTint: spec.headTint } : {}),
       });
   world.add(product, Collider, { radius: 0.5 });
-  if (part.kind === 'engine' || part.kind === 'reclaimer') {
+  if (part.kind === 'engine' || part.kind === 'reclaimer' || part.kind === 'weapon') {
+    // A weapon is directional like the Reclaimer: its outward facing IS its fire cone, so where you
+    // mount it (front/side/rear) decides what it can shoot — a front gun forces you to face the enemy,
+    // a rear gun lets you flee and shoot.
     world.add(product, MountFacing, { kind: 'specific', rule: 'outward' });
   }
   removeFromInventory(world, product);

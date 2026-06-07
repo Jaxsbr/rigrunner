@@ -25,7 +25,7 @@ import { MountGrid } from '@common/components/mount-grid';
 import { MountFacing } from '@common/components/mount-facing';
 import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { movementSystem } from '@features/drive/movement';
-import { collisionSystem } from '@features/scrap/collision';
+import { collisionSystem } from '@common/sim/collision';
 import { scrapCollectionSystem } from '@features/scrap/scrap-collection';
 import { scrapPileSystem, scrapRummageSystem } from '@features/scrap/scrap-pile-system';
 import { workshopZoneSystem } from '@features/workshop/workshop-zone-system';
@@ -54,6 +54,17 @@ import { WalletHud } from '@features/economy/wallet-hud';
 import { WorkshopOverlay } from '@features/workshop/workshop-overlay';
 import { LootOverlay } from '@features/scrap/loot-overlay';
 import { ScrapPrompt } from '@features/scrap/scrap-prompt';
+import { Health } from '@common/components/health';
+import { spawnCamp } from '@features/camps/camp-spawn';
+import { weaponFireSystem } from '@features/camps/weapon-fire-system';
+import { enemyAiSystem } from '@features/camps/enemy-ai-system';
+import { projectileMoveSystem } from '@features/camps/projectile-system';
+import { combatSystem } from '@features/camps/combat-system';
+import { campSystem } from '@features/camps/camp-system';
+import { repairSystem } from '@features/camps/repair-system';
+import { CampStains } from '@features/camps/camp-stains';
+import { animateWeapons } from '@features/camps/weapon-animator';
+import { HealthHud } from '@features/hud/health-hud';
 
 /**
  * Composition root. The ONLY place that knows about all three tiers and every feature at once: it
@@ -121,6 +132,14 @@ spawnWorkshop(world, 0, 8);
 for (const [x, z] of [[-10, 2], [13, 6], [-15, -11], [9, -15], [17, -3], [-4, -16]] as const) {
   spawnScrapPile(world, x, z);
 }
+// A level-1 looter camp in each corner of the 80×80 map (inset to ±30 so the camp + its guard ring
+// sit clearly on the ground). Each is a deliberate drive-to out past the scrap field: by the time you
+// reach one you've gathered enough scrap to buy the weapon (the bootstrap rule — you can't loot your
+// way to the tool that lets you loot). Clear a camp's two guards to claim its cache; a too-weak rig is
+// taught to go back to the bay and build.
+for (const [cx, cz] of [[30, 30], [30, -30], [-30, 30], [-30, -30]] as const) {
+  spawnCamp(world, cx, cz, 1);
+}
 // The Reclaimer is no longer a staged prop (Option C / PR3): it's now a real buildable, mountable,
 // purchasable part. Buy the Arm + Bucket in the Parts Shop, assemble them on the bench (the
 // Reclaimer recipe), stage the product on the workshop deck, then grab it off the deck and mount it
@@ -183,6 +202,7 @@ const build = createBuildController(
 const stats = new StatsHud(document.querySelector<HTMLElement>('#stats')!);
 const chassisBar = new ChassisBar(document.querySelector<HTMLElement>('#chassis-bar')!, world);
 const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!);
+const healthHud = new HealthHud(document.querySelector<HTMLElement>('#health-bar')!);
 
 // Feature render dispatched from the composition root (ADR-003 §4): the proximity discs, the "Press
 // E"/"Hold E" hints, and the seepage stains are constructed against the view's scene here, so the
@@ -190,6 +210,7 @@ const walletHud = new WalletHud(document.querySelector<HTMLElement>('#wallet')!)
 // functions called below against `view.entityViews`.
 const zones = new ZoneOverlays(view.scene);
 const stains = new ScrapStains(view.scene);
+const campStains = new CampStains(view.scene);
 
 // Two overlays can each freeze the simulation: the workshop interface and the loot popup. Main owns
 // one `paused` flag that is the OR of both, so whichever is up holds the sim still and resuming needs
@@ -236,6 +257,22 @@ function anyZoneActive(): boolean {
   return false;
 }
 
+// The run reset — the placeholder death stake (spec §2.1, flagged to revisit). On HP=0 (or the dev R
+// key) a brief curtain shows, then a page reload re-runs this module from the top = the exact boot
+// seed: a fresh rig, wallet, inventory and a re-armed camp. Reloading IS the cheapest, most honest
+// "re-run the seed" given the seed runs at module load. `dying` freezes input + sim during the curtain.
+const deathOverlay = document.querySelector<HTMLElement>('#death-overlay')!;
+let dying = false;
+function triggerReset(): void {
+  if (dying) return;
+  dying = true;
+  deathOverlay.classList.remove('hidden');
+  window.setTimeout(() => window.location.reload(), 1000);
+}
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') triggerReset();
+});
+
 let last = performance.now();
 let prevActiveRig: EntityId | null = null; // last frame's active rig — a change drives the camera pan
 let prevWork = false; // E held last frame — the rising edge is the single-press pack-up trigger
@@ -253,7 +290,7 @@ function frame(now: number): void {
   // released key survives the pause to lurch the rig on resume.
   const ctl = world.get(activeRig, DriveControl)!;
   let work = false; // E held this frame (only while the sim runs) — the hold-to-work rummage intent
-  if (paused) {
+  if (paused || dying) {
     ctl.throttle = 0;
     ctl.steer = 0;
   } else {
@@ -271,7 +308,7 @@ function frame(now: number): void {
   // then let the build interaction move a carried part / settle drops. The whole block is gated by
   // `paused` — opening the overlay freezes movement, mounting-ride, the proximity gate, the build
   // interaction, collection and drain together; the scene keeps rendering frozen below.
-  if (!paused) {
+  if (!paused && !dying) {
     movementSystem(world, dt);
     mountingSystem(world);
     // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
@@ -297,13 +334,32 @@ function frame(now: number): void {
     scrapPileSystem(world, activeRig);
     scrapRummageSystem(world, activeRig, work, dt);
 
-    // collision → collection: with parts now placed at their cells, find overlaps and let any
-    // scrap the rig (or a part on it) touched be swept into storage. Pure pair list in, mutations
-    // out.
-    scrapCollectionSystem(world, collisionSystem(world));
+    // camps combat: enemies act, the rig's weapon fires, then all shots travel — all BEFORE the one
+    // collision pass below, so this frame's positions are what hits resolve against.
+    enemyAiSystem(world, activeRig, dt);
+    weaponFireSystem(world, activeRig, dt);
+    projectileMoveSystem(world, dt);
+
+    // ONE collision pass feeds both consumers (the promoted @common/sim/collision): scrap collection
+    // (drive-over sweep into storage) and combat (projectile hits + ram). Pure pair list in, each
+    // consumer decides what a pair means.
+    const pairs = collisionSystem(world);
+    scrapCollectionSystem(world, pairs);
+    combatSystem(world, activeRig, pairs);
+
+    // camps: advance each camp's state machine — all guards down → (auto-disarm stub) → cleared, which
+    // queues the loot drop + emits the restorable site.
+    campSystem(world);
+
+    // free repair while parked in a workshop zone (home base = safety + repair).
+    repairSystem(world, activeRig, anyZoneActive(), dt);
 
     // workshop drain: bank scrap out of containers parked on a workshop into the player's wallet.
     workshopDrainSystem(world, dt);
+
+    // death: HP gone → reset the run. Checked after repair, so a heal that out-paces the last hit saves you.
+    const hp = world.get(activeRig, Health);
+    if (hp && hp.current <= 0) triggerReset();
   }
 
   // the tab tracks zone proximity each frame (the overlay hides it while open, so reading the
@@ -339,12 +395,15 @@ function frame(now: number): void {
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);
-  if (!paused) {
+  // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
+  campStains.sync(world, dt);
+  if (!paused && !dying) {
     animateWheels(view.entityViews, world, dt);
     animateChassisDeploy(view.entityViews, world, dt);
     animateStorageFill(view.entityViews, world, dt);
     animateReclaimer(view.entityViews, world, dt);
     animateScrapPile(view.entityViews, world, dt);
+    animateWeapons(view.entityViews, world, dt);
   }
   view.render();
 
@@ -353,6 +412,7 @@ function frame(now: number): void {
   stats.update(world, activeRig);
   chassisBar.update();
   walletHud.update(world);
+  healthHud.update(world, activeRig);
   // the cap-refusal toast ticks its dismiss countdown on real (clamped) time — always, so it fades on
   // schedule even if the player opens the workshop right after triggering it.
   capToast.update(dt);

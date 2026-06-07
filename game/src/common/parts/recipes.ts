@@ -104,6 +104,22 @@ export const RECLAIMER_RECIPE: Recipe = {
 };
 
 /**
+ * The weapon recipe (looter camps) — a Mount + Barrel stamping a `weapon`-kind product, the same arm +
+ * head grammar as the Reclaimer. Untyped (no electric/steam), so it never engages the no-hybrid rule;
+ * built/mounted through the same bench → stage → mount path. Two parts make the bench step meaningful
+ * (and set up barrel variety later: same Mount, different Barrel = a different weapon).
+ */
+export const WEAPON_RECIPE: Recipe = {
+  id: 'weapon',
+  output: 'Weapon',
+  productKind: 'weapon',
+  slots: [
+    { slot: 'gun-mount', label: 'Mount' },
+    { slot: 'gun-barrel', label: 'Barrel' },
+  ],
+};
+
+/**
  * The two chassis recipes — same three-slot grammar, differing only in the size-fixed structure they
  * stamp (deck dimensions + engine envelope). The 1×3 is the light scout (1–2 engines); the 3×5 the
  * hauler (3–6). `chassisParts(size)` (in `@features/chassis`) supplies the size-matched sub-parts.
@@ -152,6 +168,7 @@ export const RECIPES: readonly Recipe[] = [
   STEAM_ENGINE_RECIPE,
   STORAGE_RECIPE,
   RECLAIMER_RECIPE,
+  WEAPON_RECIPE,
   CHASSIS_1X3_RECIPE,
   CHASSIS_3X5_RECIPE,
 ];

@@ -22,9 +22,12 @@
  * is applied at resolve time. Adding a tier is one data row here, nothing else — and the asset viewer's
  * tier pickers read this list, so they gain a row automatically (no hard-coded rusty/iron).
  *
- * The ladder is deliberately STEEP (§2c): iron is worth ~2.2× a rusty part, so one high-tier part
- * outweighs several low ones. The numbers are strawmen, tuned against feel — start with two tiers and
- * add `alloy`/`elementium`/… as pure rows when play asks (§6).
+ * The ladder is a clear step up but no longer brutally steep: iron is worth ~1.8× a rusty part. It was
+ * eased from the original 2.2× in the 2026-06-07 playtest pass — at 2.2 the starting rusty rig was so
+ * far below iron that it couldn't out-pace the looter-camp guards, and lifting the engine base pace to
+ * fix that would have ballooned iron (iron = base × mult). Easing the mult narrows the rusty→iron gap
+ * so the floor is playable while iron stays the clear upgrade. The numbers are strawmen, tuned against
+ * feel — start with two tiers and add `alloy`/`elementium`/… as pure rows when play asks (§6).
  */
 export type TierId = 'rusty' | 'iron';
 
@@ -42,7 +45,7 @@ export interface Tier {
 /** The tiers, low → high. Order is the ladder; index 0 is the base (tier-1) every part defaults to. */
 export const TIERS: readonly Tier[] = [
   { id: 'rusty', name: 'Rusty', mult: 1, finishColor: 0x8a4b2f }, // rust — weathered, decayed metal
-  { id: 'iron', name: 'Iron', mult: 2.2, finishColor: 0x9aa7b0 }, // iron-grey — cleaner forged steel
+  { id: 'iron', name: 'Iron', mult: 1.8, finishColor: 0x9aa7b0 }, // iron-grey — cleaner forged steel (eased from 2.2)
 ];
 
 /** The tier every freshly-spawned part starts at (the base of the ladder). */
@@ -68,13 +71,16 @@ export type StoragePartSlot = 'shell' | 'rim';
 export type ReclaimerPartSlot = 'arm' | 'head';
 /** A chassis part role — wheel/axle (top speed), suspension/steering (turning), frame (load). */
 export type ChassisPartSlot = 'wheel-axle' | 'suspension-steering' | 'frame';
+/** A weapon part role — a base `gun-mount` (the directional turret) plus the `gun-barrel` that seats on
+ *  it. Two parts compose the weapon, like the Reclaimer's arm + head; swapping barrels = other weapons. */
+export type WeaponPartSlot = 'gun-mount' | 'gun-barrel';
 /** Any part role, across all recipes — the role a bench slot matches a part against. */
-export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot;
+export type PartSlot = EnginePartSlot | StoragePartSlot | ReclaimerPartSlot | ChassisPartSlot | WeaponPartSlot;
 /** An engine's energy type — the electric/steam fork that drives type-lock, feel, and visuals. */
 export type EnergyType = 'electric' | 'steam';
 /** What a part is for — groups the catalog and drives the chip/portrait tint when there's no energy
- *  type (storage, reclaimer and chassis parts aren't electric/steam). */
-export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis';
+ *  type (storage, reclaimer, chassis and weapon parts aren't electric/steam). */
+export type PartCategory = 'engine' | 'storage' | 'reclaimer' | 'chassis' | 'weapon';
 
 /**
  * One sub-part's identity — everything descriptive and SHARED across every instance of it, minus the
@@ -138,6 +144,12 @@ export const PART_IDENTITIES: readonly PartIdentity[] = [
   { id: 'wheel-axle-3x5', slot: 'wheel-axle', category: 'chassis', chassisSize: '3x5', displayName: 'Wheel & Axle Set', assetId: 'wheel-axle' },
   { id: 'suspension-steering-3x5', slot: 'suspension-steering', category: 'chassis', chassisSize: '3x5', displayName: 'Suspension & Steering Set', assetId: 'suspension-steering' },
   { id: 'frame-3x5', slot: 'frame', category: 'chassis', chassisSize: '3x5', displayName: 'Chassis Frame', assetId: 'frame-3x5' },
+
+  // 🔫 Weapon — the auto-fire gun (looter camps), composed from a Mount (the directional turret HOST,
+  // carrying a `socket_barrel` empty the render layer swivels) + a Barrel that seats on it. Two parts
+  // like the Reclaimer (arm + head); a future barrel is the same Mount, a different gun.
+  { id: 'weapon-mount', slot: 'gun-mount', category: 'weapon', displayName: 'Mount', assetId: 'weapon-mount' },
+  { id: 'weapon-barrel', slot: 'gun-barrel', category: 'weapon', displayName: 'Barrel', assetId: 'weapon-barrel' },
 ];
 
 /** Resolve a sub-part id to its identity record, or `undefined` if the id isn't known. */
@@ -170,6 +182,7 @@ export const PRODUCT_GROUPS: readonly ProductGroup[] = [
   { id: 'reclaimer', label: 'Reclaimer', emoji: '🦾', subPartIds: ['reclaimer-arm', 'reclaimer-bucket'] },
   { id: 'chassis-1x3', label: 'Chassis (1×3)', emoji: '🛞', subPartIds: ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3'] },
   { id: 'chassis-3x5', label: 'Chassis (3×5)', emoji: '🛞', subPartIds: ['wheel-axle-3x5', 'suspension-steering-3x5', 'frame-3x5'] },
+  { id: 'weapon', label: 'Weapon', emoji: '🔫', subPartIds: ['weapon-mount', 'weapon-barrel'] },
 ];
 
 /** Resolve a product group id to its definition, or `undefined` if it isn't known. */
@@ -234,6 +247,12 @@ export const PRODUCT_COMPOSITION: Readonly<Record<string, ProductComposition>> =
   'chassis-3x5': {
     host: 'frame-3x5',
     children: { 'wheel-axle-3x5': 'socket_axle', 'suspension-steering-3x5': 'socket_susp' },
+  },
+  // The weapon — the Mount is the host (its GLB carries `socket_barrel` at the turret pivot); the Barrel
+  // seats there. The render layer swivels the `socket_barrel` node so the barrel tracks its target.
+  weapon: {
+    host: 'weapon-mount',
+    children: { 'weapon-barrel': 'socket_barrel' },
   },
 };
 
