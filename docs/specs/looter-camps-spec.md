@@ -9,7 +9,10 @@ intent + dependency chain stay in `milestones.md`; the worked decisions live her
 > **Status:** ✅ **Phase 1 built + merged** (PR #55, 2026-06-07) — a complete, playable level-1 camp,
 > tuned across two playtests. ✅ **Phase 2 built + merged** (PR #56, 2026-06-07) — the trap arm + real
 > disarm puzzle, replacing Phase 1's auto-success stub (decided in a 2026-06-07 grill), plus a "Press E"
-> prompt + proximity ring added in playtest. **Phases 3–4 not started.**
+> prompt + proximity ring added in playtest. ✅ **Phase 3 built + merged** (PR #57, 2026-06-07) — the
+> environmental mess (a contamination that bleeds past the camp) + scattered debris, and the on-clear teardown
+> (structures sink, a sprouting cut stump rises) that resolves the world-reacts beat + the restoration handoff
+> (decided in a 2026-06-07 grill, tuned across two playtests). **Phase 4 (more levels) not started.**
 > The design below was resolved in a 2026-06-06 grill session (every section is a decided answer, not a
 > guess). Numbers (HP, damage, ranges, leash, costs) are **build-time tuning** unless called out. See §10
 > for exactly what each phase shipped and the places it deviated from this plan as play demanded.
@@ -252,8 +255,41 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
     a shop save-up (trap parts aren't in the lootable `SUB_PART_POOL`); the head is the dearer upgrade.
   - **Reuse:** loot still flows through the shared `LootDrop` + loot overlay (disarm → spoils popup);
     the grade + damage are surfaced via the existing HUD toast.
-- **Phase 3 — Environmental mess + restoration polish.** Large camp stains + damage that **fade** on
-  clear/disarm; the **visible stump/soil prop** on the `RestorableSite`. The world-reacts beat.
+- **Phase 3 — Environmental mess + restoration polish. ✅ built + merged (PR #57, 2026-06-07).** Large camp
+  stains + damage that **fade** on clear/disarm; the **visible prop** on the `RestorableSite`. The world-reacts beat.
+
+  **What shipped / decided at build time** (a 2026-06-07 grill resolved every §12 Phase-3 item; all
+  build-time-tuning calls, none changing the design intent):
+  - **The standing-camp mess is layered, not one disc.** `camp-stains` became a cluster of varied blotches —
+    oily seepage + burnt **scorch** — scattered at camp scale (a richer local copy of scrap's organic blob
+    drawer; duplicated, not promoted — Rule of Three). Plus **scattered debris props** (decided to go beyond
+    decals): three authored GLBs — `debris-crate`, `debris-heap`, `camp-firepit` — placed ~5 per camp by
+    `camp-spawn` with random yaw + slight scale.
+  - **On clear the whole camp DISSOLVES (the world-reacts beat).** Over ~9 s (`TEARDOWN_DURATION`, co-timed
+    with the stain fade) the stains fade, the **structures + debris sink and shrink into the ground**, and a
+    **`camp-sprout` rises out of the soil** in their place — the lasting `RestorableSite` marker. **Decided
+    beyond the literal spec:** the man-made structures *fade* (sink) rather than linger as ruins, so the land
+    returns toward nature — the cleanest setup for the M4 restoration (green returns).
+  - **The marker shipped as a sprouting STUMP, not a dead "stump/soil" prop (playtest, 2026-06-07, two
+    iterations).** §8's planned dead "stump/soil" prop first read as an unidentifiable dark hat with a black
+    hole, then as a seedling in a black disc. It settled on a **thick, low cut stump** (a sawn-off rust trunk
+    with a pale bone_white cut face) with **a thin branch sprouting from it, tipped with green leaves** — the
+    `camp-sprout` asset. No soil disc (it read as a "weird black circle"); the stump sits on the ground and
+    the camp's stains carry the disturbed-earth context. Reads instantly from the top-down camera, and the
+    green growth sells "life can return here" — the restoration hook.
+  - **The stains are a dense contamination that BLEEDS PAST the camp (playtest, 2026-06-07, two iterations).**
+    The first cut read too faint; the second read strong but stayed boxed in between the buildings. `camp-stains`
+    is now a layered MIX at varied reach — dark **oil pools** (with a wet sheen) + charred **scorch** pooling
+    tight at the core, **rust-discoloured** patches spreading wider, and large faint patches reaching well
+    beyond the structures (~14 m vs the camp's ~5 m footprint) and tapering into the ground.
+  - **Architecture: sim-clocked, view-posed.** `Camp` gained a `tornDown` clock that `camp-system` advances
+    once `CLEARED`; it despawns the TRANSIENT decor (a new `CampDecor` link) when the dissolve completes, but
+    spares the sprout (the one `CampDecor` that is also a `RestorableSite`). A `camp-teardown-animator` reads
+    `tornDown` to sink/rise the meshes — render reads state, never mutates it. The camp entity persists (the
+    stains + sprout read off it).
+  - **All level 1, hardcoded** — the mess/debris/sprout are fixed visuals in the spawner/render, NOT new
+    `CAMP_LEVELS` fields (Phase 4 designs each level's distinct look). All 4 props authored as real GLBs
+    (no placeholders), each viewer-validated as a real model.
 - **Phase 4 — More levels.** Author level 2+ as **data rows**, each visually distinct; (future) wire
   the **scaling-enemy** difficulty hook to the same `level`.
 
@@ -278,4 +314,12 @@ restore is over-time** (20 HP/s while parked).
 trap-arm **construction** (composed `trap-boom` + tier-bearing `disarm-head`), **costs** (16 + 20),
 per-tier **round-count/zone-width** (rusty 3×16% / iron 1×34%), partial **damage chance** (15 @ 50%) +
 fail damage (30), the gate (proximity-only, no FOV aim), the commit model, and the loot gating (partial
-= common + halved scrap). Still open (Phase 3+): camp stains/restoration polish, more camp levels.
+= common + halved scrap).
+
+**Phase 3 resolved** (live values in §10's Phase-3 "what shipped" note + `features/camps/`): the layered
+stain mess (oily + scorch blotches) + the debris set (`debris-crate`/`debris-heap`/`camp-firepit`, ~5 per
+camp); the on-clear teardown (structures sink + shrink, sprout rises) over `TEARDOWN_DURATION` (~9 s); the
+decision that structures *fade* rather than linger; the marker shipped as a green **sprout** (not a dead
+stump) + the **dense oil/scorch/rust** stain mix (both playtest readability calls); all hardcoded for level
+1. Still open (Phase 4+): more camp levels (each visually distinct + the scaling-enemy hook); the
+**restoration investment** that consumes the `RestorableSite` + its sprout.

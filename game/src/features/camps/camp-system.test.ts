@@ -2,23 +2,34 @@ import { describe, it, expect } from 'vitest';
 import { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
+import { Renderable } from '@common/components/renderable';
 import { LootDrop } from '@common/components/loot-drop';
 import { Health } from '@common/components/health';
 import { Camp, type CampState } from './camp';
+import { CampDecor } from './camp-decor';
 import { Enemy } from './enemy';
 import { RestorableSite } from './restorable-site';
-import { campSystem, resolveDisarm } from './camp-system';
+import { campSystem, resolveDisarm, TEARDOWN_DURATION } from './camp-system';
 
 function camp(world: World, state: CampState = 'guarded'): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x: 0, z: -50, rotationY: 0 });
-  world.add(e, Camp, { level: 1, state });
+  world.add(e, Camp, { level: 1, state, tornDown: 0 });
   return e;
 }
 
 function guard(world: World, campId: EntityId): EntityId {
   const e = world.createEntity();
   world.add(e, Enemy, { camp: campId });
+  return e;
+}
+
+/** A transient structure/debris piece of a camp's silhouette (e.g. the tent) — sinks + despawns on clear. */
+function decor(world: World, campId: EntityId): EntityId {
+  const e = world.createEntity();
+  world.add(e, Transform, { x: 0, z: -50, rotationY: 0 });
+  world.add(e, Renderable, { shape: 'model', assetId: 'tent' });
+  world.add(e, CampDecor, { camp: campId });
   return e;
 }
 
@@ -35,7 +46,7 @@ describe('campSystem (the GUARDED → DISARMABLE half)', () => {
     const world = new World();
     const c = camp(world);
     guard(world, c);
-    campSystem(world);
+    campSystem(world, 1 / 60);
     expect(world.get(c, Camp)!.state).toBe('guarded');
   });
 
@@ -45,7 +56,7 @@ describe('campSystem (the GUARDED → DISARMABLE half)', () => {
     const g = guard(world, c);
     world.destroyEntity(g); // last guard cleared
 
-    campSystem(world);
+    campSystem(world, 1 / 60);
 
     expect(world.get(c, Camp)!.state).toBe('disarmable');
     expect(world.query(LootDrop)).toHaveLength(0); // loot is gated behind a real disarm now
@@ -73,7 +84,12 @@ describe('resolveDisarm (the DISARMABLE → CLEARED half)', () => {
 
     const sites = world.query(RestorableSite);
     expect(sites).toHaveLength(1);
-    expect(world.get(sites[0]!, RestorableSite)!).toMatchObject({ kind: 'camp', sourceLevel: 1 });
+    const site = sites[0]!;
+    expect(world.get(site, RestorableSite)!).toMatchObject({ kind: 'camp', sourceLevel: 1 });
+    // The site is now VISIBLE: a sprout prop, linked to the camp so it rides the teardown clock.
+    expect(world.has(site, Transform)).toBe(true);
+    expect(world.get(site, Renderable)!).toMatchObject({ shape: 'model', assetId: 'camp-sprout' });
+    expect(world.get(site, CampDecor)!.camp).toBe(c);
   });
 
   it('partial: clears with a HALVED scrap chunk + damage (rng 0 → the trap nicks you)', () => {
@@ -118,5 +134,45 @@ describe('resolveDisarm (the DISARMABLE → CLEARED half)', () => {
     expect(world.query(LootDrop)).toHaveLength(0);
     expect(world.query(RestorableSite)).toHaveLength(0);
     expect(world.get(r, Health)!.current).toBe(100);
+  });
+});
+
+describe('campSystem teardown (CLEARED → the camp dissolves)', () => {
+  it('advances tornDown on a cleared camp, then despawns the transient decor while sparing the sprout + camp', () => {
+    const world = new World();
+    const c = camp(world, 'disarmable');
+    const r = rig(world);
+    const tent = decor(world, c); // a transient structure
+    resolveDisarm(world, c, r, 'success', zero); // clears the camp + emits the sprout (CampDecor + RestorableSite)
+
+    expect(world.get(c, Camp)!.tornDown).toBe(0); // resolveDisarm clears; campSystem runs the clock
+
+    // Half the teardown: the clock advances, nothing has despawned yet.
+    campSystem(world, TEARDOWN_DURATION / 2);
+    expect(world.get(c, Camp)!.tornDown).toBeCloseTo(0.5);
+    expect(world.isAlive(tent)).toBe(true);
+
+    // Finish (and overshoot) it: tornDown clamps at 1, the tent is swallowed, the camp + sprout persist.
+    campSystem(world, TEARDOWN_DURATION);
+    expect(world.get(c, Camp)!.tornDown).toBe(1);
+    expect(world.isAlive(tent)).toBe(false); // transient decor gone
+    expect(world.isAlive(c)).toBe(true); // the camp entity persists (stains + sprout read off it)
+
+    const sites = world.query(RestorableSite);
+    expect(sites).toHaveLength(1);
+    expect(world.isAlive(sites[0]!)).toBe(true); // the sprout is spared despawnDecor
+    expect(world.has(sites[0]!, CampDecor)).toBe(true);
+  });
+
+  it('runs no teardown for a camp that has not been cleared', () => {
+    const world = new World();
+    const c = camp(world); // guarded, no guards → becomes disarmable, never cleared
+    const tent = decor(world, c);
+
+    campSystem(world, TEARDOWN_DURATION);
+
+    expect(world.get(c, Camp)!.state).toBe('disarmable');
+    expect(world.get(c, Camp)!.tornDown).toBe(0);
+    expect(world.isAlive(tent)).toBe(true);
   });
 });

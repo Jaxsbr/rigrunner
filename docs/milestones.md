@@ -410,9 +410,16 @@ upgrade/swap loop). Pairs with the workshop-UX pass (`observations.md` #10) and 
 
 ---
 
-## Option D — Looter Camps: enemies around a structure · `pending`
+## Option D — Looter Camps: enemies around a structure · `built (Phases 1–3) · Phase 4 (more levels) pending`
 
 *(Formerly **M3** — same intent, framed minimum-first.)*
+
+> **Status:** the minimum system and its first enrichments shipped via [`specs/looter-camps-spec.md`](specs/looter-camps-spec.md):
+> Phase 1 the thin whole camp + combat (PR #55), Phase 2 the trap arm + real disarm (PR #56), Phase 3 the
+> environmental mess + restoration teardown — stains that bleed past the camp, the dissolve-on-clear, and the
+> visible `RestorableSite` sprout (PR #57). Every interface seam below was honoured. **Phase 4** (more camp
+> levels as data rows + the scaling-enemy hook) and the **restoration investment** that consumes the
+> `RestorableSite` remain the open work.
 
 **Essence:** A hostile structure with simple enemies — the first real flee-or-fight, and the first thing
 whose *clearing* the world can later react to.

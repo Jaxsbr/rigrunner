@@ -64,6 +64,14 @@ export const MODEL_ASSETS: Record<string, string> = {
   // camp's trap. Same composed arm + head grammar as the weapon and Reclaimer.
   'trap-boom': '/assets/trap-boom.glb',
   'disarm-head': '/assets/disarm-head.glb',
+  // 🌱 Camps Phase 3 — environmental mess + restoration. `camp-sprout` is the lasting RestorableSite
+  // marker (a small green sprout on its own disturbed-soil base, rising once a cleared camp dissolves —
+  // the first sign life can return). The debris props (crate, heap, firepit) scatter around a standing
+  // camp as battle/occupation damage and sink into the ground when it's cleared.
+  'camp-sprout': '/assets/camp-sprout.glb',
+  'debris-crate': '/assets/debris-crate.glb',
+  'debris-heap': '/assets/debris-heap.glb',
+  'camp-firepit': '/assets/camp-firepit.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

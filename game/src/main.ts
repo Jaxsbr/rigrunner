@@ -63,6 +63,7 @@ import { combatSystem } from '@features/camps/combat-system';
 import { campSystem, resolveDisarm } from '@features/camps/camp-system';
 import { repairSystem } from '@features/camps/repair-system';
 import { CampStains } from '@features/camps/camp-stains';
+import { animateCampTeardown } from '@features/camps/camp-teardown-animator';
 import { animateWeapons } from '@features/camps/weapon-animator';
 import { animateTrapArm } from '@features/camps/trap-arm-animator';
 import { DisarmOverlay } from '@features/camps/disarm-overlay';
@@ -373,7 +374,8 @@ function frame(now: number): void {
 
     // camps: advance each camp's state machine — all guards down → DISARMABLE. The second transition
     // (DISARMABLE → CLEARED) is the player's: solving the disarm puzzle, handled by the disarm overlay.
-    campSystem(world);
+    // Once CLEARED it also runs the teardown clock (structures sink, the sprout rises) on dt.
+    campSystem(world, dt);
 
     // free repair while parked in a workshop zone (home base = safety + repair).
     repairSystem(world, activeRig, anyZoneActive(), dt);
@@ -430,6 +432,9 @@ function frame(now: number): void {
   stains.sync(world, dt);
   // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
   campStains.sync(world, dt);
+  // the camp's teardown: a cleared camp's structures + debris sink into the ground while its sprout rises.
+  // Reads Camp.tornDown (sim), so it runs always — a paused pose holds rather than snapping back to rest.
+  animateCampTeardown(view.entityViews, world);
   if (!paused && !dying) {
     animateWheels(view.entityViews, world, dt);
     animateChassisDeploy(view.entityViews, world, dt);
