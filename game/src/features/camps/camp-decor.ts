@@ -6,7 +6,7 @@ import type { EntityId } from '@core/types';
  * camp's `tornDown` progress without a spatial search. Two kinds carry it:
  *   - the TRANSIENT mess (tent, loot cache, scattered debris) — sinks + shrinks as the camp dissolves,
  *     then `campSystem` despawns it (the man-made junk is gone);
- *   - the LASTING stump (also a `RestorableSite`) — rises out of the soil on the same clock and is
+ *   - the LASTING sprout (also a `RestorableSite`) — rises out of the soil on the same clock and is
  *     spared the despawn, persisting as the camp's scar.
  *
  * So `campSystem.despawnDecor` drops every `CampDecor` of the camp EXCEPT the one that is also a

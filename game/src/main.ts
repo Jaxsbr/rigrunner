@@ -374,7 +374,7 @@ function frame(now: number): void {
 
     // camps: advance each camp's state machine — all guards down → DISARMABLE. The second transition
     // (DISARMABLE → CLEARED) is the player's: solving the disarm puzzle, handled by the disarm overlay.
-    // Once CLEARED it also runs the teardown clock (structures sink, the stump rises) on dt.
+    // Once CLEARED it also runs the teardown clock (structures sink, the sprout rises) on dt.
     campSystem(world, dt);
 
     // free repair while parked in a workshop zone (home base = safety + repair).
@@ -432,7 +432,7 @@ function frame(now: number): void {
   stains.sync(world, dt);
   // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
   campStains.sync(world, dt);
-  // the camp's teardown: a cleared camp's structures + debris sink into the ground while its stump rises.
+  // the camp's teardown: a cleared camp's structures + debris sink into the ground while its sprout rises.
   // Reads Camp.tornDown (sim), so it runs always — a paused pose holds rather than snapping back to rest.
   animateCampTeardown(view.entityViews, world);
   if (!paused && !dying) {

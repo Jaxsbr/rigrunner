@@ -7,7 +7,7 @@ import { RestorableSite } from './restorable-site';
 
 /**
  * The camp's "world reacts" beat, sim-driven: as a cleared camp's `tornDown` clock advances
- * (`camp-system`), its structures + debris SINK and SHRINK into the ground while the restorable stump
+ * (`camp-system`), its structures + debris SINK and SHRINK into the ground while the restorable sprout
  * RISES out of the soil in their place. Both read the SAME `Camp.tornDown` progress (off each piece's
  * `CampDecor` link), so the dissolve stays co-timed — and frozen together when the sim pauses.
  *
@@ -18,7 +18,7 @@ import { RestorableSite } from './restorable-site';
  */
 
 const SINK_DEPTH = 2.6; // how far a structure/debris piece sinks below the ground before it despawns
-const STUMP_DROP = 1.1; // how far underground the stump starts before it rises to its resting height
+const SPROUT_DROP = 1.1; // how far underground the sprout starts before it rises to its resting height
 
 export function animateCampTeardown(views: EntityViews, world: World): void {
   for (const [id, obj] of views.objects) {
@@ -27,8 +27,8 @@ export function animateCampTeardown(views: EntityViews, world: World): void {
     const p = camp?.tornDown ?? 0;
 
     if (world.has(id, RestorableSite)) {
-      // The lasting stump: rises from underground to its resting height as the camp dissolves, then holds.
-      obj.position.y = -STUMP_DROP * (1 - easeOut(p));
+      // The lasting sprout: rises from underground to its resting height as the camp dissolves, then holds.
+      obj.position.y = -SPROUT_DROP * (1 - easeOut(p));
     } else {
       // Transient structure/debris: sinks + shrinks into the ground (it's despawned once p reaches 1).
       const base = captureScale(obj);

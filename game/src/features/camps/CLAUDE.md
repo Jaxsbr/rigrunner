@@ -4,14 +4,14 @@ The whole looter-camp mechanic lives here ([spec](../../../../docs/specs/looter-
 `Health`-based combat, a purchasable auto-fire **weapon**, travelling **projectiles** (rig + enemy),
 **enemies** with detect→engage→pursue→retreat AI, the **`Camp`** objective state machine, the
 data-driven **levels** + **loot**, the purchasable **trap arm** + its **disarm puzzle**, the camp's
-**stains**, the **debris/stump teardown**, and the **restoration-site** handoff. Open this folder and you
+**stains**, the **debris/sprout teardown**, and the **restoration-site** handoff. Open this folder and you
 see the fight end to end. (Phases 1–3 of 4 built — see the spec's build phases.)
 
 What's here:
 
 - **Components:** `projectile` (+ `spawnProjectile`), `weapon` (per-gun firing state), `enemy`
   (`Enemy` + `EnemyAI`), `camp` (+ its `tornDown` teardown clock), `camp-decor` (the back-link tying a
-  camp's tent/cache/debris/stump to it), `restorable-site`.
+  camp's tent/cache/debris/sprout to it), `restorable-site`.
 - **Content (data):** `combat` (rig-side tuning constants), `camp-levels` (`CAMP_LEVELS` — a level is
   a data row), `camp-loot` (`CAMP_LOOT` + `rollCampLoot`/`rollCampLootForOutcome`), `disarm` (the trap
   arm's per-tier puzzle difficulty + the pure outcome maths: `gradeDisarm`, `disarmDamage`).
@@ -21,7 +21,7 @@ What's here:
   reach + the rig's mounted trap-arm head tier), `repair-system`, plus `camp-spawn` (the builder).
 - **Render** (dispatched from `main.ts`, never from `@common/render`): `camp-stains` (the layered, scorched
   mess that holds then fades), `camp-teardown-animator` (sinks+shrinks a cleared camp's decor and rises its
-  stump, off `Camp.tornDown`), `weapon-animator` (the barrel swivel), `trap-arm-animator` (the disarm-head
+  sprout, off `Camp.tornDown`), `weapon-animator` (the barrel swivel), `trap-arm-animator` (the disarm-head
   idle sway), and `overlays` (`campDiscs` — the proximity ring under a DISARMABLE camp, fed to the shared
   `ZoneOverlays`). `disarm-overlay` is the timing-puzzle UI (a sim-freezing overlay, like the loot popup);
   `disarm-prompt` is the bottom-centre "Press E" HUD cue (the `ScrapPrompt`/`PackPrompt` sibling).
@@ -56,11 +56,11 @@ Single-owner / placement rules at the point of edit:
 - **Render reads state, never mutates it.** The barrel swivel reads `Weapon.aimYaw` (set by the fire
   system); the stains + teardown animator read `Camp.state`/`Camp.tornDown`. The model never feeds the sim.
 - **The teardown is sim-clocked, view-posed.** `campSystem` owns the `Camp.tornDown` clock and despawns a
-  cleared camp's TRANSIENT decor (`CampDecor` without `RestorableSite`); the stump (a `CampDecor` that IS a
+  cleared camp's TRANSIENT decor (`CampDecor` without `RestorableSite`); the sprout (a `CampDecor` that IS a
   `RestorableSite`) is spared and persists. The camp entity itself never despawns — the fading stains + the
-  stump read off it. `camp-teardown-animator` only poses meshes from `tornDown`; it owns no lifecycle.
+  sprout read off it. `camp-teardown-animator` only poses meshes from `tornDown`; it owns no lifecycle.
 - **Player-visible props ship as real authored GLBs** (no placeholders): the debris (`debris-crate`,
-  `debris-heap`, `camp-firepit`) and the `camp-stump` are world decoration (single props, not tiered
+  `debris-heap`, `camp-firepit`) and the `camp-sprout` are world decoration (single props, not tiered
   parts), built via `tools/blender/assets/*.py` and registered in `shared/assets.ts`. The camp stains are
   procedural canvas decals (a richer local copy of scrap's blob drawer — duplicated, not promoted, until a
   third consumer earns a `@common/render` move).
@@ -68,7 +68,7 @@ Single-owner / placement rules at the point of edit:
 Phase seams not built yet (don't wire them prematurely — see the spec): **Phase 4** more camp levels (new
 `CAMP_LEVELS` rows, each visually distinct, + the scaling-enemy hook); **armour/shield parts** (the
 `Health.max` aggregation seam in `@common/sim/health`), **per-tier weapon combat scaling**, and the
-**restoration investment** (the `RestorableSite` marker + its stump prop are emitted — nothing consumes
+**restoration investment** (the `RestorableSite` marker + its sprout prop are emitted — nothing consumes
 them yet).
 
 Phase 2 build note (the trap arm + real disarm — decided in a 2026-06-07 grill): disarm is a timing
@@ -87,7 +87,7 @@ Phase 3 build note (environmental mess + restoration polish — decided in a 202
 camp now carries a LAYERED stain mess (oily + scorch blotches, `camp-stains`) plus scattered debris props
 (`debris-crate`/`debris-heap`/`camp-firepit`, placed by `camp-spawn`). On clear the whole site DISSOLVES:
 over ~9 s (`TEARDOWN_DURATION`, co-timed with the stain fade) the stains fade, the structures + debris sink
-and shrink into the ground, and a `camp-stump` rises out of the soil — the lasting `RestorableSite` marker.
+and shrink into the ground, and a `camp-sprout` rises out of the soil — the lasting `RestorableSite` marker.
 Decided beyond the literal spec: the man-made structures FADE (sink) rather than linger as ruins, so the
 land returns toward nature (the restoration hook). The teardown is sim-clocked + view-posed (see the rules
 above). All hardcoded for level 1 — NOT new `CAMP_LEVELS` fields (Phase 4 designs per-level looks).

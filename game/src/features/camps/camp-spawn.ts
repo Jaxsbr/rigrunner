@@ -17,7 +17,7 @@ const GUARD_RING_RADIUS = 3.5;
  *  `CampDecor`, so they sink + despawn with the rest of the camp on clear. */
 const DEBRIS_ASSETS = ['debris-crate', 'debris-heap', 'camp-firepit'] as const;
 const DEBRIS_COUNT = 5;
-const DEBRIS_MIN_R = 2.2; // keep the centre clear for the stump that rises there on clear
+const DEBRIS_MIN_R = 2.2; // keep the centre clear for the sprout that rises there on clear
 const DEBRIS_MAX_R = 4.8;
 
 /**
@@ -52,7 +52,7 @@ export function spawnCamp(world: World, x: number, z: number, level = 1): Entity
   world.add(tent, CampDecor, { camp });
 
   // Scattered wreckage — the camp's environmental mess. Placed in an annulus around the centre (kept
-  // clear for the stump), each a random debris model at a random facing + slight scale.
+  // clear for the sprout), each a random debris model at a random facing + slight scale.
   for (let i = 0; i < DEBRIS_COUNT; i++) {
     const angle = Math.random() * Math.PI * 2;
     const radius = DEBRIS_MIN_R + Math.random() * (DEBRIS_MAX_R - DEBRIS_MIN_R);

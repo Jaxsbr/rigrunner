@@ -86,9 +86,9 @@ describe('resolveDisarm (the DISARMABLE → CLEARED half)', () => {
     expect(sites).toHaveLength(1);
     const site = sites[0]!;
     expect(world.get(site, RestorableSite)!).toMatchObject({ kind: 'camp', sourceLevel: 1 });
-    // The site is now VISIBLE: a stump prop, linked to the camp so it rides the teardown clock.
+    // The site is now VISIBLE: a sprout prop, linked to the camp so it rides the teardown clock.
     expect(world.has(site, Transform)).toBe(true);
-    expect(world.get(site, Renderable)!).toMatchObject({ shape: 'model', assetId: 'camp-stump' });
+    expect(world.get(site, Renderable)!).toMatchObject({ shape: 'model', assetId: 'camp-sprout' });
     expect(world.get(site, CampDecor)!.camp).toBe(c);
   });
 
@@ -138,12 +138,12 @@ describe('resolveDisarm (the DISARMABLE → CLEARED half)', () => {
 });
 
 describe('campSystem teardown (CLEARED → the camp dissolves)', () => {
-  it('advances tornDown on a cleared camp, then despawns the transient decor while sparing the stump + camp', () => {
+  it('advances tornDown on a cleared camp, then despawns the transient decor while sparing the sprout + camp', () => {
     const world = new World();
     const c = camp(world, 'disarmable');
     const r = rig(world);
     const tent = decor(world, c); // a transient structure
-    resolveDisarm(world, c, r, 'success', zero); // clears the camp + emits the stump (CampDecor + RestorableSite)
+    resolveDisarm(world, c, r, 'success', zero); // clears the camp + emits the sprout (CampDecor + RestorableSite)
 
     expect(world.get(c, Camp)!.tornDown).toBe(0); // resolveDisarm clears; campSystem runs the clock
 
@@ -152,15 +152,15 @@ describe('campSystem teardown (CLEARED → the camp dissolves)', () => {
     expect(world.get(c, Camp)!.tornDown).toBeCloseTo(0.5);
     expect(world.isAlive(tent)).toBe(true);
 
-    // Finish (and overshoot) it: tornDown clamps at 1, the tent is swallowed, the camp + stump persist.
+    // Finish (and overshoot) it: tornDown clamps at 1, the tent is swallowed, the camp + sprout persist.
     campSystem(world, TEARDOWN_DURATION);
     expect(world.get(c, Camp)!.tornDown).toBe(1);
     expect(world.isAlive(tent)).toBe(false); // transient decor gone
-    expect(world.isAlive(c)).toBe(true); // the camp entity persists (stains + stump read off it)
+    expect(world.isAlive(c)).toBe(true); // the camp entity persists (stains + sprout read off it)
 
     const sites = world.query(RestorableSite);
     expect(sites).toHaveLength(1);
-    expect(world.isAlive(sites[0]!)).toBe(true); // the stump is spared despawnDecor
+    expect(world.isAlive(sites[0]!)).toBe(true); // the sprout is spared despawnDecor
     expect(world.has(sites[0]!, CampDecor)).toBe(true);
   });
 

@@ -14,7 +14,7 @@ import { disarmDamage, type DisarmGrade } from './disarm';
 
 /**
  * How long a cleared camp takes to dissolve: its structures + debris sink and shrink into the ground,
- * the restorable stump rises in their place, and the decor entities are then despawned. ~9 s, co-timed
+ * the restorable sprout rises in their place, and the decor entities are then despawned. ~9 s, co-timed
  * with the stains' fade so the whole site cleans up together. Build-time tuning.
  */
 export const TEARDOWN_DURATION = 9;
@@ -35,9 +35,9 @@ function hasLivingGuards(world: World, camp: EntityId): boolean {
  * and then waits. The second transition is the player's: parking a rig with a mounted trap arm in range
  * and solving the timing puzzle (`disarm-overlay.ts`), which calls `resolveDisarm` below (no auto-disarm:
  * a camp with no trap arm simply stays `DISARMABLE`). Once `CLEARED`, this also runs the teardown clock:
- * it advances `tornDown` (the view sinks the structures/debris + rises the stump off it) and despawns the
+ * it advances `tornDown` (the view sinks the structures/debris + rises the sprout off it) and despawns the
  * decor entities when the dissolve has fully played. The camp entity itself persists — the fading stains
- * and the lasting stump read off it.
+ * and the lasting sprout read off it.
  */
 export function campSystem(world: World, dt: number): void {
   for (const c of world.query(Camp)) {
@@ -52,7 +52,7 @@ export function campSystem(world: World, dt: number): void {
 }
 
 /** Drop a cleared camp's TRANSIENT decor (tent, cache, debris) once the dissolve has fully played — but
- *  spare the lasting stump (the one decor that is also a `RestorableSite`), which persists as the scar.
+ *  spare the lasting sprout (the one decor that is also a `RestorableSite`), which persists as the scar.
  *  Collected first, then destroyed, so it's safe regardless of how the query iterates. */
 function despawnDecor(world: World, camp: EntityId): void {
   const doomed: EntityId[] = [];
@@ -101,16 +101,16 @@ export function resolveDisarm(
   }
 
   // The restoration handoff — a site the world can later heal. Nothing consumes the marker yet (the
-  // seam), but it is now VISIBLE: a stump on scarred soil at the camp centre that RISES out of the
-  // ground as the structures sink (the teardown animator), and persists as the scar of the cleared camp.
-  // Its yaw is cosmetic (Math.random, not the payout `rng`) so it never perturbs the loot/damage draws.
+  // seam), but it is now VISIBLE: a green sprout on disturbed soil at the camp centre that RISES out of
+  // the ground as the structures sink (the teardown animator), and persists as the scar of the cleared
+  // camp. Its yaw is cosmetic (Math.random, not the payout `rng`) so it never perturbs the loot/damage draws.
   const ct = world.get(c, Transform);
   const sx = ct?.x ?? 0;
   const sz = ct?.z ?? 0;
   const site = world.createEntity();
   world.add(site, RestorableSite, { x: sx, z: sz, kind: 'camp', sourceLevel: camp.level });
   world.add(site, Transform, { x: sx, z: sz, y: 0, rotationY: Math.random() * Math.PI * 2 });
-  world.add(site, Renderable, { shape: 'model', assetId: 'camp-stump' });
+  world.add(site, Renderable, { shape: 'model', assetId: 'camp-sprout' });
   // Tag it with the camp so it shares the teardown clock (it RISES as the structures sink). It is spared
   // `despawnDecor` because it's also a `RestorableSite` — the one piece of decor that outlives the camp.
   world.add(site, CampDecor, { camp: c });
