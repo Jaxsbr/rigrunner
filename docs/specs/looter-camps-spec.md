@@ -269,15 +269,18 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
     **`camp-sprout` rises out of the soil** in their place — the lasting `RestorableSite` marker. **Decided
     beyond the literal spec:** the man-made structures *fade* (sink) rather than linger as ruins, so the land
     returns toward nature — the cleanest setup for the M4 restoration (green returns).
-  - **The marker shipped as a SPROUT, not a "stump" (playtest, 2026-06-07).** §8's planned dead "stump/soil"
-    prop read as an unidentifiable dark hat with a black hole in-game, so it became a small green **sprout**
-    (a slender twig + broad green leaves on a small disturbed-soil patch) — instantly readable from the
-    top-down camera, and the green sells "life can return here," foreshadowing restoration. It self-grounds,
-    so the big camp stain can fully fade and the sprout still reads as planted.
-  - **The stains are a dense contamination, not a smudge (playtest, 2026-06-07).** The first cut read too
-    faint against the dusty ground, so `camp-stains` became a layered MIX — dark **oil pools** (with a wet
-    sheen), charred **scorch**, and **rust-discoloured** patches — at high opacity, densely overlapped into
-    one contaminated zone that clearly reads as a blight.
+  - **The marker shipped as a sprouting STUMP, not a dead "stump/soil" prop (playtest, 2026-06-07, two
+    iterations).** §8's planned dead "stump/soil" prop first read as an unidentifiable dark hat with a black
+    hole, then as a seedling in a black disc. It settled on a **thick, low cut stump** (a sawn-off rust trunk
+    with a pale bone_white cut face) with **a thin branch sprouting from it, tipped with green leaves** — the
+    `camp-sprout` asset. No soil disc (it read as a "weird black circle"); the stump sits on the ground and
+    the camp's stains carry the disturbed-earth context. Reads instantly from the top-down camera, and the
+    green growth sells "life can return here" — the restoration hook.
+  - **The stains are a dense contamination that BLEEDS PAST the camp (playtest, 2026-06-07, two iterations).**
+    The first cut read too faint; the second read strong but stayed boxed in between the buildings. `camp-stains`
+    is now a layered MIX at varied reach — dark **oil pools** (with a wet sheen) + charred **scorch** pooling
+    tight at the core, **rust-discoloured** patches spreading wider, and large faint patches reaching well
+    beyond the structures (~14 m vs the camp's ~5 m footprint) and tapering into the ground.
   - **Architecture: sim-clocked, view-posed.** `Camp` gained a `tornDown` clock that `camp-system` advances
     once `CLEARED`; it despawns the TRANSIENT decor (a new `CampDecor` link) when the dissolve completes, but
     spares the sprout (the one `CampDecor` that is also a `RestorableSite`). A `camp-teardown-animator` reads

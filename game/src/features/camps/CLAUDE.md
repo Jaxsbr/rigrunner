@@ -83,11 +83,14 @@ camp's loot), differing only in loot (success = full, partial = common + half sc
 rig damage (partial 15 @ 50%, fail 30). Opening the overlay is free (Esc backs out); the first Space
 commits.
 
-Phase 3 build note (environmental mess + restoration polish — decided in a 2026-06-07 grill): a standing
-camp now carries a LAYERED stain mess (oily + scorch blotches, `camp-stains`) plus scattered debris props
-(`debris-crate`/`debris-heap`/`camp-firepit`, placed by `camp-spawn`). On clear the whole site DISSOLVES:
-over ~9 s (`TEARDOWN_DURATION`, co-timed with the stain fade) the stains fade, the structures + debris sink
-and shrink into the ground, and a `camp-sprout` rises out of the soil — the lasting `RestorableSite` marker.
-Decided beyond the literal spec: the man-made structures FADE (sink) rather than linger as ruins, so the
-land returns toward nature (the restoration hook). The teardown is sim-clocked + view-posed (see the rules
-above). All hardcoded for level 1 — NOT new `CAMP_LEVELS` fields (Phase 4 designs per-level looks).
+Phase 3 build note (environmental mess + restoration polish — decided in a 2026-06-07 grill, then tuned
+over two playtests): a standing camp carries a dense `camp-stains` contamination MIX — oil pools (with a
+wet sheen), charred scorch, and rust-discolouration — that BLEEDS OUT past its structures (~14 m vs the
+camp's ~5 m footprint), plus scattered debris props (`debris-crate`/`debris-heap`/`camp-firepit`, placed by
+`camp-spawn`). On clear the whole site DISSOLVES: over ~9 s (`TEARDOWN_DURATION`, co-timed with the stain
+fade) the stains fade, the structures + debris sink and shrink into the ground, and a `camp-sprout` rises in
+their place — a thick low cut stump with a sprouting branch + green leaves (the lasting `RestorableSite`
+marker; no soil disc — it reads as a "weird black circle"). Decided beyond the literal spec: the man-made
+structures FADE (sink) rather than linger as ruins, so the land returns toward nature (the restoration
+hook). The teardown is sim-clocked + view-posed (see the rules above). All hardcoded for level 1 — NOT new
+`CAMP_LEVELS` fields (Phase 4 designs per-level looks).

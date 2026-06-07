@@ -5,9 +5,10 @@ import { Transform } from '@common/components/transform';
 import { Camp } from './camp';
 
 /**
- * The camp's environmental mess: a dense, layered contamination laid flat under each camp — dark oil
- * pools (with a wet sheen), charred scorch, and rust-discoloured ground — scattered and overlapped so the
- * earth clearly reads as polluted and fought-over, not a faint smudge. Pure view polish (it owns only the
+ * The camp's environmental mess: a dense, layered contamination laid flat under each camp and BLEEDING
+ * OUT past its structures — dark oil pools (with a wet sheen), charred scorch, and rust-discoloured
+ * ground — scattered and overlapped so the earth clearly reads as polluted and fought-over, the blight
+ * reaching well beyond the buildings rather than sitting between them. Pure view polish (it owns only the
  * decals + their eased opacity, reading the sim to know each camp's state). It carries the core loop's
  * cause→effect:
  *   - a camp stands (`GUARDED`/`DISARMABLE`) → its pools hold, marking it as a blight on the land
@@ -19,18 +20,26 @@ import { Camp } from './camp';
  */
 
 const STAIN_Y = 0.02; // a hair above the ground so it composites without z-fighting
-const SPREAD = 3.4; // blotches cluster this tightly around the camp centre → a dense pool, not dots
 const BLOTCH_MIN_ASPECT = 0.6; // minor axis as a fraction of major: 1 ≈ round, lower = a stretched oval
 const FADE_OUT_EASE = 0.25; // slow clean-up creep once cleared (~12 s), never a pop
 
 type BlotchKind = 'oil' | 'scorch' | 'rust';
 
-/** The mess is a MIX of pool kinds, layered for a contaminated zone. Oil reads darkest/heaviest, scorch
- *  is the charred middle, rust is the discoloured spread that contrasts the dusty ground. */
-const BLOTCH_MIX: { kind: BlotchKind; count: number; minR: number; maxR: number; minOp: number; maxOp: number }[] = [
-  { kind: 'oil', count: 3, minR: 1.6, maxR: 3.0, minOp: 0.82, maxOp: 0.95 },
-  { kind: 'scorch', count: 3, minR: 1.4, maxR: 2.8, minOp: 0.68, maxOp: 0.88 },
-  { kind: 'rust', count: 3, minR: 1.8, maxR: 3.4, minOp: 0.55, maxOp: 0.78 },
+/**
+ * The mess is a MIX of pool kinds at varied reach, layered so the contamination is heaviest under the
+ * camp and BLEEDS OUT well past its structures (debris sit out to ~5 m). Dark oil + scorch pool tight at
+ * the core; rust discolouration spreads wider; large faint patches reach furthest and taper into the
+ * ground. `spread` is how far that ring of blotches scatters from the camp centre.
+ */
+const BLOTCH_MIX: { kind: BlotchKind; count: number; spread: number; minR: number; maxR: number; minOp: number; maxOp: number }[] = [
+  // Dense, dark core — heavy contamination right under/around the camp's structures.
+  { kind: 'oil', count: 3, spread: 3.6, minR: 1.6, maxR: 3.0, minOp: 0.82, maxOp: 0.95 },
+  { kind: 'scorch', count: 3, spread: 4.6, minR: 1.6, maxR: 3.0, minOp: 0.66, maxOp: 0.86 },
+  // Discolouration spreading OUT past the buildings.
+  { kind: 'rust', count: 4, spread: 7.2, minR: 2.2, maxR: 3.8, minOp: 0.5, maxOp: 0.74 },
+  // Faint outer bleed — large, soft patches that reach well beyond the camp and taper into the ground.
+  { kind: 'oil', count: 2, spread: 8.5, minR: 3.0, maxR: 4.6, minOp: 0.26, maxOp: 0.44 },
+  { kind: 'rust', count: 3, spread: 9.5, minR: 3.4, maxR: 5.2, minOp: 0.2, maxOp: 0.4 },
 ];
 const TEXTURE_VARIANTS = 3; // distinct patterns per kind, built lazily + shared
 
@@ -79,10 +88,10 @@ export class CampStains {
         );
         // Lay flat (rotate about X) and spin about its own normal (Z) so the oval points any which way.
         mesh.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI);
-        // Scatter off the camp centre — denser toward the middle (sqrt keeps the spread even) so the
-        // pools pile up into one contaminated zone rather than scattering thin.
+        // Scatter off the camp centre to this kind's reach — denser toward the middle (sqrt keeps the
+        // spread even). Tight kinds pile into the contaminated core; wide kinds bleed past the camp.
         const ang = Math.random() * Math.PI * 2;
-        const dist = Math.sqrt(Math.random()) * SPREAD;
+        const dist = Math.sqrt(Math.random()) * m.spread;
         mesh.position.set(t.x + Math.cos(ang) * dist, STAIN_Y + layer * 0.0012, t.z + Math.sin(ang) * dist);
         mesh.renderOrder = 1; // draw above the proximity-ring disc so a pool is never hidden inside it
         mesh.visible = false;
