@@ -51,6 +51,8 @@ export function spawnCamp(world: World, x: number, z: number, level = 1): Entity
       postX: ex,
       postZ: ez,
       detection: lv.detection,
+      fireRange: lv.fireRange,
+      standoff: lv.standoff,
       leash: lv.leash,
       moveSpeed: lv.enemyMoveSpeed,
       damage: lv.enemyDamage,

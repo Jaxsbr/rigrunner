@@ -26,6 +26,20 @@ function stepToward(t: { x: number; z: number }, tx: number, tz: number, speed: 
   return d - step;
 }
 
+/** Step a Transform directly AWAY from (tx,tz) by `speed·dt` — a ranged guard backing off to standoff. */
+function stepAway(t: { x: number; z: number }, tx: number, tz: number, speed: number, dt: number): void {
+  const dx = t.x - tx;
+  const dz = t.z - tz;
+  const d = Math.hypot(dx, dz);
+  if (d === 0) return; // the rig is on top of it — no direction to flee; it's being overrun anyway
+  const step = speed * dt;
+  t.x += (dx / d) * step;
+  t.z += (dz / d) * step;
+}
+
+/** Deadband around the standoff distance, so a holding guard doesn't jitter between close/back-off. */
+const STANDOFF_BAND = 1.5;
+
 /**
  * Drive every guard's state machine + behaviour against the rig (`@features/camps`):
  *   - `GUARD`   — hold post; wake to `ENGAGE` when the rig is within `detection`.
@@ -65,8 +79,16 @@ export function enemyAiSystem(world: World, rig: EntityId, dt: number): void {
 
     if (ai.state === 'engage') {
       et.rotationY = yawToward(et.x, et.z, rigT.x, rigT.z);
-      stepToward(et, rigT.x, rigT.z, ai.moveSpeed, dt);
-      if (ai.fireCooldownLeft <= 0) {
+      // Ranged kite: close toward `standoff` to get within `fireRange`, but back off if the rig crowds
+      // inside it — a ranged guard never charges into the rig. (The rig overruns IT by driving in; the
+      // guard backs off at moveSpeed < the rig's top speed, so a committed charge still catches it.)
+      if (distToRig > ai.standoff + STANDOFF_BAND) {
+        stepToward(et, rigT.x, rigT.z, ai.moveSpeed, dt);
+      } else if (distToRig < ai.standoff - STANDOFF_BAND) {
+        stepAway(et, rigT.x, rigT.z, ai.moveSpeed, dt);
+      }
+      // Shoot only once actually within firing range — it sees further (detection) than it can hit.
+      if (distToRig <= ai.fireRange && ai.fireCooldownLeft <= 0) {
         spawnProjectile(world, 'enemy', et.x, et.z, rigT.x, rigT.z, ai.projectileSpeed, ai.damage, ai.detection);
         ai.fireCooldownLeft = ai.fireInterval;
       }

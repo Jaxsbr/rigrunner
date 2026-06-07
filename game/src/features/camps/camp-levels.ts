@@ -14,12 +14,18 @@ export interface CampLevel {
   enemyDamage: number;
   /** Seconds between one enemy's shots. */
   enemyFireInterval: number;
-  /** Enemy projectile speed (u/s) — below the rig's top speed band so it can be out-driven. */
+  /** Enemy projectile speed (u/s) — fast enough to read as a shot, still dodgeable by driving. */
   enemyProjectileSpeed: number;
-  /** Enemy pursuit speed (u/s) — below the rig's top speed so you can kite/flee. */
+  /** Enemy reposition speed (u/s) — below the rig's top speed so the rig can close and overrun it. */
   enemyMoveSpeed: number;
   /** Detection radius: the rig within this of a guard wakes it (range ≈ line of sight, no occlusion). */
   detection: number;
+  /** Firing range: a guard only shoots inside this — shorter than `detection`, so it sees the rig
+   *  before it can hit it (and closes the gap to get in range). */
+  fireRange: number;
+  /** Standoff distance: the gap a ranged guard tries to HOLD — it closes to this to shoot but backs off
+   *  if the rig crowds it, so it never runs into the rig (being overrun is the RIG's job, by driving in). */
+  standoff: number;
   /** Leash distance measured FROM THE CAMP — a guard past this breaks off and returns to post. */
   leash: number;
   /** Which `CAMP_LOOT` table a cleared camp of this level rolls. */
@@ -31,10 +37,12 @@ export const CAMP_LEVELS: Record<number, CampLevel> = {
     enemyCount: 2,
     enemyHealth: 30,
     enemyDamage: 6,
-    enemyFireInterval: 1.5,
-    enemyProjectileSpeed: 10,
+    enemyFireInterval: 3.0, // half the old rate — the volume of fire was too high
+    enemyProjectileSpeed: 24, // snappy tracer (was a slow "flying ant"); rig top speed ~7, so still dodgeable
     enemyMoveSpeed: 4,
     detection: 16,
+    fireRange: 13, // sees at 16, shoots at 13 — a band where it closes the gap without firing
+    standoff: 10, // holds ~10 out to plink; backs off if the rig comes closer (never rams)
     leash: 28,
     lootId: 'level-1',
   },

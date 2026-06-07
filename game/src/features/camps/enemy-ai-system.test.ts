@@ -25,8 +25,8 @@ function guard(world: World, campId: EntityId, x: number, z: number, state: Enem
   world.add(e, Health, { current: 30, max: 30 });
   world.add(e, Enemy, { camp: campId });
   world.add(e, EnemyAI, {
-    state, postX: x, postZ: z, detection: 16, leash: 28, moveSpeed: 4,
-    damage: 6, fireInterval: 1.5, projectileSpeed: 10, fireCooldownLeft,
+    state, postX: x, postZ: z, detection: 16, fireRange: 13, standoff: 10, leash: 28, moveSpeed: 4,
+    damage: 6, fireInterval: 3.0, projectileSpeed: 24, fireCooldownLeft,
   });
   return e;
 }
@@ -52,14 +52,32 @@ describe('enemyAiSystem', () => {
     expect(stateOf(world, e)).toBe('guard');
   });
 
-  it('ENGAGE pursues the rig and fires a travelling shot when off cooldown', () => {
+  it('ENGAGE closes the gap when out of firing range, without shooting yet', () => {
+    const world = new World();
+    const c = camp(world);
+    const e = guard(world, c, 0, 0, 'engage', 0); // standoff 10, fireRange 13
+    enemyAiSystem(world, rigAt(world, 20, 0), 0.5); // 20 > standoff band and > fireRange
+    expect(world.get(e, Transform)!.x).toBeGreaterThan(0); // moved toward the rig (+X)
+    expect(enemyShots(world)).toHaveLength(0); // can see it (≤16) but can't hit it yet (>13)
+  });
+
+  it('ENGAGE fires from its standoff distance and holds (does not keep closing)', () => {
     const world = new World();
     const c = camp(world);
     const e = guard(world, c, 0, 0, 'engage', 0);
-    enemyAiSystem(world, rigAt(world, 10, 0), 0.5);
-    expect(world.get(e, Transform)!.x).toBeGreaterThan(0); // stepped toward the rig (+X)
+    enemyAiSystem(world, rigAt(world, 10, 0), 0.5); // at the standoff (10), within fireRange (13)
+    expect(world.get(e, Transform)!.x).toBeCloseTo(0); // held — didn't charge in
     expect(enemyShots(world)).toHaveLength(1);
-    expect(world.get(e, EnemyAI)!.fireCooldownLeft).toBeCloseTo(1.5); // reset to the interval
+    expect(world.get(e, EnemyAI)!.fireCooldownLeft).toBeCloseTo(3.0); // reset to the (halved) interval
+  });
+
+  it('ENGAGE backs off instead of ramming when the rig crowds inside the standoff', () => {
+    const world = new World();
+    const c = camp(world);
+    const e = guard(world, c, 0, 0, 'engage', 0);
+    enemyAiSystem(world, rigAt(world, 5, 0), 0.5); // rig well inside standoff (10)
+    expect(world.get(e, Transform)!.x).toBeLessThan(0); // moved AWAY (−X) — never into the rig
+    expect(enemyShots(world)).toHaveLength(1); // still shoots while backing off
   });
 
   it('breaks to RETREAT when the rig is past the leash measured from the camp', () => {

@@ -12,7 +12,7 @@ export const WEAPON = {
   cooldown: 0.5, // seconds between shots (≈ 1.5 s to kill a 30-HP grunt with sustained fire)
   range: 18,
   cone: (50 * Math.PI) / 180, // full FOV; placement still matters — the cone is the part's mount facing
-  projectileSpeed: 18, // faster than enemy fire (10) so your shots connect while theirs can be dodged
+  projectileSpeed: 30, // snappy, and a touch faster than enemy fire (24) so your shots connect cleanly
 } as const;
 
 /** Free repair while parked in a workshop zone (home base = safety + repair). HP restored per second. */

@@ -132,11 +132,14 @@ spawnWorkshop(world, 0, 8);
 for (const [x, z] of [[-10, 2], [13, 6], [-15, -11], [9, -15], [17, -3], [-4, -16]] as const) {
   spawnScrapPile(world, x, z);
 }
-// A level-1 looter camp out on the frontier, opposite the workshop and well beyond the scrap field —
-// a deliberate drive-to, not a stumble-into. By the time you reach it you've gathered enough scrap to
-// buy the weapon (the bootstrap rule: you can't loot your way to the tool that lets you loot). Clear
-// its two guards to claim the cache; a too-weak rig is taught to go back to the bay and build.
-spawnCamp(world, 0, -50, 1);
+// A level-1 looter camp in each corner of the 80×80 map (inset to ±30 so the camp + its guard ring
+// sit clearly on the ground). Each is a deliberate drive-to out past the scrap field: by the time you
+// reach one you've gathered enough scrap to buy the weapon (the bootstrap rule — you can't loot your
+// way to the tool that lets you loot). Clear a camp's two guards to claim its cache; a too-weak rig is
+// taught to go back to the bay and build.
+for (const [cx, cz] of [[30, 30], [30, -30], [-30, 30], [-30, -30]] as const) {
+  spawnCamp(world, cx, cz, 1);
+}
 // The Reclaimer is no longer a staged prop (Option C / PR3): it's now a real buildable, mountable,
 // purchasable part. Buy the Arm + Bucket in the Parts Shop, assemble them on the bench (the
 // Reclaimer recipe), stage the product on the workshop deck, then grab it off the deck and mount it
