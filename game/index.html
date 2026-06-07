@@ -866,6 +866,107 @@
         cursor: pointer;
       }
       #loot-collect:hover { background: rgba(89, 255, 159, 0.18); }
+      /* Disarm puzzle: the timing sweet-spot overlay (looter camps Phase 2). Same dimmed full-screen
+         shell as the loot popup; the body is a sweep bar with a lit target zone and a bouncing marker. */
+      #disarm-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 12, 0.72);
+        font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        color: #f2f2f2;
+        transition: opacity 0.2s ease;
+        z-index: 6;
+      }
+      #disarm-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .disarm-panel {
+        width: min(460px, 92vw);
+        display: flex;
+        flex-direction: column;
+        background: #15191c;
+        border: 1px solid #2c343a;
+        border-radius: 10px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+      }
+      .disarm-header {
+        padding: 13px 16px;
+        border-bottom: 1px solid #2c343a;
+        background: #1b2125;
+      }
+      .disarm-header h2 {
+        margin: 0;
+        font: 600 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        letter-spacing: 0.1em;
+        color: #d9a521; /* hazard_yellow — the camps signature */
+      }
+      .disarm-header .disarm-sub {
+        margin-top: 5px;
+        color: #8b97a0;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+      }
+      .disarm-header kbd {
+        background: #2c343a;
+        border-radius: 3px;
+        padding: 0 4px;
+        color: #e6ebee;
+      }
+      .disarm-body {
+        padding: 18px 16px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .disarm-rounds {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #c7ced3;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+      }
+      .disarm-pips { display: flex; gap: 6px; }
+      .disarm-pip {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #2c343a;
+        border: 1px solid #3a444b;
+      }
+      .disarm-pip.hit { background: #59ff9f; border-color: #59ff9f; }
+      .disarm-pip.miss { background: #e0432a; border-color: #e0432a; }
+      .disarm-count { color: #8b97a0; }
+      .disarm-bar {
+        position: relative;
+        height: 34px;
+        border: 1px solid #2c343a;
+        border-radius: 6px;
+        background: #0c0e10;
+        overflow: hidden;
+      }
+      .disarm-zone {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        background: rgba(89, 255, 159, 0.22);
+        border-left: 1px solid rgba(89, 255, 159, 0.6);
+        border-right: 1px solid rgba(89, 255, 159, 0.6);
+      }
+      .disarm-marker {
+        position: absolute;
+        top: -2px;
+        bottom: -2px;
+        width: 3px;
+        margin-left: -1.5px;
+        background: #d9a521;
+        box-shadow: 0 0 6px rgba(217, 165, 33, 0.9);
+      }
       /* Rig health bar, bottom-left: a glanceable combat read (you can't parse a number mid-dodge).
          The fill shrinks and shifts green→red as HP drops; the number rides on top. Ignores the mouse
          like the other readouts. Hidden when the active rig has no Health (shouldn't happen in play). */
@@ -928,6 +1029,7 @@
     <button id="workshop-tab" class="hud-prompt hidden" type="button">🔧 Open Workshop<kbd>E</kbd></button>
     <div id="scrap-prompt" class="hud-prompt hidden">🦾 Scrap Pile · Hold<kbd>E</kbd></div>
     <div id="pack-prompt" class="hud-prompt hidden">📦 Pack up chassis · Press<kbd>E</kbd></div>
+    <div id="disarm-prompt" class="hud-prompt hidden">🧰 Disarm Trap · Press<kbd>E</kbd></div>
     <div id="cap-toast" class="hidden"></div>
     <div id="death-overlay" class="hidden">DESTROYED — resetting…</div>
     <div id="workshop-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workshop">
@@ -980,6 +1082,21 @@
         <div id="loot-list" class="loot-list"></div>
         <div class="loot-footer">
           <button id="loot-collect" type="button">Collect</button>
+        </div>
+      </div>
+    </div>
+    <div id="disarm-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Disarm trap">
+      <div class="disarm-panel">
+        <header class="disarm-header">
+          <h2>🧰 DISARM THE TRAP</h2>
+          <div class="disarm-sub">Land the marker in the lit zone · <kbd>Space</kbd> strike · <kbd>Esc</kbd> back off</div>
+        </header>
+        <div class="disarm-body">
+          <div id="disarm-rounds" class="disarm-rounds"></div>
+          <div class="disarm-bar">
+            <div id="disarm-zone" class="disarm-zone"></div>
+            <div id="disarm-marker" class="disarm-marker"></div>
+          </div>
         </div>
       </div>
     </div>

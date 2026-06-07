@@ -120,6 +120,22 @@ export const WEAPON_RECIPE: Recipe = {
 };
 
 /**
+ * The trap-arm recipe (looter camps Phase 2) — a Boom + Disarm Head stamping a `trap-arm`-kind product,
+ * the same arm + head grammar as the Reclaimer and weapon. Untyped (no electric/steam), built/mounted
+ * through the same bench → stage → mount path. The Head's tier sets the disarm puzzle's difficulty (read
+ * at the camp); a future head is the same Boom, a different disarm tool.
+ */
+export const TRAP_ARM_RECIPE: Recipe = {
+  id: 'trap-arm',
+  output: 'Trap Arm',
+  productKind: 'trap-arm',
+  slots: [
+    { slot: 'trap-boom', label: 'Arm' },
+    { slot: 'disarm-head', label: 'Disarm Head' },
+  ],
+};
+
+/**
  * The two chassis recipes — same three-slot grammar, differing only in the size-fixed structure they
  * stamp (deck dimensions + engine envelope). The 1×3 is the light scout (1–2 engines); the 3×5 the
  * hauler (3–6). `chassisParts(size)` (in `@features/chassis`) supplies the size-matched sub-parts.
@@ -169,6 +185,7 @@ export const RECIPES: readonly Recipe[] = [
   STORAGE_RECIPE,
   RECLAIMER_RECIPE,
   WEAPON_RECIPE,
+  TRAP_ARM_RECIPE,
   CHASSIS_1X3_RECIPE,
   CHASSIS_3X5_RECIPE,
 ];

@@ -7,10 +7,12 @@
 intent + dependency chain stay in `milestones.md`; the worked decisions live here.
 
 > **Status:** ✅ **Phase 1 built + merged** (PR #55, 2026-06-07) — a complete, playable level-1 camp,
-> tuned across two playtests. **Phases 2–4 not started.** The design below was resolved in a 2026-06-06
-> grill session (every section is a decided answer, not a guess). Numbers (HP, damage, ranges, leash,
-> costs) are **build-time tuning** unless called out. See §10 for exactly what Phase 1 shipped and the
-> handful of places it deviated from this plan as play demanded.
+> tuned across two playtests. ✅ **Phase 2 built + merged** (PR #56, 2026-06-07) — the trap arm + real
+> disarm puzzle, replacing Phase 1's auto-success stub (decided in a 2026-06-07 grill), plus a "Press E"
+> prompt + proximity ring added in playtest. **Phases 3–4 not started.**
+> The design below was resolved in a 2026-06-06 grill session (every section is a decided answer, not a
+> guess). Numbers (HP, damage, ranges, leash, costs) are **build-time tuning** unless called out. See §10
+> for exactly what each phase shipped and the places it deviated from this plan as play demanded.
 
 ---
 
@@ -219,9 +221,37 @@ Each phase ships playable, tests green. Phase 1 is a **complete** level-1 camp; 
     `camp-cache` — each validated per-tier in the viewer (`check:assets` green).
   - **Parked as captured ideas** (not built): a speed-based **camera auto-zoom** (out while moving, in
     while settling), and a possible tighter base **turn-radius** for kiting.
-- **Phase 2 — The trap arm + real disarm.** The trap-arm part (shop/build/mount); the **timing
-  sweet-spot** puzzle; tier → difficulty; **success/partial/fail → loot + rig damage** — replacing the
-  Phase-1 auto-success stub. Loot now gated behind a real disarm.
+- **Phase 2 — The trap arm + real disarm. ✅ built + merged (PR #56, 2026-06-07).** The trap-arm part (shop/build/mount);
+  the **timing sweet-spot** puzzle; tier → difficulty; **success/partial/fail → loot + rig damage** —
+  replacing the Phase-1 auto-success stub. Loot now gated behind a real disarm.
+
+  **What shipped / decided at build time** (a 2026-06-07 grill resolved every open §12 item; all
+  build-time-tuning calls, none changing the design intent):
+  - **Composed trap arm — `trap-boom` (host) + `disarm-head` (tier-bearing)** — the Reclaimer/weapon
+    arm+head grammar. The HEAD's tier sets difficulty; the boom is the reusable host (a future head = a
+    new disarm tool, same boom). Both authored as real GLBs (`check:assets` green; per-tier viewer-validated).
+  - **Proximity-only gate — NO FOV aim** (deviation from §5). Disarm is a safe, post-combat act, so
+    aiming the arm at the camp would be ceremony; the gate is "DISARMABLE camp within range + a trap arm
+    mounted." E opens the puzzle (the workshop's "E in zone" pattern). The arm still articulates (idle
+    sway) for feel. A bottom-centre **"Press E" prompt** + a **proximity ring** light up in lockstep on
+    that gate, matching the workshop/scrap-pile affordances. *(The grill first chose "no prompt"; that
+    read as confusing in play, so the prompt + ring were added as a follow-up — both off the same gate.)*
+  - **Commit model:** opening the overlay is free (Esc backs out, camp stays DISARMABLE); the **first
+    Space commits** to the full N-round attempt. This reconciles *no-prompt* + *one-shot* so a habitual
+    E never accidentally burns a camp.
+  - **Outcome (play all N, tally hits):** all → success, ≥1 → partial, 0 → fail. **All three CLEAR the
+    camp** (one-shot — a fail permanently loses that camp's loot); `RestorableSite` + stain-fade fire
+    regardless, only loot + damage differ. (Refined §5's three-row table: success is the *clean* solve.)
+  - **Difficulty (head tier):** rusty = 3 rounds × 16%-wide zone; iron = 1 round × 34% (≈ automatic).
+    Marker bounces at a constant ~0.9 s/crossing; target zone random each round.
+  - **Damage:** partial = 15 HP @ 50% chance; fail = 30 HP always. (Base rig 100 HP; free workshop repair.)
+  - **Loot gating:** success = full table + 15–30 scrap; partial = **common-rarity tiers only + halved
+    (8–15) scrap** (the reduced-scrap rule makes partial bite *today*, since rare/epic tiers are still
+    disabled stubs — §7's tier-eligibility gating starts mattering once they enable); fail = nothing.
+  - **Cost:** `trap-boom` 16 + `disarm-head` 20 = 36 rusty (iron ≈ 65) — on a par with the Reclaimer,
+    a shop save-up (trap parts aren't in the lootable `SUB_PART_POOL`); the head is the dearer upgrade.
+  - **Reuse:** loot still flows through the shared `LootDrop` + loot overlay (disarm → spoils popup);
+    the grade + damage are surfaced via the existing HUD toast.
 - **Phase 3 — Environmental mess + restoration polish.** Large camp stains + damage that **fade** on
   clear/disarm; the **visible stump/soil prop** on the `RestorableSite`. The world-reacts beat.
 - **Phase 4 — More levels.** Author level 2+ as **data rows**, each visually distinct; (future) wire
@@ -242,9 +272,10 @@ level-1 camps**, one per corner — basic multi-camp placement; the procedural/s
 **Phase 1 resolved** (the live values are in §10's "what shipped" note + `features/camps/`): rig + enemy
 HP, weapon/enemy damage + fire rate, projectile speeds, detection/fireRange/standoff/leash, weapon
 costs, stain size/fade. The camp **does** grant wallet scrap (15–30) plus sub-parts. Workshop **HP
-restore is over-time** (20 HP/s while parked). Still open (Phase 2+):
+restore is over-time** (20 HP/s while parked).
 
-- Trap-arm **costs**, disarm round-count/zone-width per tier, partial-hit **damage chance**.
-- Trap-arm **construction:** mirror the Reclaimer as a **composed** product (arm + disarm head) or a
-  single part — and, if composed, which sub-part carries the tier. *(Phase 1's weapon went composed —
-  Mount + Barrel — so the trap arm has a precedent to follow.)*
+**Phase 2 resolved** (live values in §10's Phase-2 "what shipped" note + `features/camps/disarm.ts`):
+trap-arm **construction** (composed `trap-boom` + tier-bearing `disarm-head`), **costs** (16 + 20),
+per-tier **round-count/zone-width** (rusty 3×16% / iron 1×34%), partial **damage chance** (15 @ 50%) +
+fail damage (30), the gate (proximity-only, no FOV aim), the commit model, and the loot gating (partial
+= common + halved scrap). Still open (Phase 3+): camp stains/restoration polish, more camp levels.

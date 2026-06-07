@@ -1,5 +1,6 @@
 import { SUB_PART_POOL } from '@common/parts/parts-catalog';
 import { rollCount, rollTable, type LootTier, type LootFind } from '@common/sim/loot';
+import type { DisarmGrade } from './disarm';
 
 /**
  * The camp loot tables — richer than a scrap pile's, rolled through the SHARED loot roller
@@ -67,9 +68,34 @@ export interface CampLootRoll {
   finds: LootFind[];
 }
 
-/** Roll a camp's payout — wallet scrap (a range) plus the table's part finds. PURE given its `rng`. */
+/** Roll a camp's FULL payout — wallet scrap (a range) plus every tier's part finds. PURE given its
+ *  `rng`. The clean-success payout; `rollCampLootForOutcome` gates it down for a partial/fail disarm. */
 export function rollCampLoot(table: CampLootTable, rng: () => number = Math.random): CampLootRoll {
   return { walletScrap: rollCount(table.walletScrap, rng), finds: rollTable(table.tiers, rng) };
+}
+
+/**
+ * Roll a camp's payout GATED by the disarm outcome (spec §5/§7):
+ *   - `success` → the full table + the full wallet-scrap chunk (= `rollCampLoot`).
+ *   - `partial` → only the common-rarity tiers, and a HALVED wallet-scrap chunk. (Today only the common
+ *     sub-part tier is enabled, so the scrap cut is what makes a partial bite; the rare/epic gating
+ *     starts mattering the moment those stub tiers are enabled.)
+ *   - `fail`    → nothing at all (`null` — no `LootDrop` queued).
+ * PURE given its `rng`; the `rng` is drawn in the same order as `rollCampLoot` (scrap, then tiers).
+ */
+export function rollCampLootForOutcome(
+  table: CampLootTable,
+  grade: DisarmGrade,
+  rng: () => number = Math.random,
+): CampLootRoll | null {
+  if (grade === 'fail') return null;
+  if (grade === 'success') return rollCampLoot(table, rng);
+  const commonTiers = table.tiers.filter((t) => t.rarity === 'common');
+  const halfScrap = {
+    min: Math.round(table.walletScrap.min / 2),
+    max: Math.round(table.walletScrap.max / 2),
+  };
+  return { walletScrap: rollCount(halfScrap, rng), finds: rollTable(commonTiers, rng) };
 }
 
 /** Resolve a loot id to its table, falling back to level 1 for an unknown id. */

@@ -50,6 +50,8 @@ export type {
   StoragePartSlot,
   ReclaimerPartSlot,
   ChassisPartSlot,
+  WeaponPartSlot,
+  TrapPartSlot,
   PartSlot,
   EnergyType,
   PartCategory,
@@ -134,6 +136,13 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   // sum to the same ~4 weight the single gun carried.
   'weapon-mount': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0 },
   'weapon-barrel': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0 },
+
+  // 🧰 Trap arm — Boom + Disarm Head. Like the Reclaimer/weapon, their only stat is the WEIGHT they add
+  // (a real tool you feel in the handling); the disarm difficulty rides the HEAD's tier, read at the
+  // puzzle, not as a per-instance attribute. power/torque/durability/burst stay 0. The two sum to 6 —
+  // between the weapon (4) and the Reclaimer (8).
+  'trap-boom': { power: 0, torque: 0, weight: 4, durability: 0, burst: 0 },
+  'disarm-head': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0 },
 };
 
 /** The full catalog — each shared identity record paired with its gameplay attributes, in roster order. */

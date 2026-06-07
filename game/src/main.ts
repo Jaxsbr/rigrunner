@@ -60,10 +60,16 @@ import { weaponFireSystem } from '@features/camps/weapon-fire-system';
 import { enemyAiSystem } from '@features/camps/enemy-ai-system';
 import { projectileMoveSystem } from '@features/camps/projectile-system';
 import { combatSystem } from '@features/camps/combat-system';
-import { campSystem } from '@features/camps/camp-system';
+import { campSystem, resolveDisarm } from '@features/camps/camp-system';
 import { repairSystem } from '@features/camps/repair-system';
 import { CampStains } from '@features/camps/camp-stains';
 import { animateWeapons } from '@features/camps/weapon-animator';
+import { animateTrapArm } from '@features/camps/trap-arm-animator';
+import { DisarmOverlay } from '@features/camps/disarm-overlay';
+import { DisarmPrompt } from '@features/camps/disarm-prompt';
+import { findDisarmTarget } from '@features/camps/disarm-gate';
+import { campDiscs } from '@features/camps/overlays';
+import { DEFAULT_TIER } from '@common/parts/tiers';
 import { HealthHud } from '@features/hud/health-hud';
 
 /**
@@ -212,13 +218,14 @@ const zones = new ZoneOverlays(view.scene);
 const stains = new ScrapStains(view.scene);
 const campStains = new CampStains(view.scene);
 
-// Two overlays can each freeze the simulation: the workshop interface and the loot popup. Main owns
-// one `paused` flag that is the OR of both, so whichever is up holds the sim still and resuming needs
-// both down. Each overlay flips its own bit through its callback.
+// Three overlays can each freeze the simulation: the workshop interface, the loot popup, and the disarm
+// puzzle. Main owns one `paused` flag that is the OR of all three, so whichever is up holds the sim
+// still and resuming needs them all down. Each overlay flips its own bit through its callback.
 let paused = false;
 let workshopPaused = false;
 let lootPaused = false;
-const syncPaused = (): void => { paused = workshopPaused || lootPaused; };
+let disarmPaused = false;
+const syncPaused = (): void => { paused = workshopPaused || lootPaused || disarmPaused; };
 
 // The workshop interface shell. Opening its tab freezes the simulation; the tab's visibility tracks
 // zone proximity, which main pushes in each frame (the overlay never touches the World).
@@ -241,6 +248,18 @@ const loot = new LootOverlay(
   },
 );
 
+// The disarm puzzle. When the active rig parks a mounted trap arm in reach of a DISARMABLE camp, E
+// opens the timing mini-game; it freezes the sim, and on finish resolves the outcome (loot + damage +
+// clear the camp) and announces it. The loot overlay reveals any spoils the next frame.
+const disarm = new DisarmOverlay(
+  document.querySelector<HTMLElement>('#disarm-overlay')!,
+  {
+    onPauseChange: (p) => { disarmPaused = p; syncPaused(); },
+    onResolve: (camp, grade) => resolveDisarm(world, camp, getActiveRig(world)!, grade),
+    announce: (msg) => capToast.show(msg),
+  },
+);
+
 // The bottom-centre scrap-pile prompt: the fixed screen-space "Hold E" cue. Main pushes the live
 // pile-gate state into it each frame (the prompt never touches the World).
 const scrapPrompt = new ScrapPrompt(document.querySelector<HTMLElement>('#scrap-prompt')!);
@@ -248,6 +267,11 @@ const scrapPrompt = new ScrapPrompt(document.querySelector<HTMLElement>('#scrap-
 // The pack-up prompt, sharing that bottom-centre slot: shown when the controlled chassis is empty and
 // can fold back into a kit. Main computes the gate (off the workshop, off a pile) and pushes it here.
 const packPrompt = new PackPrompt(document.querySelector<HTMLElement>('#pack-prompt')!);
+
+// The disarm prompt, sharing that bottom-centre slot: shown when the rig is parked in reach of a
+// DISARMABLE camp with a trap arm mounted. Main pushes the same gate the camp's proximity disc lights
+// on, so the ring and the prompt appear together.
+const disarmPrompt = new DisarmPrompt(document.querySelector<HTMLElement>('#disarm-prompt')!);
 
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
 function anyZoneActive(): boolean {
@@ -347,8 +371,8 @@ function frame(now: number): void {
     scrapCollectionSystem(world, pairs);
     combatSystem(world, activeRig, pairs);
 
-    // camps: advance each camp's state machine — all guards down → (auto-disarm stub) → cleared, which
-    // queues the loot drop + emits the restorable site.
+    // camps: advance each camp's state machine — all guards down → DISARMABLE. The second transition
+    // (DISARMABLE → CLEARED) is the player's: solving the disarm puzzle, handled by the disarm overlay.
     campSystem(world);
 
     // free repair while parked in a workshop zone (home base = safety + repair).
@@ -372,6 +396,15 @@ function frame(now: number): void {
   // from getActiveRig so the frame a pack-up happens it reflects the backup (not the just-packed crate).
   packPrompt.sync(!paused && !anyZoneActive() && canPackUp(world, getActiveRig(world)!));
 
+  // the disarm gate: is the active rig parked with a mounted trap arm in reach of a DISARMABLE camp?
+  // Push it (and the head tier that sets the puzzle difficulty) into the overlay, then advance the
+  // marker sweep — both run always so the puzzle animates while it holds the sim frozen.
+  const disarmTarget = findDisarmTarget(world, activeRig);
+  disarm.setReady(disarmTarget !== null, disarmTarget?.camp ?? null, disarmTarget?.headTier ?? DEFAULT_TIER);
+  disarm.tick(dt);
+  // the disarm prompt mirrors that gate, shown only while the sim runs (the overlay hides it once open).
+  disarmPrompt.sync(disarmTarget !== null && !paused && !dying);
+
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
   loot.update();
@@ -391,7 +424,7 @@ function frame(now: number): void {
   // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
   // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
   // overlay rather than popping on resume.
-  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world)], dt);
+  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig)], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);
@@ -404,6 +437,7 @@ function frame(now: number): void {
     animateReclaimer(view.entityViews, world, dt);
     animateScrapPile(view.entityViews, world, dt);
     animateWeapons(view.entityViews, world, dt);
+    animateTrapArm(view.entityViews, world, dt);
   }
   view.render();
 

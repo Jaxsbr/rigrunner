@@ -5,6 +5,7 @@ import {
   STORAGE_RECIPE,
   RECLAIMER_RECIPE,
   WEAPON_RECIPE,
+  TRAP_ARM_RECIPE,
   CHASSIS_1X3_RECIPE,
   CHASSIS_3X5_RECIPE,
   RECIPES,
@@ -13,14 +14,15 @@ import {
 import { PARTS_CATALOG } from './parts-catalog';
 
 describe('recipes', () => {
-  it('the bench picker lists every buildable: two engines, storage, reclaimer, weapon, and the two chassis kits', () => {
+  it('the bench picker lists every buildable: two engines, storage, reclaimer, weapon, trap arm, and the two chassis kits', () => {
     expect(ELECTRIC_ENGINE_RECIPE.slots).toHaveLength(4);
     expect(STEAM_ENGINE_RECIPE.slots).toHaveLength(4);
     expect(STORAGE_RECIPE.slots).toHaveLength(2);
     expect(RECLAIMER_RECIPE.slots).toHaveLength(2);
     expect(WEAPON_RECIPE.slots).toHaveLength(2);
+    expect(TRAP_ARM_RECIPE.slots).toHaveLength(2);
     expect(RECIPES.map((r) => r.id)).toEqual([
-      'electric-engine', 'steam-engine', 'storage', 'reclaimer', 'weapon', 'chassis-1x3', 'chassis-3x5',
+      'electric-engine', 'steam-engine', 'storage', 'reclaimer', 'weapon', 'trap-arm', 'chassis-1x3', 'chassis-3x5',
     ]);
   });
 
@@ -44,10 +46,15 @@ describe('recipes', () => {
     expect(STORAGE_RECIPE.productKind).toBe('storage');
     expect(RECLAIMER_RECIPE.productKind).toBe('reclaimer');
     expect(WEAPON_RECIPE.productKind).toBe('weapon');
+    expect(TRAP_ARM_RECIPE.productKind).toBe('trap-arm');
   });
 
   it('the reclaimer recipe is the arm + head socket grammar', () => {
     expect(RECLAIMER_RECIPE.slots.map((s) => s.slot)).toEqual(['arm', 'head']);
+  });
+
+  it('the trap-arm recipe is the boom + disarm-head socket grammar', () => {
+    expect(TRAP_ARM_RECIPE.slots.map((s) => s.slot)).toEqual(['trap-boom', 'disarm-head']);
   });
 
   it('resolves a recipe by id, undefined for an unknown one', () => {
