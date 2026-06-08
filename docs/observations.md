@@ -436,3 +436,37 @@ clearly worth it) rather than the whole band sliding up. **Camera left as-is** (
 mirrors Machine Mind's; a *speed-based auto-zoom* — out while moving, in while settling — is a captured
 idea for later, not done). Open question for a later pass: whether turn-radius (handling) also wants a
 tighter base for kiting, or whether the higher top speed already supplies enough turn *rate*.
+
+---
+
+## 15. The draw is culled for free; the bookkeeping isn't — and the ground can't be cut
+
+**Context:** Asked "before enlarging the map, does the code only render what's in view?" — investigated the
+render layer against the live code (2026-06-08).
+
+**Observation:** The answer splits cleanly down the GPU/CPU line, and it's worth holding onto before any
+map-enlargement work:
+
+- **GPU draw side — handled, for free.** Three.js defaults `frustumCulled = true`, the code never disables
+  it, and **every entity is its own `Object3D`** added straight to the scene (`entity-views.ts:52-56`). So
+  off-screen entities are already skipped from the draw with zero culling code of our own. That separate-node
+  design is the thing that makes real culling cheap to add later — nothing is merged into one giant mesh.
+- **CPU side — not handled.** Every per-frame scan walks **all** entities regardless of visibility: the
+  entity↔object sync (`entity-views.ts:38-64`, runs every frame for every entity), the picker, and collision
+  (`collision.ts:29-30`, O(n²) — and *already* self-flagged for a spatial grid). Frustum culling saves the
+  draw, not these loops.
+- **Terrain — monolithic.** The ground is one 80×80 `PlaneGeometry` with a single baked texture
+  (`stage.ts:61-71`). Fine as one draw call today; impossible to stream or chunk-assemble.
+- **Camera far plane is wide (1000)** so distance alone never culls; only the frustum sides do. **Decals:**
+  tracks are capped (640); stains scale linearly with entity count.
+
+**Why it matters:** None of it bites at today's ~150–200 objects, so it's invisible right now — but the CPU
+scans and the single ground mesh are exactly what a several-times-larger or procedurally-chunk-assembled
+world (guidance §1) would make the bottleneck. Naming it now means we enlarge the map *deliberately*,
+starting from a culling-ready position, rather than discovering the per-frame cost scaling with the whole
+world the hard way.
+
+**Status:** NOTED — work mapped, not started. The phased plan (spatial index for the scans first, then
+chunked/streamable terrain sharing the chunk grain, then bounding decals; LOD/occlusion deferred) lives in
+[`specs/render-scaling-spec.md`](specs/render-scaling-spec.md). It's infrastructure that **serves** the
+**Hybrid chunk-assembly world** milestone (guidance §1), not a player-facing feature.

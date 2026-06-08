@@ -27,3 +27,4 @@ Non-spec docs (ideas, observations, the world-progression vision, asset/setup co
 | [option-c-build-plan.md](option-c-build-plan.md) | Scrap Piles / the Reclaimer rummage (Option C) | Done — historical staircase |
 | [looter-camps-spec.md](looter-camps-spec.md) | Looter camps — enemies around a structure (Option D) | ✏️ Specced, not started |
 | [track-marks-spec.md](track-marks-spec.md) | Terrain track marks — fading tread trails under movers | Built (v1, cosmetic) |
+| [render-scaling-spec.md](render-scaling-spec.md) | Render scaling for a larger map (spatial index + chunked terrain) | ✏️ Specced, not started |
