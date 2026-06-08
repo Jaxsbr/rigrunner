@@ -99,6 +99,7 @@ export class EntityViews {
         if (!assembled) return; // not a composing product (shouldn't reach here) — keep the placeholder
         group.remove(placeholder);
         group.add(assembled.group);
+        enableShadows(assembled.group);
         // A composed chassis exposes its instanced Wheel units as `wheel*` nodes (one per corner socket);
         // collect them so animateWheels spins them and the deploy animator splays + spins them up. Empty
         // for engines/containers (no wheels) — animateWheels then no-ops, as before.
@@ -121,6 +122,7 @@ export class EntityViews {
       new THREE.MeshStandardMaterial({ color: r.color }),
     );
     mesh.userData['restY'] = r.size.y / 2; // sit the box on the ground
+    enableShadows(mesh);
     return mesh;
   }
 
@@ -150,6 +152,7 @@ export class EntityViews {
         // added, so only the model itself takes the grade colour, not the scrap inside it.
         if (tint !== undefined) tintModel(instance, tint);
         group.add(instance);
+        enableShadows(instance);
         // Collect spin-able parts: any node named `wheel*` (rig.py keeps them unjoined so they
         // survive as addressable nodes). Empty for assets without wheels — animateWheels no-ops.
         const wheels: THREE.Object3D[] = [];
@@ -169,6 +172,7 @@ export class EntityViews {
               const bucket = bucketTemplate.clone(true);
               // The head wears its OWN sub-part's tier finish, independent of the arm's.
               if (headTint !== undefined) tintModel(bucket, headTint);
+              enableShadows(bucket);
               const rig = new ReclaimerRig(instance, bucket);
               rig.idle(0); // hold the resting idle pose until the first animator tick
               group.userData['reclaimer'] = rig;
@@ -201,6 +205,18 @@ function renderSig(r: Renderable): string {
     return `assembly:${r.groupId}:${r.scale ?? 1}:${tiers}`;
   }
   return `box:${r.color}:${r.size.x},${r.size.y},${r.size.z}`;
+}
+
+/** Let every Mesh under an object cast and receive the sun's real shadows (so parts ground and
+ *  shadow one another). Called on each loaded model/composition; the cheap blob stains stay as
+ *  their own decoration on top. */
+function enableShadows(obj: THREE.Object3D): void {
+  obj.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
 }
 
 /** Magenta wireframe cube = "asset loading or missing" — an obvious dev signal. */
