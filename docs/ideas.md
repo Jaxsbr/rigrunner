@@ -11,7 +11,21 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
-## 2026-06-05 — A built part should *look* like the parts it's made of (composed sub-part rendering)
+## 2026-06-09 — Deferred thread from the boost & drive-balance spec
+
+**Mode:** a side-idea that surfaced while designing the boost mechanic. The full feature firmed into a
+decision — [`specs/boost-drive-balance-spec.md`](specs/boost-drive-balance-spec.md) — but one thread was
+deliberately left *out* of it and parked here, **not committed**.
+
+### Boost could burn cargo scrap, not just heat
+The boost ships as **heat-only** (a gauge that fills as you boost and must cool down). But there's a
+more savage version: boosting also **eats scrap out of your containers**. That turns every boost into a
+"do I burn my hard-won loot to escape this fight?" decision — which is *deeply* on-theme for a scavenger
+game (the whole point is the loot). I love the tension of it. The reason it's not in the spec: it's a
+whole new **economy axis** stacked onto a feature that's already big, and "complexity earns its place" —
+I'd rather feel the heat-only boost first and add the scrap-burn only if play actually asks for it. Maybe
+it's an *upgrade* later: a part that lets you trade scrap for a bigger/longer boost beyond the heat limit.
+
 
 **Mode:** reacting to the game, capturing a target. Sparked by playing the freshly-shipped MP **Phase 1**
 tiers ([`part-identity-spec.md`](specs/part-identity-spec.md)): the per-piece tier **tint** is working, and on
