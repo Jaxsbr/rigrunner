@@ -2,6 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
+import { TrackEmitter } from '@common/components/track-emitter';
 import { Renderable } from '@common/components/renderable';
 import { Health } from '@common/components/health';
 import { Camp } from './camp';
@@ -88,6 +89,8 @@ export function spawnCamp(world: World, x: number, z: number, level = 1): Entity
     });
     world.add(e, Health, { current: lv.enemyHealth, max: lv.enemyHealth });
     world.add(e, Collider, { radius: 0.6 });
+    // A small tread gauge so a guard presses a narrow trail as it kites (features/tracks).
+    world.add(e, TrackEmitter, { width: 0.55 });
     world.add(e, Renderable, { shape: 'model', assetId: 'enemy' });
   }
 
