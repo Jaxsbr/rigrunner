@@ -12,18 +12,21 @@ export type ChassisSize = '1x3' | '3x5';
  *
  * `size` is the structural choice — it sets the deck dimensions (`MountGrid` cols×rows) and how many
  * engines the deck accepts (`engineMin`..`engineMax`). The 1×3 is a light scout (1 engine); the
- * 3×5 a hauler (1–3) — capped low on purpose, so engine TIER (not engine count) is the power lever.
+ * 3×5 a hauler (1–2) — capped low on purpose, so engine TIER (not engine count) is the power lever.
  *
- * `grip` and `turning` feed handling: `chassisToRig` derives the rig's `Drivetrain` from them, so a
- * higher-tier chassis handles better (turning → a tighter `Drivetrain.turnRadius`, grip → off-throttle
- * deceleration on top of a constant brake). Propulsion still comes from the engines. `loadCapacity`
- * is the rig's rated carry weight; the HUD reads it against the live mounted load, but nothing
- * refuses an overload yet.
+ * `topSpeed`, `grip` and `turning` feed handling: `topSpeed` is the forward top-speed CEILING the
+ * engines fill toward (drive.ts caps `power · mobility` at it), so the running gear — not the engine —
+ * sets how fast a rig can ultimately go; `chassisToRig` derives the rig's `Drivetrain` from `grip` and
+ * `turning` (a higher-tier chassis turns tighter and brakes harder). All three are summed from the
+ * sub-parts and tier-scaled, so iron running gear lifts the ceiling and sharpens handling. Propulsion
+ * still comes from the engines. `loadCapacity` is the rig's rated carry weight; the HUD reads it
+ * against the live mounted load, but nothing refuses an overload yet.
  */
 export interface Chassis {
   size: ChassisSize;
   engineMin: number;
   engineMax: number;
+  topSpeed: number;     // summed wheel/axle contribution — the forward top-speed CEILING (drive.ts caps to it)
   grip: number;         // summed wheel/axle contribution — off-throttle deceleration (via chassisToRig)
   turning: number;      // summed suspension/steering contribution — turn rate (via chassisToRig)
   loadCapacity: number; // summed frame contribution — the rig's rated carry weight (HUD readout)

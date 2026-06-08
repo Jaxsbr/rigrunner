@@ -35,8 +35,8 @@ The sum of the sub-parts makes the whole chassis's attributes — `topSpeed`, `t
 ### Sizes (the structural choice)
 | Size | Deck (cols×rows) | Engines (min–max) | Role |
 |---|---|---|---|
-| **1×3** | 1 × 3 (3 cells) | 1 – 2 | light scout — the starter (replaces the deprecated 2×3) |
-| **3×5** | 3 × 5 (15 cells) | 3 – 6 | heavy hauler |
+| **1×3** | 1 × 3 (3 cells) | 1 | light scout — the starter (replaces the deprecated 2×3) |
+| **3×5** | 3 × 5 (15 cells) | 1 – 2 | heavy hauler — capped at 2 so engine TIER, not count, is the power lever ([boost-drive-balance-spec](boost-drive-balance-spec.md)) |
 
 Size fixes the deck dimensions (`MountGrid`) and the engine envelope; it is **not** a sub-part. Each
 size has its own GLB and its own (heavier, higher-rated) sub-part set.

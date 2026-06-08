@@ -5,11 +5,11 @@ describe('material tiers', () => {
   it('starts with two tiers, rusty then iron, on a clear (eased) upward ladder', () => {
     expect(TIERS.map((t) => t.id)).toEqual(['rusty', 'iron']);
     // Tier-1 is an identity (a rusty part resolves to exactly its base); each step up is a clear gain
-    // (a meaningful upgrade) but no longer brutally steep — eased from 2.2 to 1.8 in the 2026-06-07
-    // pass so the rusty floor stays playable (`docs/part-identity-spec.md` §2c).
+    // (a meaningful upgrade) but deliberately gentle — iron is ~1.6× a rusty part, narrow enough that
+    // the rusty floor stays playable (`docs/part-identity-spec.md` §2c).
     expect(TIERS[0]!.mult).toBe(1);
     expect(TIERS[1]!.mult).toBeGreaterThan(1.5); // a clear step up
-    expect(TIERS[1]!.mult).toBeLessThan(2); // but eased — not the original brutal 2.2
+    expect(TIERS[1]!.mult).toBeLessThan(2); // but gentle — keeps the rusty floor competitive
     for (let i = 1; i < TIERS.length; i++) {
       expect(TIERS[i]!.mult).toBeGreaterThan(TIERS[i - 1]!.mult);
     }

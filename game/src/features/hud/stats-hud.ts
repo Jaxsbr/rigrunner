@@ -3,6 +3,7 @@ import type { EntityId } from '@core/types';
 import { Assembly } from '@common/components/assembly';
 import { Chassis } from '@common/components/chassis';
 import { rigLoad } from '@common/sim/weight';
+import { Boost, heatFraction } from '@common/components/boost';
 import { mountedEngines } from '@features/engine/engine';
 import { rigPerformance } from '@features/drive/drive';
 import { engineDriveBias, type DriveBias } from '@features/drive/steering';
@@ -53,18 +54,34 @@ export class StatsHud {
       `  top speed     ${fmt(perf.topSpeed)} u/s`,
       `  reverse       ${fmt(perf.reverse)} u/s`,
       ...(labels.length > 0 ? [`  steering      ${biasLabel(engineDriveBias(world, rig))}`] : []),
+      ...(labels.length > 0 ? this.boostLine(world, rig) : []),
       ...this.chassisLines(world, rig, labels.length),
     ].join('\n');
   }
 
   /**
+   * The boost readout (shown only with an engine fitted — boost needs a power source). A heat bar
+   * plus a one-word state, so the player can read at a glance whether boost is ready, firing, cooling
+   * back, or locked out after a redline. Empty when the rig carries no Boost.
+   */
+  private boostLine(world: World, rig: EntityId): string[] {
+    const b = world.get(rig, Boost);
+    if (!b) return [];
+    const segs = 10;
+    const filled = Math.round(heatFraction(b) * segs);
+    const bar = '#'.repeat(filled) + '-'.repeat(segs - filled);
+    const state = b.overheated ? 'OVERHEAT' : b.active ? 'BOOSTING' : b.heat > 0 ? 'cooling' : 'ready';
+    return ['BOOST', `  heat          [${bar}] ${state}`];
+  }
+
+  /**
    * The chassis readout: its size, how many engines are mounted against the size's allowed range
-   * (flagged when under the minimum — a legal but under-powered build), and the live carried load
-   * (mounted parts + cargo) against the rated capacity. The load number climbs as you collect scrap,
-   * which is the same mass that drags the performance lines above. Capacity is a READOUT only —
-   * nothing refuses an overload yet (that gate is a future system); the chassis's own
-   * top-speed/turning stats don't affect driving yet either, so they're left off the readout rather
-   * than shown as inert numbers. Empty when the rig has no Chassis.
+   * (flagged when under the minimum — a legal but under-powered build), the top-speed CEILING the
+   * running gear imposes (the rig's top speed above is capped to it, so a build pressed against the
+   * cap reads "upgrade the wheels to go faster"), and the live carried load (mounted parts + cargo)
+   * against the rated capacity. The load number climbs as you collect scrap, the same mass that drags
+   * the performance lines above. Capacity is a READOUT only — nothing refuses an overload yet (that
+   * gate is a future system). Empty when the rig has no Chassis.
    */
   private chassisLines(world: World, rig: EntityId, engineCount: number): string[] {
     const chassis = world.get(rig, Chassis);
@@ -75,6 +92,7 @@ export class StatsHud {
       'CHASSIS',
       `  size          ${chassis.size.replace('x', '×')}`,
       `  engines       ${engineCount} / ${chassis.engineMin}–${chassis.engineMax}${under}`,
+      `  top speed cap ${fmt(chassis.topSpeed)} u/s`,
       `  load          ${fmt(load)} / ${fmt(capacity)}`,
     ];
   }

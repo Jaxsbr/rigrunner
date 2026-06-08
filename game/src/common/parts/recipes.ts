@@ -137,8 +137,8 @@ export const TRAP_ARM_RECIPE: Recipe = {
 
 /**
  * The two chassis recipes — same three-slot grammar, differing only in the size-fixed structure they
- * stamp (deck dimensions + engine envelope). The 1×3 is the light scout (1–2 engines); the 3×5 the
- * hauler (3–6). `chassisParts(size)` (in `@features/chassis`) supplies the size-matched sub-parts.
+ * stamp (deck dimensions + engine envelope). The 1×3 is the light scout (1 engine); the 3×5 the
+ * hauler (up to 2). `chassisParts(size)` (in `@features/chassis`) supplies the size-matched sub-parts.
  *
  * The deck surface height is per-size now — it tracks each size's wheel: the 3×5 hauler's full-size wheel
  * gives deckY 0.84, the 1×3 scout's smaller wheel a lower 0.70 (deckY = wheel_r*2 + 0.18, kept in step
@@ -164,7 +164,7 @@ export const CHASSIS_3X5_RECIPE: Recipe = {
   output: 'Chassis (3×5)',
   productKind: 'chassis',
   slots: CHASSIS_SLOTS,
-  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.84, engineMin: 1, engineMax: 3 },
+  chassis: { size: '3x5', cols: 3, rows: 5, deckY: 0.84, engineMin: 1, engineMax: 2 },
 };
 
 /** The chassis recipe for a size — the seam `spawnRig` composes its foundation through. */

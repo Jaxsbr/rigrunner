@@ -32,33 +32,44 @@ describe('aggregateEngineOutput', () => {
     expect(aggregateEngineOutput(w, rig)).toEqual({ power: 13, torque: 8 });
   });
 
-  it('sums engines linearly — two engines are exactly twice one (no diminishing returns)', () => {
+  it('compounds two engines with diminishing returns — the second adds 70%, not another full 100%', () => {
     const w = new World();
     const rig = w.createEntity();
     mount(w, rig, ELECTRIC);
     mount(w, rig, ELECTRIC);
-    expect(aggregateEngineOutput(w, rig)).toEqual({ power: 26, torque: 16 });
+    const out = aggregateEngineOutput(w, rig);
+    expect(out.power).toBeCloseTo(13 + 13 * 0.7);  // 22.1
+    expect(out.torque).toBeCloseTo(8 + 8 * 0.7);   // 13.6
   });
 
-  it('keeps scaling with every added engine — six give the most, never a detriment', () => {
+  it('keeps every added engine a net gain, but on a shrinking marginal — diminishing, never negative', () => {
     const w = new World();
     const rig = w.createEntity();
     let prev = 0;
+    let prevDelta = Infinity;
     for (let n = 1; n <= 6; n++) {
       mount(w, rig, ELECTRIC);
-      const out = aggregateEngineOutput(w, rig);
-      expect(out.power).toBeGreaterThan(prev); // strictly more each time
-      prev = out.power;
+      const power = aggregateEngineOutput(w, rig).power;
+      const delta = power - prev;
+      expect(power).toBeGreaterThan(prev);                 // always more total
+      expect(delta).toBeLessThanOrEqual(prevDelta + 1e-9); // ...but each step adds no more than the last
+      prev = power;
+      prevDelta = delta;
     }
-    expect(aggregateEngineOutput(w, rig).power).toBe(78); // 6 × 13
+    // weights [1, .7, .5, .5, .5, .5] sum to 3.7
+    expect(aggregateEngineOutput(w, rig).power).toBeCloseTo(13 * 3.7);
   });
 
-  it('sums each attribute independently', () => {
+  it('leads each attribute with its strongest source — a mixed-type rig diminishes per attribute', () => {
     const w = new World();
     const rig = w.createEntity();
     mount(w, rig, ELECTRIC);    // 13 / 8
     mount(w, rig, STEAM);  // 8 / 19
-    expect(aggregateEngineOutput(w, rig)).toEqual({ power: 21, torque: 27 });
+    const out = aggregateEngineOutput(w, rig);
+    // power: electric (13) leads at full, steam (8) at 0.7 → 18.6
+    // torque: steam (19) leads at full, electric (8) at 0.7 → 24.6
+    expect(out.power).toBeCloseTo(13 + 8 * 0.7);
+    expect(out.torque).toBeCloseTo(19 + 8 * 0.7);
   });
 
   it('only counts engines mounted on the asked-for rig', () => {

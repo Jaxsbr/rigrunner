@@ -22,12 +22,14 @@
  * is applied at resolve time. Adding a tier is one data row here, nothing else — and the asset viewer's
  * tier pickers read this list, so they gain a row automatically (no hard-coded rusty/iron).
  *
- * The ladder is a clear step up but no longer brutally steep: iron is worth ~1.8× a rusty part. It was
- * eased from the original 2.2× in the 2026-06-07 playtest pass — at 2.2 the starting rusty rig was so
- * far below iron that it couldn't out-pace the looter-camp guards, and lifting the engine base pace to
- * fix that would have ballooned iron (iron = base × mult). Easing the mult narrows the rusty→iron gap
- * so the floor is playable while iron stays the clear upgrade. The numbers are strawmen, tuned against
- * feel — start with two tiers and add `alloy`/`elementium`/… as pure rows when play asks (§6).
+ * The ladder is a clear step up but deliberately gentle: iron is worth ~1.6× a rusty part. The mult is
+ * the global lever for how much iron dominates — it touches every attribute (power, torque, weight,
+ * health, capacity, cost), so a smaller mult narrows the rusty→iron gap across the board, keeping the
+ * starting rusty rig competitive (it must out-pace the looter-camp guards) while iron stays the clear
+ * upgrade. With drive top speed now capped by the chassis ceiling (drive.ts), iron's edge reads as
+ * faster ACCELERATION and a higher ceiling via iron running gear rather than runaway top speed. The
+ * numbers are strawmen, tuned against feel — start with two tiers and add `alloy`/`elementium`/… as
+ * pure rows when play asks (§6).
  */
 export type TierId = 'rusty' | 'iron';
 
@@ -45,7 +47,7 @@ export interface Tier {
 /** The tiers, low → high. Order is the ladder; index 0 is the base (tier-1) every part defaults to. */
 export const TIERS: readonly Tier[] = [
   { id: 'rusty', name: 'Rusty', mult: 1, finishColor: 0x8a4b2f }, // rust — weathered, decayed metal
-  { id: 'iron', name: 'Iron', mult: 1.8, finishColor: 0x9aa7b0 }, // iron-grey — cleaner forged steel (eased from 2.2)
+  { id: 'iron', name: 'Iron', mult: 1.6, finishColor: 0x9aa7b0 }, // iron-grey — cleaner forged steel
 ];
 
 /** The tier every freshly-spawned part starts at (the base of the ladder). */

@@ -6,9 +6,9 @@ breaking the game. They ship together because you cannot size a boost until the 
 "any boost on a bat-out-of-hell rig makes it unrealistic." Requested 2026-06-09; designed in a
 grilling session that resolved every fork below.
 
-> **Status:** **designed, not yet built.** This is the plan of record. Numbers marked _(tune)_ are
-> strawmen to be set against feel in a playtest pass — the game's pace lives in the catalog and a few
-> named knobs, not in magic constants scattered through systems.
+> **Status:** **built** (this PR). This is the feature's home. Numbers marked _(tune)_ are strawmen
+> set in code, to be dialled against feel in a playtest pass — the game's pace lives in the catalog and
+> a few named knobs, not in magic constants scattered through systems.
 
 ---
 
@@ -69,9 +69,11 @@ new tiers fill toward it instead of climbing past it.
   mobility)`. Acceleration stays uncapped — it's tamed by §2.2 and by load, and a launch that's
   punchy-but-not-linear feels good.
 
-The ceiling should sit **slightly above a fair, fully-built top speed for that chassis**, so it
-mainly bites the over-powered / high-tier builds (the bat-out-of-hell case) without crippling an
-ordinary rig. Strawman: 1×3 ≈ **14 u/s**, 3×5 ≈ **22 u/s** _(tune)_.
+The ceiling sits **slightly above a fair, fully-built top speed for that chassis**, so it mainly bites
+the over-powered / high-tier builds (the bat-out-of-hell case) without crippling an ordinary rig — it
+is the wheel-axle's tier-scaled `topSpeed`, so iron running gear lifts it. Strawman: 1×3 = **12 u/s**,
+3×5 = **14 u/s** rusty (→ ~19 / ~22 on iron wheels) _(tune)_. An iron *engine* on rusty wheels is
+capped at the rusty ceiling — "your engine outgrew your running gear, upgrade the wheels."
 
 ### 2.2 Diminishing returns on the engine sum
 
@@ -87,9 +89,10 @@ weights = [1.0, 0.7, 0.5]      (engine 1 full, engine 2 +70%, engine 3 +50%)
 
 - Applied to **both** the power and torque sums, in `aggregateEngineOutput` (`engine.ts:39`) — the one
   place the per-attribute sum happens.
-- **Order:** rank the mounted engines by total output (`power + torque`) **descending**, then assign
-  weights by rank (strongest engine runs full, extras supplement). Deterministic and order-independent;
-  for the common homogeneous build, order is moot.
+- **Order:** applied to power and torque **independently** — each attribute's contributions are sorted
+  high→low and weighted by rank, so the strongest *power* source leads the power sum and the strongest
+  *torque* source leads the torque sum. Deterministic and order-independent; moot for the common
+  homogeneous build, and a mixed-type rig leads each attribute with its best engine.
 - The third weight (`0.5`) is **defined but unreachable today** (see §2.3) — kept for any future
   larger chassis.
 - Always monotonically increasing, never a net loss — reattaching this on top of the weight-mobility
@@ -173,10 +176,10 @@ One clean relationship makes this fall out: **heat-fill-rate ∝ surge magnitude
 fills heat fast → short; mild surge (electric) fills slow → long. Both deliver a **similar total
 boost per overheat cycle** — equal budget, opposite shape (spike vs sustain).
 
-- **Data swap:** the catalog `burst` values are currently backwards for this (e-regulator `burst=4` >
-  s-throttle `burst=3`). Swap so **steam carries the larger burst** (e.g. s-throttle `burst=6`,
-  e-regulator `burst=3`) _(tune)_, or read surge magnitude from per-type boost constants. Either way
-  the field is no longer a reserved placeholder — it becomes the boost's surge input.
+- **Surge source:** to keep boost a *flat, bounded* equaliser (§3.4), surge magnitude comes from
+  per-energy-type constants in `@features/boost` (`BOOST_PROFILES`), **not** from the tier-scaled
+  `burst` sum — reading `burst` would reintroduce tier scaling and break the equaliser. `burst` stays
+  a reserved placeholder for a future use.
 
 ### 3.4 Scaling — flat per rig, by engine type only
 
@@ -212,8 +215,9 @@ tradeoff, on-theme, zero new code. Players learn to boost on straightaways.
 - **Forward only:** boost applies when `throttle > 0`; ignored in reverse / at rest.
 - **HUD:** a **heat bar** in the stats HUD (`features/hud`) that fills as you boost and **reddens near
   / at overheat** (locked state visibly distinct). The HUD remains a pure projection of state.
-- **Juice (felt feedback):** a boost **visual** while active — exhaust flare / speed lines / a brief
-  FX kick — so the surge is something you *see*, not just a number. Detail for the build.
+- **Juice (felt feedback):** the camera **FOV widens a few degrees while boosting** (eased in/out via a
+  generic `OrbitCamera.setFovExtra`, driven from `main.ts`), so the surge reads as a rush of speed, not
+  just a number. An exhaust flare / speed-lines pass is possible future polish on top.
 
 ---
 
@@ -226,17 +230,20 @@ tradeoff, on-theme, zero new code. Players learn to boost on straightaways.
 | Ceiling clamp on top speed | `@features/drive/drive.ts` (`rigPerformance`) |
 | Diminishing-returns marginal weights `[1.0,0.7,0.5]` | `@features/engine/engine.ts` (`aggregateEngineOutput`) |
 | 3×5 `engineMax` 3 → 2 | `@common/parts/recipes.ts` (`CHASSIS_3X5_RECIPE`) |
-| Iron mult 1.8 → ~1.6 | `shared/part-identity.ts` (`TIERS`) |
-| `burst` swap (steam > electric) | `@common/parts/parts-catalog.ts` (`PART_ATTRIBUTES`) |
-| `Boost` component (heat, active, locked) | new, `@features/<boost>/` |
-| `boostSystem` (heat fill/drain/overheat, reads input + engine type) | new, `@features/<boost>/` |
-| Apply flat surge on top of base perf | `@features/drive/movement.ts` |
-| `boost: boolean` on intent | `@common/input/drive-input.ts` |
-| Heat bar + boost visual | `@features/hud`, render |
-| Rewrite stale linear-sum comments; fix chassis-spec table | `engine.ts`, `drive.ts`, `docs/specs/chassis-spec.md` |
+| Iron mult 1.8 → 1.6 | `shared/part-identity.ts` (`TIERS`) |
+| `Boost` component (heat/overheated/active/surge) + `freshBoost`/`heatFraction` | `@common/components/boost.ts` (new) |
+| Per-type profiles + `boostSystem` (heat fill/drain/overheat, surge by engine type) | `@features/boost/boost.ts` (new) |
+| Seed/strip `Boost` on the rig | `@features/mounting/rig.ts` (`chassisToRig`/`chassisToKit`) |
+| Apply surge on top of base perf (lift cap + accel, coast-down after) | `@features/drive/movement.ts` |
+| `boost: boolean` on intent + Shift; `boost?` on control | `@common/input/drive-input.ts`, `@features/drive/drive-control.ts` |
+| Boost heat bar + chassis ceiling readout | `@features/hud/stats-hud.ts` |
+| Boost FOV kick (generic, eased) | `@common/render/orbit-camera.ts` + `view.ts`, driven from `main.ts` |
+| Run `boostSystem` before movement; feed boost intent | `game/src/main.ts` |
+| Rewrote stale linear-sum comments; fixed chassis-spec table | `engine.ts`, `drive.ts`, `docs/specs/chassis-spec.md` |
 
-Boost is a new mechanic → a **new `features/<boost>/` folder** (per ADR-003), created when its code is
-written, with its component + system + HUD bit + tests co-located.
+Boost is a new mechanic → a **new `features/boost/` folder** (per ADR-003) holds its profiles + system
++ tests. The `Boost` *component* lives in `@common/components` (data read by two features — boost and
+drive), keeping the cross-feature edge one-way (boost → drive) with no cycle.
 
 ---
 
@@ -244,8 +251,8 @@ written, with its component + system + HUD bit + tests co-located.
 
 | Knob | Strawman | Notes |
 |---|---|---|
-| 1×3 ceiling | 14 u/s | just above a fair fully-built top speed |
-| 3×5 ceiling | 22 u/s | hauler can approach but rarely hit it laden |
+| 1×3 ceiling (rusty wheels) | 12 u/s | wheel-axle `topSpeed`; iron wheels → ~19 |
+| 3×5 ceiling (rusty wheels) | 14 u/s | iron wheels → ~22; laden hauler rarely reaches it |
 | marginal weights | `[1.0, 0.7, 0.5]` | each step must beat its engine's weight |
 | Iron mult | 1.6 | from 1.8; watch the rusty floor vs 4 u/s guards |
 | steam surge (Δspeed) | +8 u/s | strong-short |

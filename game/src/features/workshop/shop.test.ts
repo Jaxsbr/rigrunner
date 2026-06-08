@@ -68,7 +68,7 @@ describe('buyPart', () => {
   });
 
   it('mints an IRON part when the iron item is bought — the tier rides on the instance', () => {
-    const ironShell = shopItemForPart('container-shell', 'iron')!; // round(3 × 1.8) = 5 scrap
+    const ironShell = shopItemForPart('container-shell', 'iron')!; // round(3 × 1.6) = 5 scrap
     const world = setup(ironShell.cost);
     const result = buyPart(world, ironShell);
 
@@ -126,7 +126,7 @@ describe('sellPart', () => {
 
     const result = sellPart(world, iron);
 
-    // iron shell buys at round(3 × 1.8) = 5, resells at round(5 / 2) = 3 — above a rusty shell's 2.
+    // iron shell buys at round(3 × 1.6) = 5, resells at round(5 / 2) = 3 — above a rusty shell's 2.
     expect(result).toMatchObject({ ok: true, scrapGained: 3 });
   });
 

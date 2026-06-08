@@ -25,6 +25,8 @@ import { MountGrid } from '@common/components/mount-grid';
 import { MountFacing } from '@common/components/mount-facing';
 import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { movementSystem } from '@features/drive/movement';
+import { boostSystem } from '@features/boost/boost';
+import { Boost } from '@common/components/boost';
 import { collisionSystem } from '@common/sim/collision';
 import { scrapCollectionSystem } from '@features/scrap/scrap-collection';
 import { scrapPileSystem, scrapRummageSystem, pileClearSystem } from '@features/scrap/scrap-pile-system';
@@ -324,10 +326,12 @@ function frame(now: number): void {
   if (paused || dying) {
     ctl.throttle = 0;
     ctl.steer = 0;
+    ctl.boost = false;
   } else {
     const intent = input.poll();
     ctl.throttle = intent.throttle;
     ctl.steer = intent.steer;
+    ctl.boost = intent.boost;
     work = intent.work;
   }
   // E's RISING edge — one press, distinct from the held-E rummage. Pack-up (a single-shot action) reads
@@ -340,6 +344,8 @@ function frame(now: number): void {
   // `paused` — opening the overlay freezes movement, mounting-ride, the proximity gate, the build
   // interaction, collection and drain together; the scene keeps rendering frozen below.
   if (!paused && !dying) {
+    // Resolve boost heat/surge for every rig BEFORE movement reads it (so the surge is current).
+    boostSystem(world, dt);
     movementSystem(world, dt);
     mountingSystem(world);
     // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
@@ -428,6 +434,10 @@ function frame(now: number): void {
   // not treated as a switch.
   const retarget = prevActiveRig !== null && activeRig !== prevActiveRig;
   prevActiveRig = activeRig;
+  // A boost speed-kick: widen the camera FOV a few degrees while the active rig is boosting (eased in
+  // and out by the camera). Zeroed while paused/dying so the view never sticks wide behind an overlay.
+  const boosting = !paused && !dying && (world.get(activeRig, Boost)?.active ?? false);
+  view.setFovExtra(boosting ? 6 : 0);
   view.follow(world.get(activeRig, Transform)!, cameraInput.poll(), dt, retarget);
   view.sync(world);
   // proximity discs (workshop + scrap): each feature contributes its gated disc entries and main

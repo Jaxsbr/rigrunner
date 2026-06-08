@@ -1,6 +1,7 @@
 import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Drivetrain } from '@features/drive/drivetrain';
+import { Chassis } from '@common/components/chassis';
 import { aggregateEngineOutput } from '@features/engine/engine';
 import { effectiveRigWeight } from '@common/sim/weight';
 
@@ -13,9 +14,15 @@ import { effectiveRigWeight } from '@common/sim/weight';
  *
  *     mobility = torque / (torque + WEIGHT_DRAG · weight)        ∈ (0, 1]
  *
- *   - top speed     = combined engine power × mobility
+ *   - top speed     = min(chassis ceiling, combined engine power × mobility)
  *   - acceleration  = combined engine torque × mobility
  *   - reverse       = top speed × the chassis's reverseFactor
+ *
+ * The chassis CEILING (`Chassis.topSpeed`, summed from the wheel/axle running gear) caps the top end:
+ * engines and tiers determine how fast the rig reaches that ceiling and how well it holds it under
+ * load, but never let it exceed it — so the running gear, not the engine, sets a rig's ultimate top
+ * speed, and future high-tier engines can't break the map. Acceleration is left uncapped (the surge a
+ * boost lifts further); a rig without a `Chassis` (a bare test rig) simply has no ceiling.
  *
  * `weight` is the rig's EFFECTIVE weight (dry structural mass + live cargo — see
  * `common/sim/weight.ts → effectiveRigWeight`), so a rig loaded with scrap is heavier, hauls a lower
@@ -25,10 +32,10 @@ import { effectiveRigWeight } from '@common/sim/weight';
  *
  * No engine → power/torque 0 → mobility 0 → it can't move (throttle is dead; it coasts under friction).
  *
- * Engines still sum linearly (see engine.ts) and more engines are always more performance: each adds
- * weight, but its torque raises mobility enough that the net is a strict gain — the old
- * diminishing-returns sum that once made the 4th–6th engine a net loss is gone, so reattaching weight
- * here does not bring that back.
+ * Engines compound with DIMINISHING RETURNS (see engine.ts): each adds weight, but its (sub-linear)
+ * torque still raises mobility enough that every extra engine is a net gain. Capping count low (the
+ * 3×5 takes two) keeps a laden hauler below its ceiling — "strong but never truly fast" — which is the
+ * gap a boost exists to fill.
  *
  * WEIGHT_DRAG is the master tuning knob for "how much weight hurts"; expect to tune it to feel
  * alongside the part/engine weights and `SCRAP_UNIT_WEIGHT` in content/`common/sim/weight.ts`.
@@ -51,7 +58,10 @@ export function rigPerformance(world: World, rig: EntityId): RigPerformance {
   const reverseFactor = world.get(rig, Drivetrain)?.reverseFactor ?? 0;
 
   const mobility = out.torque > 0 ? out.torque / (out.torque + WEIGHT_DRAG * weight) : 0;
-  const topSpeed = out.power * mobility;
+  // The chassis ceiling caps the top end; a rig with no Chassis (a bare test rig) has no cap.
+  const ceiling = world.get(rig, Chassis)?.topSpeed;
+  const driven = out.power * mobility;
+  const topSpeed = ceiling !== undefined ? Math.min(ceiling, driven) : driven;
   return {
     topSpeed,
     acceleration: out.torque * mobility,

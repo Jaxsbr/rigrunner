@@ -12,6 +12,7 @@ import { Renderable } from '@common/components/renderable';
 import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { Chassis, CHASSIS_KIT_FOOTPRINT, type ChassisSize } from '@common/components/chassis';
+import { Boost, freshBoost } from '@common/components/boost';
 import { chassisRecipeForSize } from '@common/parts/recipes';
 import { composeProduct, chassisTier, productSubPartTiers } from '@common/sim/assembly';
 import { tierOf } from '@common/parts/tiers';
@@ -92,6 +93,9 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   world.add(chassis, Drivetrain, { friction, turnRadius, reverseFactor: 0.5 });
   world.add(chassis, Velocity, { speed: 0 });
   world.add(chassis, DriveControl, { throttle: 0, steer: 0 });
+  // The boost heat gauge — every rig can boost (the boost system gates it on having an engine). Cold
+  // at deploy; held Shift fills it, redlining locks it out until it cools.
+  world.add(chassis, Boost, freshBoost());
   // The chassis's own collision footprint (a circle over the body). Each mounted part adds its own
   // Collider, so the rig's true collision area is the union of these circles — it grows with the
   // build. Sized to the size's central body; the 3×5 hauler is wider so its disc is larger.
@@ -137,6 +141,7 @@ export function chassisToKit(world: World, chassis: EntityId): EntityId {
   world.remove(chassis, Drivetrain);
   world.remove(chassis, Velocity);
   world.remove(chassis, DriveControl);
+  world.remove(chassis, Boost);
   world.remove(chassis, Collider);
   world.remove(chassis, TrackEmitter); // a folded crate doesn't drive, so it leaves no tracks
   world.remove(chassis, Health); // a packed kit isn't a damageable rig; redeploy refills a fresh max

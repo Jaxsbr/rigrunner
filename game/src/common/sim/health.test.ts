@@ -16,11 +16,11 @@ describe('rigMaxHealth + Health on the rig', () => {
     expect(h.current).toBe(100);
   });
 
-  it('a higher-grade chassis tanks more — iron 1×3 scales by the tier multiplier (1.8×)', () => {
+  it('a higher-grade chassis tanks more — iron 1×3 scales by the tier multiplier (1.6×)', () => {
     const world = new World();
     const iron = chassisToRig(world, composeProduct(world, chassisRecipeForSize('1x3'), chassisParts('1x3'), 'iron'));
-    expect(rigMaxHealth(world, iron)).toBe(180); // 100 × 1.8
-    expect(world.get(iron, Health)!.max).toBe(180);
+    expect(rigMaxHealth(world, iron)).toBe(160); // 100 × 1.6
+    expect(world.get(iron, Health)!.max).toBe(160);
   });
 
   it('a bigger chassis is a sturdier base — the 3×5 hauler out-tanks the 1×3 scout', () => {
