@@ -11,6 +11,78 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-08 — Wheel/track marks on the terrain (the missing feel-win) + where we are / what's next
+
+**Mode:** reacting to the game after a play session, taking stock of state and naming the most likely
+next thing to build. **Not committed** — the concrete current-state findings are logged separately in
+`observations.md` (#15–#17); this is the forward-looking design thinking, especially the *how would the
+track mechanism work* part.
+
+### Taking stock — what feels done, what's looming
+- **Looter camps feel done.** Functional, they look decent, properly clearable, and trap-designable.
+  As a *content + flee-or-fight* system it lands. (→ `observations.md` #15.)
+- **The build is not balanced — at all.** Parts are simply *available*, and a few have enough scrap to
+  buy. There's no balance and nothing is **gated behind progression** yet. Eventually this needs real
+  balancing + a progression gate. I'm not designing that here — the shape of that gate is already
+  captured (`world-progression-guidance.md` §4 progression / region-gating, and **MP** part-identity
+  tiers). Logging it as the looming system, with the current-state gap in `observations.md` #16.
+
+### The track marks — a simple thing that adds a lot, completely missing
+Right now **anything that moves on wheels or tracks leaves nothing behind.** It should leave a **mark on
+the terrain** — a track that **fades slowly** — so you can see where you drove. This is a *small* thing
+that adds a **lot** to the feel, and it's totally absent. It's my pick for the **most likely next thing
+to build** because the effort-to-payoff is lopsided in our favour.
+
+**Start simple (v1):** purely a fading drive mark. As the rig moves, lay a trail of marks under the
+wheels/tracks that ease out over a few seconds. No gameplay meaning — just "I was here, and the land
+remembers for a moment." Cosmetic, like the scrap/camp stains already are.
+
+**It's cheap because the seam already exists.** We already drop **fading radial ground decals** for
+scrap seepage and camp mess — `features/scrap/scrap-stains.ts` and `features/camps/camp-stains.ts` are
+render-layer collaborators that stamp canvas-texture decals on the ground and ease their opacity each
+frame with zero gameplay coupling. A track-layer is the *same pattern*: a new render-side collaborator
+(its own `features/tracks/` slice per ADR-003) that drops a decal behind the rig as it moves, reading
+the rig's position/velocity off the drive movement seam (`features/drive/movement.ts`), alongside the
+existing wheel-spin visual (`features/drive/wheel-spin.ts`). The scrap-stain spec even already lists a
+**"residual scorch — a faint mark where you were"** as a captured extension (§7) — track marks are that
+idea, made into a trail.
+
+**The future version — the mark *attributes toward restoration*.** This is the part that matters for the
+through-line. Per `world-progression-guidance.md` §3a (**earned, upgradeable, persistent life-trails**),
+the mark eventually isn't a generic tyre scuff — it's **made through a specific part and/or a specific
+resource you carry**, and laying it down **contributes to restoring the world**. So the same surface
+spans both ends:
+- **now:** an unconditional, fading "you drove here" mark — feel only;
+- **later:** a *part-gated, resource-fed* trail that **persists** and **greens** the ground (soil →
+  grass → blooms), an earned ability, not a default — exactly the life-trails reward.
+
+This rhymes with the **Reclaimer through-line** (a durable instrument + a swappable head/feed): a generic
+drive mark is the cheap rung; a restoration-grade trail is the same trail laid by a dedicated part
+consuming a dedicated resource. Build the v1 mark so the *trail-emitter* is the seam a future
+"life-trail emitter" part plugs into — don't build the gating/persistence/greening now.
+
+**Open — the mechanism to determine:** how the trail is actually emitted and tuned. First guesses to
+settle at build time:
+- **Emission:** sample a decal every N units travelled (distance-based, so speed doesn't change spacing)
+  vs. every M ms — distance-based likely reads better; per-wheel/track contact points vs. one mark under
+  the rig centre.
+- **Look:** two parallel tread bands vs. a single smudge; orient to heading; vary like the scrap stains
+  do so it doesn't read as stamped copies.
+- **Fade/lifetime:** how long a mark lingers before easing out (the scrap stains use ~8 s in, ~14 s out
+  — a drive mark probably wants a shorter, snappier life so the trail reads as *recent*).
+- **Budget:** a moving rig emits continuously — needs a ring-buffer / cap on live decals (or instanced
+  batching, already flagged as the scrap-stain optimisation) so a long drive doesn't pile up draw calls.
+- **The future fork:** is the restoration trail the *same emitter* upgraded (a tier on one system), or a
+  *second* emitter that only exists once you own the part? Leaning same-system-upgraded, so v1's seam is
+  literally what the part later drives.
+
+**Status:** RAW idea. The v1 fading drive-mark is a strong candidate for a **deliberately-minimum**
+near-term option (stands alone, worth it the day it ships, exposes a clean seam) — but **not promoted to
+`milestones.md` yet**; it's the concrete visual seed of the already-listed *Earned, upgradeable,
+persistent life-trails* skeleton milestone (guidance §3a). Promote when we commit to building it.
+
+---
+
 ## 2026-06-05 — A built part should *look* like the parts it's made of (composed sub-part rendering)
 
 **Mode:** reacting to the game, capturing a target. Sparked by playing the freshly-shipped MP **Phase 1**

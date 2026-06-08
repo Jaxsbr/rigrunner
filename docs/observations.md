@@ -436,3 +436,69 @@ clearly worth it) rather than the whole band sliding up. **Camera left as-is** (
 mirrors Machine Mind's; a *speed-based auto-zoom* — out while moving, in while settling — is a captured
 idea for later, not done). Open question for a later pass: whether turn-radius (handling) also wants a
 tighter base for kiting, or whether the higher top speed already supplies enough turn *rate*.
+
+---
+
+## 15. Looter camps land — the flee-or-fight content feels done
+
+**Context:** A play session after the looter-camps Phases 1–3 shipped (PRs #55–#57) — driving out,
+engaging/evading a camp, clearing it, and arming/disarming the trap.
+
+**Observation:** Camps **feel done** as a system. They're functional, they **look decent**, they're
+**properly clearable**, and the **trap is genuinely designable** (arm/disarm reads as a real puzzle, not
+a flag flip). As a content + **flee-or-fight** pillar this is the first thing in the game that gives the
+rig a real reason to fight or run, and it delivers.
+
+**Why it matters:** It's a positive baseline to build on rather than a problem to fix — worth recording
+so we don't accidentally re-open what already works. The *remaining* camp work is additive (Phase 4 more
+camp levels + the scaling-enemy hook, and the restoration investment that consumes the `RestorableSite`),
+not corrective.
+
+**Status:** GOOD — no action. The shipped camp loop is a keeper.
+
+---
+
+## 16. The build has no balance and nothing is gated behind progression yet
+
+**Context:** Reflecting on the workshop / parts economy across build sessions.
+
+**Observation:** Rig and part building **isn't balanced in any way**. Parts are simply *available*, and a
+handful have enough scrap behind them to buy — but there's no real cost curve, no power balance between
+options, and **nothing is gated behind progression**. You're not earning your way *up* anything; the
+catalog is just open. This is fine for proving the loop (and was the right shortcut to get here), but it's
+clearly a placeholder, not a designed economy.
+
+**Why it matters:** The "I know exactly what to change" loop only has teeth if upgrades are *meaningfully*
+ranked and *earned*. Without balance, choices don't trade off against each other; without gating, there's
+no progression spine for them to climb. This is a load-bearing system that's still entirely stubbed.
+
+**Status:** NOTED — a known gap, not yet a committed work item. The *shape* of the fix is already
+captured, not invented here: **MP** (part-identity tiers — `specs/part-identity-spec.md`) is the balance
+axis, and `world-progression-guidance.md` §4 (progression / region-gating difficulty) is the gate. The
+finding here is just that the current build is **un-gated and unbalanced by default**, and that closing
+that is real, deliberate design work when we pick it up — not a numbers-tweak afterthought.
+
+---
+
+## 17. Nothing happens under the wheels — a cheap, absent feel-win (terrain track marks)
+
+**Context:** Driving the rig around the field, watching what the ground does in response. (Nothing.)
+
+**Observation:** Anything that moves on wheels or tracks **leaves no mark on the terrain.** There's no
+trace that you drove somewhere — the ground is inert under the rig. This is a **small** thing that would
+add a **lot** to the feel (driving should *write* on the world, even faintly), and it's **completely
+missing**. The fix is cheap: we already lay **fading radial ground decals** for scrap seepage and camp
+mess (`features/scrap/scrap-stains.ts`, `features/camps/camp-stains.ts`) as zero-coupling render-layer
+collaborators — a track-layer is the same pattern, a trail of fading decals dropped behind the rig off
+the drive movement seam.
+
+**Why it matters:** Driving is half the loop, and a moving machine that leaves no impression reads cheap
+— the world doesn't acknowledge you're there. It's also the **concrete visual seed of world restoration**:
+per `world-progression-guidance.md` §3a, the mark eventually becomes an earned, part-/resource-fed
+**life-trail** that *greens* the ground. So the same surface buys near-term feel *and* opens the door to
+the restoration through-line.
+
+**Status:** FUTURE — logged so we design *toward* it (a track-emitter seam a future life-trail part plugs
+into) rather than against it. The mechanism design (simple fading mark now → restoration-attributing trail
+later) is captured in `ideas.md` **2026-06-08**. Continues the captured "residual scorch" extension in
+`specs/scrap-stain-decals-spec.md` §7.
