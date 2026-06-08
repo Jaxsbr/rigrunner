@@ -14,14 +14,14 @@ import * as THREE from 'three';
 const TILE_PX = 512;
 const REPEAT = 8;
 
-// On-palette dirt tones, carried as literals like the rest of the render layer. BASE is the dusty
-// tan the ground has always used (so loose scrap still reads against it); the others mottle around
-// it — DARK/GRIME for shadowed dust, LIGHT for sun-bleached dust, RUST for the odd iron stain.
-const BASE = '#8a8275';
-const DARK = '#6f685c';
-const GRIME = '#5f574c';
-const LIGHT = '#a39a8a';
-const RUST = '#8a4b2f';
+// On-palette dirt tones, carried as literals like the rest of the render layer. BASE is a warm
+// sun-baked sandy tan (so loose scrap still reads against it); the others mottle around it —
+// DARK/GRIME for warm shadowed dust, LIGHT for sun-bleached sand, RUST for the odd iron stain.
+const BASE = '#a78a5f';
+const DARK = '#7a6042';
+const GRIME = '#5f4a32';
+const LIGHT = '#c9ad81';
+const RUST = '#9a4f2c';
 
 /** Build a fresh, anisotropy-tuned tiling ground texture. */
 export function createGroundTexture(maxAnisotropy = 1): THREE.Texture {
