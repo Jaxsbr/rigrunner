@@ -29,12 +29,23 @@ import random
 
 import rr_style as rr
 
-# The mound envelope: chunks scatter within a ~4 m × 2.6 m footprint (half-extents below) up to ~3 m,
-# narrowing toward the top so the silhouette tapers to a crown rather than a column. Kept tight on
-# purpose — a loose wide scatter reads as a debris field, not a heap you drive up to and work.
-_HX = 1.95
-_HY = 1.25
-_H = 2.7
+# The heap is built in BANDS up its height. Big, slightly-flattened chunks pack a WIDE, dense base, and
+# the chunk size + the spread both shrink with height to a small crown — so the pile carries its weight
+# at the bottom (the natural settle of heaped scrap) and tapers like a real mound, instead of reading as
+# a floating column of cubes. `_FOOT_*` are the base footprint half-extents (~4.4 m × 3 m); the peak
+# lands ~2.2 m, so the heap is wider than tall — a heap, not a tower.
+_FOOT_X = 2.2
+_FOOT_Y = 1.5
+
+# (spread_frac of the footprint, z centre m, size_min, size_max, count_min, count_max, max_tilt deg,
+#  oblate: squash the height so base chunks settle flat rather than stand as cubes; shardy: allow bars/
+#  plates/shards for upper scrap variety). Bands overlap in z so the mass reads as one packed mound.
+_BANDS = [
+    (1.00, 0.18, 0.70, 1.30, 12, 15, 18, True, False),   # base — wide, dense, big, settled flat
+    (0.74, 0.66, 0.52, 1.00, 10, 12, 30, False, False),  # lower body
+    (0.50, 1.22, 0.40, 0.80, 7, 9, 360, False, True),    # mid — full tumble, some shards
+    (0.29, 1.74, 0.28, 0.56, 4, 6, 360, False, True),    # crown — small shards
+]
 
 # Per-variant identity: a fixed seed (reproducible mesh) + a weighted tone mix. Every variant uses
 # all four weathered tones, but leans a different way so the three read as different heaps — 'a'
@@ -90,42 +101,54 @@ def _wheel(name, radius, depth, mat, loc, rot):
     return wheel
 
 
+def _band_chunk(rng, name, band, weights):
+    """One chunk placed within a height band — scattered across that band's share of the footprint
+    (denser toward the centre), sized in the band's range, tilted by the band's character."""
+    spread, zc, smin, smax, _, _, tilt, oblate, shardy = band
+    ang = rng.uniform(0, math.tau)
+    dist = math.sqrt(rng.random())  # sqrt keeps the scatter even out to the band's reach
+    x = math.cos(ang) * dist * _FOOT_X * spread
+    y = math.sin(ang) * dist * _FOOT_Y * spread
+    z = zc + rng.uniform(-0.12, 0.12)
+
+    if shardy and rng.random() < 0.32:
+        size = _chunk_size(rng)  # an occasional bar/plate/shard for scrap variety up the heap
+    else:
+        sz_scale = 0.62 if oblate else 1.0  # base chunks settle flat (squashed), not standing cubes
+        size = (smin + (smax - smin) * rng.random(),
+                smin + (smax - smin) * rng.random(),
+                (smin + (smax - smin) * rng.random()) * sz_scale)
+
+    obj = rr.beveled_box(name, size=size, mat=_pick(rng, weights), location=(x, y, z))
+    if tilt >= 360:
+        obj.rotation_euler = (_deg(rng, 0, 360), _deg(rng, 0, 360), _deg(rng, 0, 360))  # full tumble
+    else:
+        obj.rotation_euler = (_deg(rng, -tilt, tilt), _deg(rng, -tilt, tilt), _deg(rng, -tilt, tilt))
+    return obj
+
+
 def build_variant(key):
-    """Build one pile variant (`a`/`b`/`c`) — a seeded heap of small tumbled chunks + buried wheels."""
+    """Build one pile variant (`a`/`b`/`c`) — a seeded mound that packs its weight into a wide base and
+    tapers to a small crown, plus a few half-buried wheels for silhouette + story."""
     cfg = _VARIANTS[key]
     rng = random.Random(cfg["seed"])
     weights = cfg["weights"]
     parts = []
 
-    # A solid core: a tight cluster of mid-size chunks at the centre base gives the heap a packed heart
-    # so it reads as mass, not a hollow scatter — without the wide flat slabs that used to look like furniture.
-    for i in range(rng.randint(4, 5)):
-        size = (rng.uniform(0.9, 1.3), rng.uniform(0.8, 1.2), rng.uniform(0.6, 0.95))
-        loc = (rng.uniform(-0.7, 0.7), rng.uniform(-0.5, 0.5), rng.uniform(0.3, 0.9))
-        obj = rr.beveled_box(f"{key}_core{i}", size=size, mat=_pick(rng, weights), location=loc)
-        obj.rotation_euler = (_deg(rng, -14, 14), _deg(rng, -14, 14), _deg(rng, -30, 30))
-        parts.append(obj)
+    i = 0
+    for band in _BANDS:
+        for _ in range(rng.randint(band[4], band[5])):
+            parts.append(_band_chunk(rng, f"{key}_b{i}", band, weights))
+            i += 1
 
-    # The rubble: many small bits packed densely, fullest through the body and tapering to the crown,
-    # tumbled to every angle. The tight envelope + count keeps them overlapping so it reads as a heap.
-    for i in range(rng.randint(34, 42)):
-        f = rng.random() ** 1.25  # height fraction 0..1, slightly biased toward the base
-        taper = 1.0 - f * 0.72    # the footprint the chunk may land in shrinks toward the crown
-        x = rng.uniform(-_HX, _HX) * taper
-        y = rng.uniform(-_HY, _HY) * taper
-        z = f * _H
-        obj = rr.beveled_box(f"{key}_bit{i}", size=_chunk_size(rng), mat=_pick(rng, weights), location=(x, y, z))
-        obj.rotation_euler = (_deg(rng, 0, 360), _deg(rng, 0, 360), _deg(rng, 0, 360))  # full tumble
-        parts.append(obj)
-
-    # A few rusted wheels half-buried around the base — silhouette + story, like the old heap kept.
-    for i in range(rng.randint(2, 3)):
+    # A few rusted wheels half-buried in the base — silhouette + story, like the old heap kept.
+    for w in range(rng.randint(2, 3)):
         ang = rng.uniform(0, math.tau)
-        ring = rng.uniform(0.7, 1.4)
+        ring = rng.uniform(0.8, 1.6)
         radius = rng.uniform(0.5, 0.64)
-        loc = (math.cos(ang) * ring, math.sin(ang) * ring, radius * rng.uniform(0.55, 0.85))  # partly sunk
-        rot = (_deg(rng, 72, 108), 0.0, _deg(rng, -20, 20))
-        parts.append(_wheel(f"{key}_wheel{i}", radius, rng.uniform(0.28, 0.34), rng.choice(["rust", "dark_metal"]), loc, rot))
+        loc = (math.cos(ang) * ring, math.sin(ang) * ring, radius * rng.uniform(0.45, 0.7))  # mostly sunk
+        rot = (_deg(rng, 74, 106), 0.0, _deg(rng, -20, 20))
+        parts.append(_wheel(f"{key}_wheel{w}", radius, rng.uniform(0.28, 0.34), rng.choice(["rust", "dark_metal"]), loc, rot))
 
     return rr.join(parts, f"scrap-pile-{key}")
 

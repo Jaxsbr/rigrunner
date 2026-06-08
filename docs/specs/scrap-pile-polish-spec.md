@@ -36,10 +36,14 @@ with none of the "the world reacts" beat the camps got. Four asks, one pass.
 
 ## Design decisions (from the 2026-06-08 grill)
 
-### 1 — Silhouette: many small multi-tone chunks
-- The heap is rebuilt from **~25–40 small tumbled chunks** (weighted toward `0.3–0.9 m` shards, bars,
-  crushed cubes) plus a few half-buried wheels for story, keeping the **~5 m × 3 m footprint, ~3 m
-  height**. No wide flat base slabs — a couple of mid-size pieces anchor the mass, the rest is rubble.
+### 1 — Silhouette: a grounded mound, weight at the base
+- The heap is built in **height bands**: big, slightly-flattened chunks pack a **wide, dense, grounded
+  base**, and the chunk size + the spread both shrink with height to a small crown of shards (with the
+  odd bar/plate for scrap variety) — so the pile carries its **weight at the bottom** (the natural settle
+  of heaped scrap) and tapers like a real mound, instead of reading as a floating column of cubes. A few
+  half-buried wheels sit in the base for story. Footprint ~**4.5–5 m**, peak ~**3 m** (wider than tall —
+  a heap, not a tower). No wide flat slabs. *(First pass scattered the chunks evenly and read as a
+  floating debris field; the banded heavy base is the fix.)*
 - **"Discoloured" = a balanced multi-tone weathered mix** — no single tone dominates: roughly even
   `scrap_grey` / `rust` / `dark_metal` with occasional `bone_white` (sun-bleached/oxidised bits). No
   new material was needed; the existing palette carries it.
