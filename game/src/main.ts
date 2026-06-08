@@ -20,9 +20,7 @@ import { chassisParts } from '@features/chassis/chassis';
 import { partDef } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
 import { placeProductInWorld } from '@features/workshop/assembly';
-import { mountPart, resolveLocalYaw, mountingSystem } from '@features/mounting/mounting';
-import { MountGrid } from '@common/components/mount-grid';
-import { MountFacing } from '@common/components/mount-facing';
+import { mountPart, mountingSystem } from '@features/mounting/mounting';
 import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { movementSystem } from '@features/drive/movement';
 import { boostSystem } from '@features/boost/boost';
@@ -40,7 +38,7 @@ import { advanceDeploying } from '@features/chassis/deploying';
 import { animateChassisDeploy } from '@features/chassis/deploy-animator';
 import { ChassisBar } from '@features/chassis/chassis-bar';
 import { PackPrompt } from '@features/chassis/pack-prompt';
-import { activeStagingTargets } from '@features/workshop/staging';
+import { activeStagingTargets, stageProduct } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
 import { ZoneOverlays } from '@common/render/zone-overlays';
 import { ScrapStains } from '@features/scrap/scrap-stains';
@@ -94,38 +92,16 @@ const player = spawnRig(world); // a scrap 1×3 chassis — a 3-cell deck (col 0
 // + 1/2 keys switch which one input/camera/HUD/zones follow.
 markOwned(world, player);
 setActiveRig(world, player);
-// The rig starts with a basic pre-assembled ELECTRIC engine already mounted — a gentle cold start
-// (the player can drive immediately, and electric's snappy/light profile is the friendlier default
-// than the heavy hauler). It's a normal composed engine — removable and dismantlable like any other
-// — so the type-lock and swap loop are testable from the first session. There are no longer any
-// loose engines or containers scattered in the world: everything is built in the workshop from parts
-// bought in the Parts Shop.
+// The rig starts with ONLY a pre-assembled ELECTRIC engine mounted — a bare, light starter for clean
+// drive/boost testing (electric's snappy/light profile is the friendlier default than the heavy
+// hauler). It's a normal composed engine — removable and dismantlable like any other — so the engine
+// swap loop is testable from the first session. The storage container and Reclaimer it used to carry
+// now sit staged on the workshop deck (below), so the rig can be loaded up when a test needs it.
 {
   const engine = composeProduct(world, ELECTRIC_ENGINE_RECIPE, engineParts('electric'));
   const rigT = world.get(player, Transform)!;
   placeProductInWorld(world, engine, rigT.x, rigT.z);
-  mountPart(world, engine, player, 0, 1); // a deck cell; the mounting system rides it into place
-}
-// DEV/TEST SEED: the rig also starts with a storage container and a Reclaimer already mounted, so a
-// test session can drive, rummage piles, and sweep scrap immediately — without rebuilding these two
-// every run. They're normal composed products (removable/dismantlable like any part), just pre-fitted.
-// The 1×3 deck has a single column (col 0); the three cells fill front→back: storage (row 0), engine
-// (row 1, above), the Reclaimer (row 2, aimed off the back).
-{
-  const rigT = world.get(player, Transform)!;
-  const grid = world.get(player, MountGrid)!;
-
-  // Storage container (shell + rim) — non-directional, mounts deck-aligned.
-  const storage = composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
-  placeProductInWorld(world, storage, rigT.x, rigT.z);
-  mountPart(world, storage, player, 0, 0);
-
-  // Reclaimer (arm + bucket) — directional: placeProductInWorld gives it an outward MountFacing, so
-  // resolve the matching local yaw for its cell and the arm rests pointing off the deck, ready to dig.
-  const reclaimer = composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!));
-  placeProductInWorld(world, reclaimer, rigT.x, rigT.z);
-  const reclaimerYaw = resolveLocalYaw(world.get(reclaimer, MountFacing), grid, 0, 2, 0, 0);
-  mountPart(world, reclaimer, player, 0, 2, reclaimerYaw);
+  mountPart(world, engine, player, 0, 1); // centre deck cell; the mounting system rides it into place
 }
 // Loose scrap scattered around the rig — drive over pieces to sweep them into mounted storage, bank
 // them at the workshop, then spend the wallet total in the Parts Shop. The larger field makes the
@@ -134,7 +110,20 @@ scatterScrap(world, 64, 5, 34);
 
 // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
 // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
-spawnWorkshop(world, 0, 8);
+const workshop = spawnWorkshop(world, 0, 8);
+// DEV/TEST SEED — stage everything a drive/boost test needs straight onto the workshop deck, so it's
+// grab-and-mount with no shop trip: the rest of the 2×2 engine MATRIX to swap through (the rig already
+// runs a rusty electric, so the other three sit here — rusty steam, iron electric, iron steam, front
+// row), plus the storage container and Reclaimer the rig no longer carries (back row — re-mount them
+// when a test needs hauling or rummaging). Each is a normal composed product on a 3×3 deck cell,
+// grabbed off the deck like any staged part. Remove this block once drive/boost balance is dialled in.
+{
+  stageProduct(world, composeProduct(world, STEAM_ENGINE_RECIPE, engineParts('steam')), workshop, 0, 0);            // rusty steam
+  stageProduct(world, composeProduct(world, ELECTRIC_ENGINE_RECIPE, engineParts('electric'), 'iron'), workshop, 1, 0); // iron electric
+  stageProduct(world, composeProduct(world, STEAM_ENGINE_RECIPE, engineParts('steam'), 'iron'), workshop, 2, 0);    // iron steam
+  stageProduct(world, composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!)), workshop, 0, 2);   // storage container
+  stageProduct(world, composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!)), workshop, 2, 2); // Reclaimer
+}
 // Rummageable scrap piles (Option C / PR4–5) scattered around the field. A pile only lights up once
 // the rig parks in reach with a MOUNTED RECLAIMER aimed at it (the capability + facing gate); then
 // hold E to dig — the arm deploys, the heap slumps in waves, and loose scrap bursts out around the
@@ -179,15 +168,12 @@ world.add(bench, Bench, {
 // The inventory starts empty: every build sub-part comes from the Parts Shop. The rig still starts
 // with a complete mounted electric engine so the player can drive immediately.
 
-// TESTING SEED — two pre-built IRON-tier products dropped straight into the inventory so the high-tier
-// handling/power can be exercised without grinding the shop first: an iron 1×3 chassis kit (deploy it
-// to feel the tighter turning radius + faster braking) and an iron steam engine (mount it for the
-// torquey, tight-turning iron build). Remove this block once tier balance is dialled in.
+// TESTING SEED — an iron 1×3 chassis kit in the inventory so the high-tier chassis handling (tighter
+// turning, faster braking, higher top-speed ceiling) can be deployed without grinding the shop first.
+// The test ENGINES live staged on the workshop deck above. Remove this once balance is dialled in.
 {
   const ironChassisKit = composeProduct(world, chassisRecipeForSize('1x3'), chassisParts('1x3'), 'iron');
   addToInventory(world, ironChassisKit);
-  const ironSteamEngine = composeProduct(world, STEAM_ENGINE_RECIPE, engineParts('steam'), 'iron');
-  addToInventory(world, ironSteamEngine);
 }
 
 const input = createDriveInput();
