@@ -246,6 +246,16 @@ def parent_keep(child, parent) -> None:
 def set_origin_base_center(obj) -> None:
     """Move the object's origin to the centre of its footprint at its lowest point, then
     sit it on the ground (Blender Z=0). After +Y-up export the asset rests on y=0 in-game.
+
+    GOTCHA — grounding overestimates under a non-identity ROTATION. This finds the floor from
+    the object's bound-box CORNERS transformed through `matrix_world`. If `obj` carries a
+    rotation, those rotated AABB corners bound a box LARGER than the real geometry, so `min_z`
+    lands below the true lowest vertex — the asset is grounded too low and ends up FLOATING above
+    y=0 in-game (by up to a metre on a big tilted heap). Watch for this on assets built with
+    `join()`: the merged object inherits the FIRST joined chunk's rotation, so if that chunk is
+    tilted, the whole asset floats. FIX: bake the rotation into the mesh before grounding —
+    `transform_apply(location=False, rotation=True, scale=False)` (geometry is unchanged in world
+    space, but `matrix_world` becomes rotation-free so grounding is exact). See scrap_pile.py.
     """
     bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
     min_z = min(v.z for v in bbox)

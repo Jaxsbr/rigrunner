@@ -150,7 +150,10 @@ Inspect any asset in isolation with the **asset viewer**: `npm run dev:viewer`. 
 - [ ] Built **only** from `rr_style` helpers + `PALETTE` colours (no stray materials).
 - [ ] Real-world scale — footprint matches its intended grid-cell count.
 - [ ] Front faces **−Y** in Blender; confirmed it faces **+Z / "forward"** in-game.
-- [ ] Origin at **base-centre**; rests cleanly on the ground (no floating / sinking).
+- [ ] Origin at **base-centre**; rests cleanly on the ground (no floating / sinking). **Check the GLB's
+      Y-min ≈ 0, not just by eye** — `set_origin_base_center` grounds off bound-box corners, which
+      *overestimate* under a non-identity rotation, so a rotated object (e.g. a `join()`ed heap inheriting
+      a tilted first chunk) floats. Bake the rotation first: `transform_apply(rotation=True)` (see `scrap_pile.py`).
 - [ ] Exported GLB opens in-game (no magenta placeholder), correct finish + colours.
 - [ ] Tri-count reasonable for a grey-box prop.
 - [ ] assetId registered in `shared/assets.ts`; filename = assetId.
