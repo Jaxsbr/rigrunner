@@ -27,6 +27,7 @@ the *whole* merged heap, so the chunky catch-light edge comes for free across ev
 import math
 import random
 
+import bpy  # type: ignore  # Blender runtime (used to bake the merged rotation — see build_variant)
 import rr_style as rr
 
 # The heap is built in BANDS up its height. Big, slightly-flattened chunks pack a WIDE, dense base, and
@@ -150,7 +151,17 @@ def build_variant(key):
         rot = (_deg(rng, 74, 106), 0.0, _deg(rng, -20, 20))
         parts.append(_wheel(f"{key}_wheel{w}", radius, rng.uniform(0.28, 0.34), rng.choice(["rust", "dark_metal"]), loc, rot))
 
-    return rr.join(parts, f"scrap-pile-{key}")
+    merged = rr.join(parts, f"scrap-pile-{key}")
+    # `join` keeps the first chunk as the merged root, and that chunk carries a tilt — so the merged
+    # object inherits a non-identity rotation. `set_origin_base_center` grounds by transforming the
+    # bound-box CORNERS through `matrix_world`, which overestimates the low extent under a rotation and
+    # grounds the heap too low — it ends up floating above y=0. Bake the rotation into the mesh (geometry
+    # unchanged in world space) so the grounding transform is a pure translation and lands exactly on the floor.
+    bpy.ops.object.select_all(action="DESELECT")
+    merged.select_set(True)
+    bpy.context.view_layer.objects.active = merged
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    return merged
 
 
 def build():
