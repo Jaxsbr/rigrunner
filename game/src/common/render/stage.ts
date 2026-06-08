@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createGroundTexture } from './ground-texture';
 
 /**
  * The stage: the scene, renderer, fixed lighting and ground that everything else draws into.
@@ -22,16 +23,19 @@ export class Stage {
     sun.position.set(5, 10, 7);
     this.scene.add(sun);
 
-    // A lighter, dusty wasteland ground so loose scrap (grey/rust) reads against it instead of
-    // vanishing into a near-black floor.
+    // A weathered dusty-dirt floor — tiled procedural texture (dust swells, grime, grit) over a
+    // lighter wasteland base so loose scrap (grey/rust) reads against it. Matte: it catches the sun
+    // without specular glare.
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(80, 80),
-      new THREE.MeshStandardMaterial({ color: 0x8a8275 }),
+      new THREE.MeshStandardMaterial({
+        map: createGroundTexture(this.renderer.capabilities.getMaxAnisotropy()),
+        roughness: 1,
+        metalness: 0,
+      }),
     );
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
-    // Grid lines tuned a touch darker than the new ground so they stay legible on the lighter floor.
-    this.scene.add(new THREE.GridHelper(80, 80, 0x6f685c, 0x7d7669));
   }
 
   render(camera: THREE.Camera): void {
