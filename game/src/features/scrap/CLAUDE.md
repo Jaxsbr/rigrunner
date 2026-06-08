@@ -8,13 +8,19 @@ you see the mechanic end to end.
 What's here:
 
 - **Components:** `collectible` (loose scrap), `scrap-pile`, `digging` (the rummage marker the
-  Reclaimer animator reads), `loot-drop`, `cleared-ground`.
-- **Systems:** `scrap-collection`, `scrap-pile-system` (the rummage/slump sim — suffixed `-system` to
-  sit beside the like-named `scrap-pile` component), `scrap` (the spawner /scatter), `loot-table`.
+  Reclaimer animator reads), `dissolving` (the reclaim-dissolve clock a fully-rummaged pile runs — its
+  heap sinks while a stump rises; scrap's sibling of the camp's `Camp.tornDown`). On reclaim the pile
+  emits a `RestorableSite{kind:'scrap'}` stump — the SAME marker a cleared camp leaves — which lives in
+  `@common/components` (the shared restoration seam).
+- **Systems:** `scrap-collection`, `scrap-pile-system` (the rummage/slump sim + `pileClearSystem`, the
+  dissolve clock — suffixed `-system` to sit beside the like-named `scrap-pile` component), `scrap` (the
+  spawner/scatter; picks one of three `scrap-pile-*` variant GLBs at random), `loot-table`.
   (Collision is no longer here — see below.)
-- **Render** (dispatched from `main.ts`, never from `@common/render`): `scrap-stains`,
-  `scrap-pile-animator`, `reclaimer-animator`, and the `overlays` adapter (its pile disc/hint
-  entries). `loot-overlay` is the loot-popup UI.
+- **Render** (dispatched from `main.ts`, never from `@common/render`): `scrap-stains` (loose-piece
+  seepage), `scrap-pile-stains` (the heap's oil+rust pollution, on the shared `@common/render/ground-stains`
+  engine), `scrap-pile-animator` (the dig-slump), `scrap-pile-clear-animator` (the reclaim dissolve: sink
+  the heap, rise the stump — the camp-teardown sibling), `reclaimer-animator`, and the `overlays` adapter
+  (its pile disc/hint entries). `loot-overlay` is the loot-popup UI. See `docs/specs/scrap-pile-polish-spec.md`.
 
 Single-owner / placement rules at the point of edit:
 

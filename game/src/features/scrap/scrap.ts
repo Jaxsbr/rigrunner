@@ -74,13 +74,18 @@ const PILE_RADIUS = 4.0;                 // metres from centre the rig must reac
 const PILE_FOV = (120 * Math.PI) / 180;  // the arm must have the pile within this full field-of-view
 const PILE_WAVES = 8;                    // waves of scrap the heap holds (≈ how long hold-to-work runs)
 
+// The three pile-mesh variants (one seeded generator, scrap_pile.py); a spawn picks one at random so
+// piles don't all look the same. Each is a distinct silhouette + tone — see scrap-pile-polish-spec.md.
+const PILE_VARIANTS = ['scrap-pile-a', 'scrap-pile-b', 'scrap-pile-c'] as const;
+
 /**
  * Spawn a rummageable scrap pile at a world position — a big junk heap the Reclaimer digs into. It
  * mirrors the workshop's proximity model (a gated zone, no Collider — proximity, not collisions,
  * governs the interaction) but adds the Reclaimer + facing gate (see components/scrap-pile.ts). The
- * heap renders the `scrap-pile` GLB; the render layer shrinks it as `remaining` falls.
+ * heap renders one of the three `scrap-pile-*` variant GLBs (picked by `rng`); the render layer shrinks
+ * it as `remaining` falls, then sinks it on reclaim while a stump rises in its place.
  */
-export function spawnScrapPile(world: World, x: number, z: number, rotationY = 0): EntityId {
+export function spawnScrapPile(world: World, x: number, z: number, rotationY = 0, rng: () => number = Math.random): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY });
   world.add(e, ScrapPile, {
@@ -92,6 +97,7 @@ export function spawnScrapPile(world: World, x: number, z: number, rotationY = 0
     scrapScattered: 0,
     active: false,
   });
-  world.add(e, Renderable, { shape: 'model', assetId: 'scrap-pile' });
+  const assetId = PILE_VARIANTS[Math.floor(rng() * PILE_VARIANTS.length)] ?? PILE_VARIANTS[0];
+  world.add(e, Renderable, { shape: 'model', assetId });
   return e;
 }

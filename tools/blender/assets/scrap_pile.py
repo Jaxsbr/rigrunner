@@ -3,9 +3,15 @@ scrap-pile — the big rummageable junk heap the Reclaimer digs into (Option C /
 
 A "Large" object on the size ladder (docs/asset-style.md): a rough ~5 m × 3 m footprint, ~3 m
 tall mound of tumbled wreckage — big enough to read as a landmark you drive up to and work, not
-a pickup. Built as a heap of beveled boxes at varied sizes / tilts (so it reads as collapsed
-scrap, not a neat stack) with a few rusted WHEELS half-buried in it for silhouette and story.
-Mostly `scrap_grey` and `rust` (heavy weathering), with `dark_metal` recesses.
+a pickup. Built as a HEAP OF MANY SMALL tumbled bits (crushed shards, bars, plates) — denser and
+lower at the base, tapering to a crown — with a few rusted WHEELS half-buried for silhouette and
+story. The tone is a balanced weathered MIX (no single colour dominates) so the heap reads as
+accumulated scavenged junk rather than a stack of slabs.
+
+This module is the single SEEDED generator: `build_variant(key)` builds one of three distinct
+piles (`a`/`b`/`c`) — each a different chunk layout AND tone bias — from a fixed seed, so the GLBs
+are reproducible. The thin `scrap_pile_a/b/c.py` wrappers are the buildable entry points
+(`build_asset.py` runs those → `scrap-pile-{a,b,c}.glb`); `spawnScrapPile` picks one at random.
 
 NOT to be confused with `loose-scrap` (the hand-sized pickup): this is the source, those are
 what burst out of it as it's rummaged.
@@ -19,41 +25,58 @@ the *whole* merged heap, so the chunky catch-light edge comes for free across ev
 """
 
 import math
+import random
 
 import rr_style as rr
 
+# The mound envelope: chunks scatter within a ~4 m × 2.6 m footprint (half-extents below) up to ~3 m,
+# narrowing toward the top so the silhouette tapers to a crown rather than a column. Kept tight on
+# purpose — a loose wide scatter reads as a debris field, not a heap you drive up to and work.
+_HX = 1.95
+_HY = 1.25
+_H = 2.7
 
-def _deg(x, y, z):
-    return (math.radians(x), math.radians(y), math.radians(z))
+# Per-variant identity: a fixed seed (reproducible mesh) + a weighted tone mix. Every variant uses
+# all four weathered tones, but leans a different way so the three read as different heaps — 'a'
+# balanced, 'b' rustier, 'c' greyer/darker.
+_VARIANTS = {
+    "a": {"seed": 11, "weights": [("scrap_grey", 40), ("rust", 30), ("dark_metal", 25), ("bone_white", 5)]},
+    "b": {"seed": 23, "weights": [("rust", 44), ("scrap_grey", 26), ("dark_metal", 20), ("bone_white", 10)]},
+    "c": {"seed": 37, "weights": [("dark_metal", 40), ("scrap_grey", 38), ("rust", 17), ("bone_white", 5)]},
+}
 
 
-# (name, size (x,y,z) m, palette, location (x,y,z) m, rotation (deg))
-_CHUNKS = [
-    # Base layer — wide, low slabs forming the mound's bulk (~5 m × 3 m footprint).
-    ("base_a", (3.80, 2.60, 0.90), "scrap_grey", (-0.30, 0.00, 0.45), _deg(0, 0, 6)),
-    ("base_b", (2.30, 1.90, 0.80), "scrap_grey", (1.15, 0.30, 0.52), _deg(4, 0, -10)),
-    ("base_c", (2.00, 1.70, 0.74), "rust", (-1.25, -0.40, 0.42), _deg(-5, 0, 14)),
-    ("base_d", (1.80, 1.40, 0.70), "dark_metal", (0.60, 0.90, 0.40), _deg(0, 6, -8)),
-    # Mid chunks — cubes and a protruding bar climbing the heap.
-    ("mid_grey", (1.60, 1.40, 1.00), "scrap_grey", (0.10, -0.20, 1.30), _deg(8, 12, 5)),
-    ("mid_rust", (1.20, 1.00, 0.90), "rust", (-0.90, 0.55, 1.20), _deg(0, 14, -10)),
-    ("mid_dark", (1.00, 0.90, 0.80), "dark_metal", (1.20, 0.55, 1.45), _deg(6, 0, 12)),
-    ("mid_bar", (0.46, 0.46, 1.70), "rust", (1.45, -0.45, 1.30), _deg(16, 0, 8)),
-    # Top bits — smaller shards perched near the crown (~3 m tall).
-    ("top_grey", (0.90, 0.80, 0.80), "scrap_grey", (0.00, 0.05, 2.20), _deg(18, 24, 0)),
-    ("top_plate", (1.20, 0.24, 0.70), "rust", (-0.45, 0.30, 2.00), _deg(0, 0, 40)),
-    ("top_nub", (0.50, 0.50, 0.46), "dark_metal", (0.55, -0.45, 2.40), _deg(14, 10, 22)),
-    ("top_spike", (0.30, 0.30, 0.95), "scrap_grey", (-0.20, -0.15, 2.60), _deg(10, 8, 0)),
-]
+def _deg(rng, lo, hi):
+    return math.radians(rng.uniform(lo, hi))
 
-# (name, radius, depth, palette, location (x,y,z) m, rotation (deg)) — rusted wheels in the heap.
-# Each disc stands roughly upright (axle ~horizontal) with its centre a radius off the ground so
-# its bottom rests near Z=0; a couple lean and one is half-buried/tilted.
-_WHEELS = [
-    ("wheel_a", 0.66, 0.34, "rust", (1.70, -1.00, 0.66), _deg(90, 0, 10)),
-    ("wheel_b", 0.60, 0.32, "dark_metal", (-1.80, 0.92, 0.60), _deg(90, 0, -16)),
-    ("wheel_c", 0.54, 0.30, "rust", (0.55, 1.20, 0.52), _deg(72, 22, 0)),
-]
+
+def _pick(rng, weights):
+    """Weighted random palette key from a [(name, weight), ...] table."""
+    total = sum(w for _, w in weights)
+    r = rng.uniform(0, total)
+    upto = 0.0
+    for name, w in weights:
+        upto += w
+        if r <= upto:
+            return name
+    return weights[-1][0]
+
+
+def _chunk_size(rng):
+    """A small tumbled bit, weighted toward the low end. Mostly crushed cubes/shards, with some
+    long bars (rebar/struts) and flat plates (torn panels) mixed in for varied wreckage."""
+    roll = rng.random()
+    if roll < 0.2:  # bar: long in one axis, thin in the other two
+        dims = [rng.uniform(0.7, 1.3), rng.uniform(0.12, 0.26), rng.uniform(0.12, 0.26)]
+        rng.shuffle(dims)
+        return tuple(dims)
+    if roll < 0.32:  # plate: two moderate sides, one thin (a buckled sheet)
+        dims = [rng.uniform(0.4, 0.8), rng.uniform(0.4, 0.8), rng.uniform(0.08, 0.18)]
+        rng.shuffle(dims)
+        return tuple(dims)
+    # crushed cube / shard: small, biased toward the low end of 0.3–0.9 m
+    s = lambda: 0.3 + (rng.random() ** 1.6) * 0.6
+    return (s(), s(), s())
 
 
 def _wheel(name, radius, depth, mat, loc, rot):
@@ -67,12 +90,46 @@ def _wheel(name, radius, depth, mat, loc, rot):
     return wheel
 
 
-def build():
+def build_variant(key):
+    """Build one pile variant (`a`/`b`/`c`) — a seeded heap of small tumbled chunks + buried wheels."""
+    cfg = _VARIANTS[key]
+    rng = random.Random(cfg["seed"])
+    weights = cfg["weights"]
     parts = []
-    for name, size, mat, loc, rot in _CHUNKS:
-        obj = rr.beveled_box(name, size=size, mat=mat, location=loc)
-        obj.rotation_euler = rot  # baked into the mesh when join() pulls it into the heap
+
+    # A solid core: a tight cluster of mid-size chunks at the centre base gives the heap a packed heart
+    # so it reads as mass, not a hollow scatter — without the wide flat slabs that used to look like furniture.
+    for i in range(rng.randint(4, 5)):
+        size = (rng.uniform(0.9, 1.3), rng.uniform(0.8, 1.2), rng.uniform(0.6, 0.95))
+        loc = (rng.uniform(-0.7, 0.7), rng.uniform(-0.5, 0.5), rng.uniform(0.3, 0.9))
+        obj = rr.beveled_box(f"{key}_core{i}", size=size, mat=_pick(rng, weights), location=loc)
+        obj.rotation_euler = (_deg(rng, -14, 14), _deg(rng, -14, 14), _deg(rng, -30, 30))
         parts.append(obj)
-    for name, radius, depth, mat, loc, rot in _WHEELS:
-        parts.append(_wheel(name, radius, depth, mat, loc, rot))
-    return rr.join(parts, "scrap-pile")
+
+    # The rubble: many small bits packed densely, fullest through the body and tapering to the crown,
+    # tumbled to every angle. The tight envelope + count keeps them overlapping so it reads as a heap.
+    for i in range(rng.randint(34, 42)):
+        f = rng.random() ** 1.25  # height fraction 0..1, slightly biased toward the base
+        taper = 1.0 - f * 0.72    # the footprint the chunk may land in shrinks toward the crown
+        x = rng.uniform(-_HX, _HX) * taper
+        y = rng.uniform(-_HY, _HY) * taper
+        z = f * _H
+        obj = rr.beveled_box(f"{key}_bit{i}", size=_chunk_size(rng), mat=_pick(rng, weights), location=(x, y, z))
+        obj.rotation_euler = (_deg(rng, 0, 360), _deg(rng, 0, 360), _deg(rng, 0, 360))  # full tumble
+        parts.append(obj)
+
+    # A few rusted wheels half-buried around the base — silhouette + story, like the old heap kept.
+    for i in range(rng.randint(2, 3)):
+        ang = rng.uniform(0, math.tau)
+        ring = rng.uniform(0.7, 1.4)
+        radius = rng.uniform(0.5, 0.64)
+        loc = (math.cos(ang) * ring, math.sin(ang) * ring, radius * rng.uniform(0.55, 0.85))  # partly sunk
+        rot = (_deg(rng, 72, 108), 0.0, _deg(rng, -20, 20))
+        parts.append(_wheel(f"{key}_wheel{i}", radius, rng.uniform(0.28, 0.34), rng.choice(["rust", "dark_metal"]), loc, rot))
+
+    return rr.join(parts, f"scrap-pile-{key}")
+
+
+def build():
+    """Default standalone build (variant 'a'); the a/b/c wrappers are the committed entry points."""
+    return build_variant("a")

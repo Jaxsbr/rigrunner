@@ -24,6 +24,7 @@ Non-spec docs (ideas, observations, the world-progression vision, asset/setup co
 | [part-identity-spec.md](part-identity-spec.md) | Part identity — tiers, specials, engine vocabulary (MP) | Phases 0–2 built; 3–5 pending |
 | [chassis-spec.md](chassis-spec.md) | Chassis as the tiered envelope (engine cap) | Built |
 | [scrap-stain-decals-spec.md](scrap-stain-decals-spec.md) | Scrap seepage stain decals | Shipped |
+| [scrap-pile-polish-spec.md](scrap-pile-polish-spec.md) | Scrap-pile polish — rubble silhouette, pollution, variations, reclaim scar | Built |
 | [option-c-build-plan.md](option-c-build-plan.md) | Scrap Piles / the Reclaimer rummage (Option C) | Done — historical staircase |
 | [looter-camps-spec.md](looter-camps-spec.md) | Looter camps — enemies around a structure (Option D) | ✏️ Specced, not started |
 | [track-marks-spec.md](track-marks-spec.md) | Terrain track marks — fading tread trails under movers | Built (v1, cosmetic) |

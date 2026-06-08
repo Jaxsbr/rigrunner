@@ -14,7 +14,12 @@ export const MODEL_ASSETS: Record<string, string> = {
   // and while it's carried; `chassisToRig` composes the deployed rig from the chassis sub-parts (the
   // per-size Frame + instanced Wheel/Suspension units) once it's hauled out.
   'chassis-kit': '/assets/chassis-kit.glb',
-  'scrap-pile': '/assets/scrap-pile.glb',
+  // The rummageable junk heap, in three seeded variants (one generator, scrap_pile.py) so piles don't
+  // all look the same; `spawnScrapPile` picks one at random. `loose-scrap` is the hand-sized pickup that
+  // bursts out of a pile as it's rummaged.
+  'scrap-pile-a': '/assets/scrap-pile-a.glb',
+  'scrap-pile-b': '/assets/scrap-pile-b.glb',
+  'scrap-pile-c': '/assets/scrap-pile-c.glb',
   'loose-scrap': '/assets/loose-scrap.glb',
   'storage': '/assets/storage.glb',
   'engine-mk1': '/assets/engine-mk1.glb',

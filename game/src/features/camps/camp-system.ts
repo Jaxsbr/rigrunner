@@ -7,7 +7,7 @@ import { Health } from '@common/components/health';
 import { Camp } from './camp';
 import { CampDecor } from './camp-decor';
 import { Enemy } from './enemy';
-import { RestorableSite } from './restorable-site';
+import { RestorableSite } from '@common/components/restorable-site';
 import { campLevel } from './camp-levels';
 import { rollCampLootForOutcome, campLootTable } from './camp-loot';
 import { disarmDamage, type DisarmGrade } from './disarm';
