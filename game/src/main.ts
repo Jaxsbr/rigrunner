@@ -63,6 +63,7 @@ import { combatSystem } from '@features/camps/combat-system';
 import { campSystem, resolveDisarm } from '@features/camps/camp-system';
 import { repairSystem } from '@features/camps/repair-system';
 import { CampStains } from '@features/camps/camp-stains';
+import { TrackMarks } from '@features/tracks/track-marks';
 import { animateCampTeardown } from '@features/camps/camp-teardown-animator';
 import { animateWeapons } from '@features/camps/weapon-animator';
 import { animateTrapArm } from '@features/camps/trap-arm-animator';
@@ -218,6 +219,8 @@ const healthHud = new HealthHud(document.querySelector<HTMLElement>('#health-bar
 const zones = new ZoneOverlays(view.scene);
 const stains = new ScrapStains(view.scene);
 const campStains = new CampStains(view.scene);
+// Fading tread trails pressed into the ground by everything that drives (the rig + camp guards).
+const tracks = new TrackMarks(view.scene);
 
 // Three overlays can each freeze the simulation: the workshop interface, the loot popup, and the disarm
 // puzzle. Main owns one `paused` flag that is the OR of all three, so whichever is up holds the sim
@@ -432,6 +435,10 @@ function frame(now: number): void {
   stains.sync(world, dt);
   // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
   campStains.sync(world, dt);
+  // tread trails: stamp new marks behind everything that drove this frame and fade the old ones. Runs
+  // always so trails keep fading behind an overlay; the sim being frozen means nothing moves, so no new
+  // marks are laid while paused.
+  tracks.sync(world, dt);
   // the camp's teardown: a cleared camp's structures + debris sink into the ground while its sprout rises.
   // Reads Camp.tornDown (sim), so it runs always — a paused pose holds rather than snapping back to rest.
   animateCampTeardown(view.entityViews, world);

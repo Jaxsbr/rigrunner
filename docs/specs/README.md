@@ -26,3 +26,4 @@ Non-spec docs (ideas, observations, the world-progression vision, asset/setup co
 | [scrap-stain-decals-spec.md](scrap-stain-decals-spec.md) | Scrap seepage stain decals | Shipped |
 | [option-c-build-plan.md](option-c-build-plan.md) | Scrap Piles / the Reclaimer rummage (Option C) | Done — historical staircase |
 | [looter-camps-spec.md](looter-camps-spec.md) | Looter camps — enemies around a structure (Option D) | ✏️ Specced, not started |
+| [track-marks-spec.md](track-marks-spec.md) | Terrain track marks — fading tread trails under movers | Built (v1, cosmetic) |

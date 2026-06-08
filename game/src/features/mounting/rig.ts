@@ -5,6 +5,7 @@ import { Drivetrain } from '@features/drive/drivetrain';
 import { Velocity } from '@features/drive/velocity';
 import { DriveControl } from '@features/drive/drive-control';
 import { Collider } from '@common/components/collider';
+import { TrackEmitter } from '@common/components/track-emitter';
 import { Health } from '@common/components/health';
 import { rigMaxHealth } from '@common/sim/health';
 import { Renderable } from '@common/components/renderable';
@@ -95,6 +96,9 @@ export function chassisToRig(world: World, chassis: EntityId, x = 0, z = 0): Ent
   // Collider, so the rig's true collision area is the union of these circles — it grows with the
   // build. Sized to the size's central body; the 3×5 hauler is wider so its disc is larger.
   world.add(chassis, Collider, { radius: size === '1x3' ? 1.0 : 1.9 });
+  // The tread gauge of the trail the rig presses into the ground (features/tracks): a wider chassis lays
+  // a wider ribbon. Purely cosmetic — only the track render layer reads it.
+  world.add(chassis, TrackEmitter, { width: size === '1x3' ? 1.5 : 2.6 });
   // The rig's hit points — the chassis defence envelope (`rigMaxHealth`: per-size base × the chassis's
   // grade), so a better chassis tanks more. Starts full; combat damage lowers it, a workshop zone heals
   // it, and 0 resets the run. A redeploy (a packed kit hauled out again) refills to a fresh max.
@@ -134,6 +138,7 @@ export function chassisToKit(world: World, chassis: EntityId): EntityId {
   world.remove(chassis, Velocity);
   world.remove(chassis, DriveControl);
   world.remove(chassis, Collider);
+  world.remove(chassis, TrackEmitter); // a folded crate doesn't drive, so it leaves no tracks
   world.remove(chassis, Health); // a packed kit isn't a damageable rig; redeploy refills a fresh max
   world.remove(chassis, Deploying); // a settled rig isn't mid-unfold, but never leave a stale marker
   const kitTint = chassisFinish(world, chassis);
