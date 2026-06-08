@@ -3,9 +3,15 @@ scrap-pile — the big rummageable junk heap the Reclaimer digs into (Option C /
 
 A "Large" object on the size ladder (docs/asset-style.md): a rough ~5 m × 3 m footprint, ~3 m
 tall mound of tumbled wreckage — big enough to read as a landmark you drive up to and work, not
-a pickup. Built as a heap of beveled boxes at varied sizes / tilts (so it reads as collapsed
-scrap, not a neat stack) with a few rusted WHEELS half-buried in it for silhouette and story.
-Mostly `scrap_grey` and `rust` (heavy weathering), with `dark_metal` recesses.
+a pickup. Built as a HEAP OF MANY SMALL tumbled bits (crushed shards, bars, plates) — denser and
+lower at the base, tapering to a crown — with a few rusted WHEELS half-buried for silhouette and
+story. The tone is a balanced weathered MIX (no single colour dominates) so the heap reads as
+accumulated scavenged junk rather than a stack of slabs.
+
+This module is the single SEEDED generator: `build_variant(key)` builds one of three distinct
+piles (`a`/`b`/`c`) — each a different chunk layout AND tone bias — from a fixed seed, so the GLBs
+are reproducible. The thin `scrap_pile_a/b/c.py` wrappers are the buildable entry points
+(`build_asset.py` runs those → `scrap-pile-{a,b,c}.glb`); `spawnScrapPile` picks one at random.
 
 NOT to be confused with `loose-scrap` (the hand-sized pickup): this is the source, those are
 what burst out of it as it's rummaged.
@@ -19,41 +25,70 @@ the *whole* merged heap, so the chunky catch-light edge comes for free across ev
 """
 
 import math
+import random
 
+import bpy  # type: ignore  # Blender runtime (used to bake the merged rotation — see build_variant)
 import rr_style as rr
 
+# The heap is built in BANDS up its height. Big, slightly-flattened chunks pack a WIDE, dense base, and
+# the chunk size + the spread both shrink with height to a small crown — so the pile carries its weight
+# at the bottom (the natural settle of heaped scrap) and tapers like a real mound, instead of reading as
+# a floating column of cubes. `_FOOT_*` are the base footprint half-extents (~4.4 m × 3 m); the peak
+# lands ~2.2 m, so the heap is wider than tall — a heap, not a tower.
+_FOOT_X = 2.2
+_FOOT_Y = 1.5
 
-def _deg(x, y, z):
-    return (math.radians(x), math.radians(y), math.radians(z))
-
-
-# (name, size (x,y,z) m, palette, location (x,y,z) m, rotation (deg))
-_CHUNKS = [
-    # Base layer — wide, low slabs forming the mound's bulk (~5 m × 3 m footprint).
-    ("base_a", (3.80, 2.60, 0.90), "scrap_grey", (-0.30, 0.00, 0.45), _deg(0, 0, 6)),
-    ("base_b", (2.30, 1.90, 0.80), "scrap_grey", (1.15, 0.30, 0.52), _deg(4, 0, -10)),
-    ("base_c", (2.00, 1.70, 0.74), "rust", (-1.25, -0.40, 0.42), _deg(-5, 0, 14)),
-    ("base_d", (1.80, 1.40, 0.70), "dark_metal", (0.60, 0.90, 0.40), _deg(0, 6, -8)),
-    # Mid chunks — cubes and a protruding bar climbing the heap.
-    ("mid_grey", (1.60, 1.40, 1.00), "scrap_grey", (0.10, -0.20, 1.30), _deg(8, 12, 5)),
-    ("mid_rust", (1.20, 1.00, 0.90), "rust", (-0.90, 0.55, 1.20), _deg(0, 14, -10)),
-    ("mid_dark", (1.00, 0.90, 0.80), "dark_metal", (1.20, 0.55, 1.45), _deg(6, 0, 12)),
-    ("mid_bar", (0.46, 0.46, 1.70), "rust", (1.45, -0.45, 1.30), _deg(16, 0, 8)),
-    # Top bits — smaller shards perched near the crown (~3 m tall).
-    ("top_grey", (0.90, 0.80, 0.80), "scrap_grey", (0.00, 0.05, 2.20), _deg(18, 24, 0)),
-    ("top_plate", (1.20, 0.24, 0.70), "rust", (-0.45, 0.30, 2.00), _deg(0, 0, 40)),
-    ("top_nub", (0.50, 0.50, 0.46), "dark_metal", (0.55, -0.45, 2.40), _deg(14, 10, 22)),
-    ("top_spike", (0.30, 0.30, 0.95), "scrap_grey", (-0.20, -0.15, 2.60), _deg(10, 8, 0)),
+# (spread_frac of the footprint, z centre m, size_min, size_max, count_min, count_max, max_tilt deg,
+#  oblate: squash the height so base chunks settle flat rather than stand as cubes; shardy: allow bars/
+#  plates/shards for upper scrap variety). Bands overlap in z so the mass reads as one packed mound.
+_BANDS = [
+    (1.00, 0.18, 0.70, 1.30, 12, 15, 18, True, False),   # base — wide, dense, big, settled flat
+    (0.74, 0.66, 0.52, 1.00, 10, 12, 30, False, False),  # lower body
+    (0.50, 1.22, 0.40, 0.80, 7, 9, 360, False, True),    # mid — full tumble, some shards
+    (0.29, 1.74, 0.28, 0.56, 4, 6, 360, False, True),    # crown — small shards
 ]
 
-# (name, radius, depth, palette, location (x,y,z) m, rotation (deg)) — rusted wheels in the heap.
-# Each disc stands roughly upright (axle ~horizontal) with its centre a radius off the ground so
-# its bottom rests near Z=0; a couple lean and one is half-buried/tilted.
-_WHEELS = [
-    ("wheel_a", 0.66, 0.34, "rust", (1.70, -1.00, 0.66), _deg(90, 0, 10)),
-    ("wheel_b", 0.60, 0.32, "dark_metal", (-1.80, 0.92, 0.60), _deg(90, 0, -16)),
-    ("wheel_c", 0.54, 0.30, "rust", (0.55, 1.20, 0.52), _deg(72, 22, 0)),
-]
+# Per-variant identity: a fixed seed (reproducible mesh) + a weighted tone mix. Every variant uses
+# all four weathered tones, but leans a different way so the three read as different heaps — 'a'
+# balanced, 'b' rustier, 'c' greyer/darker.
+_VARIANTS = {
+    "a": {"seed": 11, "weights": [("scrap_grey", 40), ("rust", 30), ("dark_metal", 25), ("bone_white", 5)]},
+    "b": {"seed": 23, "weights": [("rust", 44), ("scrap_grey", 26), ("dark_metal", 20), ("bone_white", 10)]},
+    "c": {"seed": 37, "weights": [("dark_metal", 40), ("scrap_grey", 38), ("rust", 17), ("bone_white", 5)]},
+}
+
+
+def _deg(rng, lo, hi):
+    return math.radians(rng.uniform(lo, hi))
+
+
+def _pick(rng, weights):
+    """Weighted random palette key from a [(name, weight), ...] table."""
+    total = sum(w for _, w in weights)
+    r = rng.uniform(0, total)
+    upto = 0.0
+    for name, w in weights:
+        upto += w
+        if r <= upto:
+            return name
+    return weights[-1][0]
+
+
+def _chunk_size(rng):
+    """A small tumbled bit, weighted toward the low end. Mostly crushed cubes/shards, with some
+    long bars (rebar/struts) and flat plates (torn panels) mixed in for varied wreckage."""
+    roll = rng.random()
+    if roll < 0.2:  # bar: long in one axis, thin in the other two
+        dims = [rng.uniform(0.7, 1.3), rng.uniform(0.12, 0.26), rng.uniform(0.12, 0.26)]
+        rng.shuffle(dims)
+        return tuple(dims)
+    if roll < 0.32:  # plate: two moderate sides, one thin (a buckled sheet)
+        dims = [rng.uniform(0.4, 0.8), rng.uniform(0.4, 0.8), rng.uniform(0.08, 0.18)]
+        rng.shuffle(dims)
+        return tuple(dims)
+    # crushed cube / shard: small, biased toward the low end of 0.3–0.9 m
+    s = lambda: 0.3 + (rng.random() ** 1.6) * 0.6
+    return (s(), s(), s())
 
 
 def _wheel(name, radius, depth, mat, loc, rot):
@@ -67,12 +102,68 @@ def _wheel(name, radius, depth, mat, loc, rot):
     return wheel
 
 
-def build():
+def _band_chunk(rng, name, band, weights):
+    """One chunk placed within a height band — scattered across that band's share of the footprint
+    (denser toward the centre), sized in the band's range, tilted by the band's character."""
+    spread, zc, smin, smax, _, _, tilt, oblate, shardy = band
+    ang = rng.uniform(0, math.tau)
+    dist = math.sqrt(rng.random())  # sqrt keeps the scatter even out to the band's reach
+    x = math.cos(ang) * dist * _FOOT_X * spread
+    y = math.sin(ang) * dist * _FOOT_Y * spread
+    z = zc + rng.uniform(-0.12, 0.12)
+
+    if shardy and rng.random() < 0.32:
+        size = _chunk_size(rng)  # an occasional bar/plate/shard for scrap variety up the heap
+    else:
+        sz_scale = 0.62 if oblate else 1.0  # base chunks settle flat (squashed), not standing cubes
+        size = (smin + (smax - smin) * rng.random(),
+                smin + (smax - smin) * rng.random(),
+                (smin + (smax - smin) * rng.random()) * sz_scale)
+
+    obj = rr.beveled_box(name, size=size, mat=_pick(rng, weights), location=(x, y, z))
+    if tilt >= 360:
+        obj.rotation_euler = (_deg(rng, 0, 360), _deg(rng, 0, 360), _deg(rng, 0, 360))  # full tumble
+    else:
+        obj.rotation_euler = (_deg(rng, -tilt, tilt), _deg(rng, -tilt, tilt), _deg(rng, -tilt, tilt))
+    return obj
+
+
+def build_variant(key):
+    """Build one pile variant (`a`/`b`/`c`) — a seeded mound that packs its weight into a wide base and
+    tapers to a small crown, plus a few half-buried wheels for silhouette + story."""
+    cfg = _VARIANTS[key]
+    rng = random.Random(cfg["seed"])
+    weights = cfg["weights"]
     parts = []
-    for name, size, mat, loc, rot in _CHUNKS:
-        obj = rr.beveled_box(name, size=size, mat=mat, location=loc)
-        obj.rotation_euler = rot  # baked into the mesh when join() pulls it into the heap
-        parts.append(obj)
-    for name, radius, depth, mat, loc, rot in _WHEELS:
-        parts.append(_wheel(name, radius, depth, mat, loc, rot))
-    return rr.join(parts, "scrap-pile")
+
+    i = 0
+    for band in _BANDS:
+        for _ in range(rng.randint(band[4], band[5])):
+            parts.append(_band_chunk(rng, f"{key}_b{i}", band, weights))
+            i += 1
+
+    # A few rusted wheels half-buried in the base — silhouette + story, like the old heap kept.
+    for w in range(rng.randint(2, 3)):
+        ang = rng.uniform(0, math.tau)
+        ring = rng.uniform(0.8, 1.6)
+        radius = rng.uniform(0.5, 0.64)
+        loc = (math.cos(ang) * ring, math.sin(ang) * ring, radius * rng.uniform(0.45, 0.7))  # mostly sunk
+        rot = (_deg(rng, 74, 106), 0.0, _deg(rng, -20, 20))
+        parts.append(_wheel(f"{key}_wheel{w}", radius, rng.uniform(0.28, 0.34), rng.choice(["rust", "dark_metal"]), loc, rot))
+
+    merged = rr.join(parts, f"scrap-pile-{key}")
+    # `join` keeps the first chunk as the merged root, and that chunk carries a tilt — so the merged
+    # object inherits a non-identity rotation. `set_origin_base_center` grounds by transforming the
+    # bound-box CORNERS through `matrix_world`, which overestimates the low extent under a rotation and
+    # grounds the heap too low — it ends up floating above y=0. Bake the rotation into the mesh (geometry
+    # unchanged in world space) so the grounding transform is a pure translation and lands exactly on the floor.
+    bpy.ops.object.select_all(action="DESELECT")
+    merged.select_set(True)
+    bpy.context.view_layer.objects.active = merged
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    return merged
+
+
+def build():
+    """Default standalone build (variant 'a'); the a/b/c wrappers are the committed entry points."""
+    return build_variant("a")

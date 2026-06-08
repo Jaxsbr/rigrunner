@@ -111,7 +111,12 @@ reasonable tri-count. (`npm run dev:game` confirms it in the real game too.)
 - **Wrong facing** → fix the source orientation in the generator (front to −Y), don't rotate
   in the game.
 - **Floating / sunken** → origin isn't base-centre; `finalize_and_export` handles this, so
-  ensure you're going through it (or `set_origin_base_center`).
+  ensure you're going through it (or `set_origin_base_center`). **But beware the rotation gotcha:**
+  `set_origin_base_center` grounds off the bound-box CORNERS, which *overestimate* the extent under a
+  non-identity rotation — so a rotated object grounds too low and FLOATS. A `join()`ed asset inherits
+  the first joined chunk's rotation, so a tilted first chunk floats the whole thing. Fix: bake the
+  rotation into the mesh before grounding — `transform_apply(location=False, rotation=True, scale=False)`
+  (see `scrap_pile.py`). Verify with the GLB's Y-min ≈ 0, not just by eye.
 - **New colour needed** → add it to `rr_style.PALETTE` *and* the table in `docs/asset-style.md`.
 - Editing an existing asset: change its generator and re-run step 2 (same name overwrites the
   GLB); no registry change needed.

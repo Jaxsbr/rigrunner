@@ -27,7 +27,7 @@ import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { movementSystem } from '@features/drive/movement';
 import { collisionSystem } from '@common/sim/collision';
 import { scrapCollectionSystem } from '@features/scrap/scrap-collection';
-import { scrapPileSystem, scrapRummageSystem } from '@features/scrap/scrap-pile-system';
+import { scrapPileSystem, scrapRummageSystem, pileClearSystem } from '@features/scrap/scrap-pile-system';
 import { workshopZoneSystem } from '@features/workshop/workshop-zone-system';
 import { workshopDrainSystem } from '@features/workshop/workshop-drain-system';
 import { createDriveInput } from '@common/input/drive-input';
@@ -48,6 +48,8 @@ import { animateWheels } from '@features/drive/wheel-spin';
 import { animateStorageFill } from '@features/storage/storage-fill';
 import { animateReclaimer } from '@features/scrap/reclaimer-animator';
 import { animateScrapPile } from '@features/scrap/scrap-pile-animator';
+import { animateScrapPileClear } from '@features/scrap/scrap-pile-clear-animator';
+import { ScrapPileStains } from '@features/scrap/scrap-pile-stains';
 import { StatsHud } from '@features/hud/stats-hud';
 import { Toast } from '@features/hud/toast';
 import { WalletHud } from '@features/economy/wallet-hud';
@@ -218,6 +220,7 @@ const healthHud = new HealthHud(document.querySelector<HTMLElement>('#health-bar
 // functions called below against `view.entityViews`.
 const zones = new ZoneOverlays(view.scene);
 const stains = new ScrapStains(view.scene);
+const pileStains = new ScrapPileStains(view.scene);
 const campStains = new CampStains(view.scene);
 // Fading tread trails pressed into the ground by everything that drives (the rig + camp guards).
 const tracks = new TrackMarks(view.scene);
@@ -361,6 +364,9 @@ function frame(now: number): void {
     // into the rummage — the arm digs and the heap bursts loose scrap around the rig.
     scrapPileSystem(world, activeRig);
     scrapRummageSystem(world, activeRig, work, dt);
+    // advance the reclaim dissolve of any emptied pile (heap sinking, stump rising). In the sim block,
+    // so it freezes behind the loot popup the empty pile just opened — the dissolve plays once collected.
+    pileClearSystem(world, dt);
 
     // camps combat: enemies act, the rig's weapon fires, then all shots travel — all BEFORE the one
     // collision pass below, so this frame's positions are what hits resolve against.
@@ -433,6 +439,8 @@ function frame(now: number): void {
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);
+  // pile pollution holds while a heap stands and fades out once it's reclaimed — the land slowly healing.
+  pileStains.sync(world, dt);
   // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
   campStains.sync(world, dt);
   // tread trails: stamp new marks behind everything that drove this frame and fade the old ones. Runs
@@ -442,6 +450,9 @@ function frame(now: number): void {
   // the camp's teardown: a cleared camp's structures + debris sink into the ground while its sprout rises.
   // Reads Camp.tornDown (sim), so it runs always — a paused pose holds rather than snapping back to rest.
   animateCampTeardown(view.entityViews, world);
+  // the pile's reclaim dissolve: an emptied heap sinks while its stump rises, off the shared Dissolving
+  // clock. Runs always (like the camp teardown) so the dissolve holds behind the loot popup, not snaps.
+  animateScrapPileClear(view.entityViews, world);
   if (!paused && !dying) {
     animateWheels(view.entityViews, world, dt);
     animateChassisDeploy(view.entityViews, world, dt);

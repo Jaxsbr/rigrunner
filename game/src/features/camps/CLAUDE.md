@@ -11,7 +11,8 @@ What's here:
 
 - **Components:** `projectile` (+ `spawnProjectile`), `weapon` (per-gun firing state), `enemy`
   (`Enemy` + `EnemyAI`), `camp` (+ its `tornDown` teardown clock), `camp-decor` (the back-link tying a
-  camp's tent/cache/debris/sprout to it), `restorable-site`.
+  camp's tent/cache/debris/sprout to it). `RestorableSite` (the cleared-site marker) now lives in
+  `@common/components` — scrap's cleared piles emit the same marker, so it earned a shared-kernel home.
 - **Content (data):** `combat` (rig-side tuning constants), `camp-levels` (`CAMP_LEVELS` — a level is
   a data row), `camp-loot` (`CAMP_LOOT` + `rollCampLoot`/`rollCampLootForOutcome`), `disarm` (the trap
   arm's per-tier puzzle difficulty + the pure outcome maths: `gradeDisarm`, `disarmDamage`).
@@ -62,8 +63,9 @@ Single-owner / placement rules at the point of edit:
 - **Player-visible props ship as real authored GLBs** (no placeholders): the debris (`debris-crate`,
   `debris-heap`, `camp-firepit`) and the `camp-sprout` are world decoration (single props, not tiered
   parts), built via `tools/blender/assets/*.py` and registered in `shared/assets.ts`. The camp stains are
-  procedural canvas decals (a richer local copy of scrap's blob drawer — duplicated, not promoted, until a
-  third consumer earns a `@common/render` move).
+  procedural canvas decals built on the shared `@common/render/ground-stains` `GroundStainField` (the
+  decal mechanics promoted there once the scrap pile became a second consumer); `camp-stains` owns only
+  the camp's colour mix + reach + lifecycle, not the blob/cluster machinery.
 
 Phase seams not built yet (don't wire them prematurely — see the spec): **Phase 4** more camp levels (new
 `CAMP_LEVELS` rows, each visually distinct, + the scaling-enemy hook); **armour/shield parts** (the

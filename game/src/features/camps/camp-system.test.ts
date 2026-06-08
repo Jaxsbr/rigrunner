@@ -8,7 +8,7 @@ import { Health } from '@common/components/health';
 import { Camp, type CampState } from './camp';
 import { CampDecor } from './camp-decor';
 import { Enemy } from './enemy';
-import { RestorableSite } from './restorable-site';
+import { RestorableSite } from '@common/components/restorable-site';
 import { campSystem, resolveDisarm, TEARDOWN_DURATION } from './camp-system';
 
 function camp(world: World, state: CampState = 'guarded'): EntityId {

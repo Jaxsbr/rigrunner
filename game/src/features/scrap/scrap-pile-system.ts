@@ -4,10 +4,12 @@ import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
 import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
+import { Renderable } from '@common/components/renderable';
 import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Digging } from '@features/scrap/digging';
 import { LootDrop } from '@common/components/loot-drop';
-import { ClearedGround } from '@features/scrap/cleared-ground';
+import { RestorableSite } from '@common/components/restorable-site';
+import { Dissolving, DISSOLVE_DURATION } from '@features/scrap/dissolving';
 import { scatterScrapAround } from '@features/scrap/scrap';
 import { rollLoot, rollScrapBurst } from '@features/scrap/loot-table';
 import { facingWithinFov } from '@common/sim/fov';
@@ -56,6 +58,10 @@ export function scrapPileSystem(world: World, rig: EntityId): void {
 
   for (const p of world.query(ScrapPile, Transform)) {
     const pile = world.get(p, ScrapPile)!;
+    if (world.has(p, Dissolving)) {
+      pile.active = false; // a reclaimed pile mid-dissolve is no longer workable
+      continue;
+    }
     if (!rigT || !armT) {
       pile.active = false;
       continue;
@@ -72,12 +78,12 @@ export function scrapPileSystem(world: World, rig: EntityId): void {
  * each wave bursting loose scrap around the rig. When `working` is false or no pile is active, the
  * Reclaimer stops digging and partial wave progress resets.
  *
- * When a pile empties it is destroyed (the "cleared ground"), and on the way out it pays out PR5's
- * loot: the burst it scattered wave-by-wave was the scrap, and an empty-roll of the loot table
- * (`rollLoot`) adds any hidden finds. Both are queued on a single `LootDrop` (always created — the
- * popup always reports the scrap haul) for the loot UI to reveal and grant. It also leaves a
- * `ClearedGround` marker where it stood — the restoration seam (nothing consumes it yet). `rng` is
- * injected so the burst counts + roll are testable; it defaults to `Math.random`.
+ * When a pile empties it pays out PR5's loot and begins its reclaim dissolve: the burst it scattered
+ * wave-by-wave was the scrap, and an empty-roll of the loot table (`rollLoot`) adds any hidden finds —
+ * both queued on a single `LootDrop` (always created — the popup always reports the scrap haul) for the
+ * loot UI to reveal and grant. Rather than vanishing, the pile gains a `Dissolving` clock and spawns a
+ * stump (`spawnPileStump`) that rises as the heap sinks; `pileClearSystem` finishes the handoff. `rng`
+ * is injected so the burst counts + roll are testable; it defaults to `Math.random`.
  *
  * Returns the scrap ids spawned this frame (for tests / feedback).
  */
@@ -122,8 +128,11 @@ export function scrapRummageSystem(
       pile.scrapScattered += burst;
       spawned.push(...scatterScrapAround(world, rigT.x, rigT.z, burst, BURST_MIN_R, BURST_MAX_R));
     }
-    if (pile.remaining <= 0) {
-      // Emptied: stop the dig (nothing left to work), pay out the loot, and clear the ground.
+    if (pile.remaining <= 0 && !world.has(p, Dissolving)) {
+      // Emptied: stop the dig (nothing left to work) and pay out the loot, then begin the reclaim
+      // DISSOLVE instead of vanishing — the heap sinks + shrinks while a stump rises in its place
+      // (`pileClearSystem` advances the clock; the clear animator poses both). The pile entity lingers
+      // until the dissolve completes, so its pollution stain holds through the sink and the gate skips it.
       if (reclaimer !== null && world.has(reclaimer, Digging)) world.remove(reclaimer, Digging);
       const pt = world.get(p, Transform)!;
       // Empty-roll the loot table and queue a LootDrop for the loot UI. ALWAYS created: a pile always
@@ -131,12 +140,47 @@ export function scrapRummageSystem(
       // bonus (empty about half the time at the 50% sub-part chance) for the UI to reveal + grant.
       const drop = world.createEntity();
       world.add(drop, LootDrop, { scrap: pile.scrapScattered, finds: rollLoot(rng) });
-      // The ground-cleared signal: a marker where the pile stood, for the future restoration seam.
-      const marker = world.createEntity();
-      world.add(marker, ClearedGround, { x: pt.x, z: pt.z });
-      world.destroyEntity(p);
+      world.add(p, Dissolving, { elapsed: 0 });
+      // Drop the proximity disc NOW, not on the next gate pass: emptying opens the loot popup, which
+      // freezes the sim — so scrapPileSystem (which would set this false for a Dissolving pile) won't run
+      // again until the popup closes, yet the disc renders every frame. Clearing it here stops a lit ring
+      // lingering over the sinking heap behind the popup.
+      pile.active = false;
+      spawnPileStump(world, pt.x, pt.z, rng);
     }
   }
 
   return spawned;
+}
+
+/**
+ * Advance the reclaim dissolve on every `Dissolving` entity — the emptied heap and its rising stump,
+ * which share one clock. When the clock completes, the heap (a `ScrapPile`) is DESTROYED (fully sunk —
+ * gone) and the stump (a `RestorableSite`) SHEDS `Dissolving` so it holds at its risen rest. Runs with
+ * the sim (frozen behind the loot popup); the clear animator poses each off `elapsed` every frame.
+ */
+export function pileClearSystem(world: World, dt: number): void {
+  for (const e of [...world.query(Dissolving)]) {
+    const d = world.get(e, Dissolving)!;
+    d.elapsed += dt;
+    if (d.elapsed < DISSOLVE_DURATION) continue;
+    if (world.has(e, ScrapPile)) world.destroyEntity(e); // the heap has fully sunk — gone
+    else world.remove(e, Dissolving);                    // the stump has fully risen — holds at rest
+  }
+}
+
+// The lasting scar a reclaimed pile leaves: a stump-with-branch-and-leaves (the `camp-sprout` model) that
+// rises out of the soil on the dissolve clock. It carries `RestorableSite{kind:'scrap'}` — the SAME marker
+// a cleared camp emits — so a future world-restoration treats cleared piles and camps through one seam.
+const STUMP_ASSET = 'camp-sprout';
+
+/** Spawn the reclaim stump at (x,z): a `RestorableSite` prop sharing the heap's dissolve clock so the
+ *  clear animator rises it from underground as the heap sinks. `rng` only picks its resting yaw. */
+function spawnPileStump(world: World, x: number, z: number, rng: () => number): EntityId {
+  const e = world.createEntity();
+  world.add(e, Transform, { x, z, y: 0, rotationY: rng() * Math.PI * 2 });
+  world.add(e, Renderable, { shape: 'model', assetId: STUMP_ASSET });
+  world.add(e, RestorableSite, { x, z, kind: 'scrap', sourceLevel: 0 });
+  world.add(e, Dissolving, { elapsed: 0 });
+  return e;
 }

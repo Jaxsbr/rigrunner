@@ -3,7 +3,7 @@ import type { World } from '@core/world';
 import type { EntityViews } from '@common/render/entity-views';
 import { Camp } from './camp';
 import { CampDecor } from './camp-decor';
-import { RestorableSite } from './restorable-site';
+import { RestorableSite } from '@common/components/restorable-site';
 
 /**
  * The camp's "world reacts" beat, sim-driven: as a cleared camp's `tornDown` clock advances

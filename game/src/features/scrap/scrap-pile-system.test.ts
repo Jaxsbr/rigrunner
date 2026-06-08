@@ -10,8 +10,9 @@ import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Digging } from '@features/scrap/digging';
 import { Collectible } from '@features/scrap/collectible';
 import { LootDrop } from '@common/components/loot-drop';
-import { ClearedGround } from '@features/scrap/cleared-ground';
-import { scrapPileSystem, scrapRummageSystem } from './scrap-pile-system';
+import { RestorableSite } from '@common/components/restorable-site';
+import { Dissolving, DISSOLVE_DURATION } from '@features/scrap/dissolving';
+import { scrapPileSystem, scrapRummageSystem, pileClearSystem } from './scrap-pile-system';
 
 const FOV = (120 * Math.PI) / 180;
 
@@ -75,6 +76,16 @@ describe('scrapPileSystem (the gate)', () => {
     scrapPileSystem(world, r);
     expect(world.get(p, ScrapPile)!.active).toBe(false);
   });
+
+  it('stays dormant once reclaimed (mid-dissolve), even aimed in range', () => {
+    const world = new World();
+    const r = rig(world, 0, 0, 0);
+    reclaimer(world, r, 0, 0, 0);
+    const p = pile(world, 0, -3); // straight ahead, in range
+    world.add(p, Dissolving, { elapsed: 0 }); // a reclaimed pile mid-dissolve
+    scrapPileSystem(world, r);
+    expect(world.get(p, ScrapPile)!.active).toBe(false);
+  });
 });
 
 describe('scrapRummageSystem (hold-to-work)', () => {
@@ -125,23 +136,45 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     expect(world.get(p, ScrapPile)!.worked).toBe(0);
   });
 
-  it('empties and destroys the pile after enough work, stopping the dig', () => {
+  it('begins the reclaim dissolve (not instant destroy) after enough work, stopping the dig', () => {
     const { world, r, rec, p } = workableWorld(2); // a shallow 2-wave pile
     // 1.0 s covers 2 whole waves (0.45 each) → pile emptied this frame.
     scrapRummageSystem(world, r, true, 1.0);
-    expect(world.isAlive(p)).toBe(false);
-    expect(world.has(rec, Digging)).toBe(false);
+    expect(world.isAlive(p)).toBe(true);            // lingers — it dissolves rather than vanishing
+    expect(world.has(p, Dissolving)).toBe(true);    // the dissolve clock has started
+    expect(world.get(p, Dissolving)!.elapsed).toBe(0);
+    expect(world.has(rec, Digging)).toBe(false);    // the dig stops on empty
+    expect(world.get(p, ScrapPile)!.active).toBe(false); // disc cleared at once (popup freezes the gate)
   });
 
-  it('leaves a ClearedGround marker at the pile position when it empties', () => {
+  it('leaves a RestorableSite stump (kind:scrap) at the pile position on reclaim', () => {
     const { world, r, p } = workableWorld(2);
     const pt = world.get(p, Transform)!;
     scrapRummageSystem(world, r, true, 1.0, () => 0.99); // emptied; rng fails the loot roll
-    const markers = world.query(ClearedGround);
-    expect(markers).toHaveLength(1);
-    const m = world.get(markers[0]!, ClearedGround)!;
-    expect(m.x).toBe(pt.x);
-    expect(m.z).toBe(pt.z);
+    const sites = world.query(RestorableSite);
+    expect(sites).toHaveLength(1);
+    const site = world.get(sites[0]!, RestorableSite)!;
+    expect(site.kind).toBe('scrap');
+    expect(site.x).toBe(pt.x);
+    expect(site.z).toBe(pt.z);
+    expect(world.get(sites[0]!, Dissolving)).toBeDefined(); // the stump shares the heap's dissolve clock
+  });
+
+  it('pileClearSystem destroys the sunk heap and lands the risen stump when the clock completes', () => {
+    const { world, r, p } = workableWorld(2);
+    scrapRummageSystem(world, r, true, 1.0, () => 0.99); // empties → dissolve starts, stump spawned
+    const stump = world.query(RestorableSite)[0]!;
+
+    pileClearSystem(world, DISSOLVE_DURATION / 2); // mid-dissolve: both still present, clock advancing
+    expect(world.isAlive(p)).toBe(true);
+    expect(world.get(p, Dissolving)!.elapsed).toBeCloseTo(DISSOLVE_DURATION / 2, 5);
+    expect(world.has(stump, Dissolving)).toBe(true);
+
+    pileClearSystem(world, DISSOLVE_DURATION); // past the duration: heap gone, stump holds at rest
+    expect(world.isAlive(p)).toBe(false);                 // the heap fully sank — despawned
+    expect(world.isAlive(stump)).toBe(true);              // the stump persists as the restoration scar
+    expect(world.has(stump, Dissolving)).toBe(false);     // its clock is shed — it holds risen
+    expect(world.has(stump, RestorableSite)).toBe(true);
   });
 
   it('always queues a LootDrop on empty: finds on a winning roll, scrap-only on a miss', () => {
