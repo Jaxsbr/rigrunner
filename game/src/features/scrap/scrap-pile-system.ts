@@ -141,6 +141,11 @@ export function scrapRummageSystem(
       const drop = world.createEntity();
       world.add(drop, LootDrop, { scrap: pile.scrapScattered, finds: rollLoot(rng) });
       world.add(p, Dissolving, { elapsed: 0 });
+      // Drop the proximity disc NOW, not on the next gate pass: emptying opens the loot popup, which
+      // freezes the sim — so scrapPileSystem (which would set this false for a Dissolving pile) won't run
+      // again until the popup closes, yet the disc renders every frame. Clearing it here stops a lit ring
+      // lingering over the sinking heap behind the popup.
+      pile.active = false;
       spawnPileStump(world, pt.x, pt.z, rng);
     }
   }

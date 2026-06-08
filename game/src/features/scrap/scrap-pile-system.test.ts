@@ -144,6 +144,7 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     expect(world.has(p, Dissolving)).toBe(true);    // the dissolve clock has started
     expect(world.get(p, Dissolving)!.elapsed).toBe(0);
     expect(world.has(rec, Digging)).toBe(false);    // the dig stops on empty
+    expect(world.get(p, ScrapPile)!.active).toBe(false); // disc cleared at once (popup freezes the gate)
   });
 
   it('leaves a RestorableSite stump (kind:scrap) at the pile position on reclaim', () => {
