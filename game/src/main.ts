@@ -80,8 +80,6 @@ import { RestorationStains } from '@features/restoration/restoration-stains';
 import { TreeGrower } from '@features/restoration/tree-grower';
 import { HealPrompt } from '@features/restoration/heal-prompt';
 import { healDiscs } from '@features/restoration/overlays';
-import { RestorableSite } from '@common/components/restorable-site';
-import { Renderable } from '@common/components/renderable';
 
 /**
  * Composition root. The ONLY place that knows about all three tiers and every feature at once: it
@@ -131,16 +129,6 @@ const workshop = spawnWorkshop(world, 0, 8);
   stageProduct(world, composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!)), workshop, 0, 2);   // storage container
   stageProduct(world, composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!)), workshop, 2, 2); // Reclaimer (bucket — digs scrap)
   stageProduct(world, composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'stump-healer'].map((id) => partDef(id)!)), workshop, 1, 2);    // Reclaimer (stump-healer — grows stumps)
-}
-// DEV/TEST SEED — a couple of already-risen restoration stumps near spawn, so the stump-healer heal can be
-// exercised without first clearing a pile/camp to leave one. Each is a `RestorableSite` (the same marker a
-// cleared pile or camp emits) rendered as the cut-stump-with-sprout; the restoration system makes it
-// healable. Remove once the heal loop is dialled in (real stumps come from cleared piles + camps).
-for (const [sx, sz] of [[6, 1], [-7, 3]] as const) {
-  const stump = world.createEntity();
-  world.add(stump, Transform, { x: sx, z: sz, y: 0, rotationY: 0 });
-  world.add(stump, Renderable, { shape: 'model', assetId: 'camp-sprout' });
-  world.add(stump, RestorableSite, { x: sx, z: sz, kind: 'scrap', sourceLevel: 0 });
 }
 // Rummageable scrap piles (Option C / PR4–5) scattered around the field. A pile only lights up once
 // the rig parks in reach with a MOUNTED RECLAIMER aimed at it (the capability + facing gate); then
