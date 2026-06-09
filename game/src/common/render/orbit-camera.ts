@@ -28,6 +28,12 @@ export class OrbitCamera {
   private focusZ = 0;
   private focusSeeded = false;
   private panning = false;
+  // An optional extra field-of-view (degrees) added to the base and eased in/out — a generic camera
+  // "punch" the composition root drives (a boost speed-kick widens the view for a sense of speed).
+  // The camera knows only "extra FOV", never what causes it, so the render tier stays feature-free.
+  private readonly fov0 = 50;
+  private fovExtra = 0;
+  private fovExtraTarget = 0;
 
   constructor() {
     // Derive the spherical camera params from the authored offset: radius = its length,
@@ -41,7 +47,13 @@ export class OrbitCamera {
     this.camRadius = this.camRadiusTarget = this.camRadius0;
     this.camYaw = this.camYawTarget = Math.atan2(off.z, off.x);
 
-    this.camera = new THREE.PerspectiveCamera(50, aspect(), 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(this.fov0, aspect(), 0.1, 1000);
+  }
+
+  /** Set the extra FOV (degrees) the camera eases toward — 0 is the resting view. Generic; the caller
+   *  decides what it means (the boost speed-kick passes a few degrees while boosting). */
+  setFovExtra(deg: number): void {
+    this.fovExtraTarget = deg;
   }
 
   /**
@@ -63,6 +75,15 @@ export class OrbitCamera {
     const k = Math.min(1, dt * 8); // eased smoothing toward targets
     this.camRadius += (this.camRadiusTarget - this.camRadius) * k;
     this.camYaw += (this.camYawTarget - this.camYaw) * k;
+
+    // Ease the extra FOV toward its target and apply it only when it actually moves (a projection
+    // rebuild is cheap but not free). A widening view while boosting reads as a surge of speed.
+    this.fovExtra += (this.fovExtraTarget - this.fovExtra) * k;
+    const fov = this.fov0 + this.fovExtra;
+    if (Math.abs(this.camera.fov - fov) > 1e-3) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
 
     if (retarget) this.panning = true;
     if (!this.focusSeeded) {

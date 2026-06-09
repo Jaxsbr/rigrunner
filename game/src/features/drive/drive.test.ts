@@ -102,6 +102,7 @@ describe('rigLoad', () => {
       size: '1x3',
       engineMin: 1,
       engineMax: 1,
+      topSpeed: 12,
       grip: 0,
       turning: 0,
       loadCapacity: 24,
@@ -178,8 +179,8 @@ describe('rigPerformance', () => {
     let prevTop = 0;
     let prevAcc = 0;
     for (let n = 1; n <= 6; n++) {
-      // Each engine adds its full weight too — but its torque lifts mobility enough that the linear
-      // sum still nets out positive (the old diminishing-returns sum that broke this is gone).
+      // Each engine adds its full weight too — but even on the diminishing-returns curve its torque
+      // lifts mobility enough that every added engine still nets out positive (never a detriment).
       mountEngine(w, r, { power: 13, torque: 8 }, 4);
       const perf = rigPerformance(w, r);
       expect(perf.topSpeed).toBeGreaterThan(prevTop);

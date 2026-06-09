@@ -40,7 +40,7 @@ export type ProductStats = PartAttributes;
 
 const ZERO_STATS: ProductStats = {
   power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
-  grip: 0, turning: 0, loadCapacity: 0, capacity: 0,
+  topSpeed: 0, grip: 0, turning: 0, loadCapacity: 0, capacity: 0,
 };
 
 /** Resolve a part entity to its catalog definition, or null if it isn't a known catalog part. */
@@ -53,7 +53,7 @@ export function defOf(world: World, entity: EntityId): PartDef | null {
  * The RESOLVED stats of one part instance — its catalog BASE attributes scaled by the multiplier of
  * the tier its instance carries (`docs/part-identity-spec.md` §4a/b). This is the single seam the
  * whole tier axis pivots on: a rusty (tier-1) part resolves to exactly its base (mult 1, an
- * identity), while an iron part resolves to ~2.2× — so two parts sharing one `PartDef` differ purely
+ * identity), while an iron part resolves to ~1.6× — so two parts sharing one `PartDef` differ purely
  * by the tier on their instance. Each field is rounded to a whole number so capacity stays an integer
  * (the scrap-fill gate counts whole pieces) and stats read clean. Null for a non-catalog entity.
  */
@@ -70,6 +70,7 @@ export function resolvePartStats(world: World, entity: EntityId): PartAttributes
     weight: scale(def.attributes.weight),
     durability: scale(def.attributes.durability),
     burst: scale(def.attributes.burst),
+    topSpeed: scale(def.attributes.topSpeed),
     grip: scale(def.attributes.grip),
     turning: scale(def.attributes.turning),
     loadCapacity: scale(def.attributes.loadCapacity),
@@ -94,6 +95,7 @@ export function sumPartStats(world: World, parts: readonly EntityId[]): ProductS
     acc.durability += s.durability;
     acc.burst += s.burst;
     // The optional contributions are ≡ 0 on parts that don't carry them, so coalesce them in.
+    acc.topSpeed = (acc.topSpeed ?? 0) + (s.topSpeed ?? 0);
     acc.grip = (acc.grip ?? 0) + (s.grip ?? 0);
     acc.turning = (acc.turning ?? 0) + (s.turning ?? 0);
     acc.loadCapacity = (acc.loadCapacity ?? 0) + (s.loadCapacity ?? 0);
@@ -214,6 +216,7 @@ function attachCapability(world: World, product: EntityId, recipe: Recipe, stats
         size: c.size,
         engineMin: c.engineMin,
         engineMax: c.engineMax,
+        topSpeed: stats.topSpeed ?? 0,
         grip: stats.grip ?? 0,
         turning: stats.turning ?? 0,
         loadCapacity: stats.loadCapacity ?? 0,

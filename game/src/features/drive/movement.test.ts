@@ -10,6 +10,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { EngineSpec } from '@common/components/engine-spec';
 import type { EngineSpec as EngineSpecData } from '@common/components/engine-spec';
+import { Boost } from '@common/components/boost';
 import { movementSystem } from './movement';
 
 /** A rig that can be driven. By default it has an engine mounted so it has propulsion. */
@@ -105,6 +106,28 @@ describe('movementSystem', () => {
       return w.get(e, Velocity)!.speed;
     };
     expect(top({ power: 13, torque: 19 })).toBeGreaterThan(top({ power: 8, torque: 11 }));
+  });
+
+  it('boost lifts speed above the normal top-speed cap by the surge', () => {
+    const w = new World();
+    const e = drivable(w); // engine power 12, no Chassis → cap 12 (mobility 1, weightless)
+    // An active boost (as the boost system would have set it): +6 cap, +10 accel.
+    w.add(e, Boost, { heat: 10, overheated: false, active: true, surgeSpeed: 6, surgeAccel: 10 });
+    w.get(e, DriveControl)!.throttle = 1;
+    for (let i = 0; i < 100; i++) movementSystem(w, 0.1);
+    expect(w.get(e, Velocity)!.speed).toBeCloseTo(18); // 12 + 6 surge
+  });
+
+  it('coasts boost overspeed back down to the cap when the surge ends — no snap', () => {
+    const w = new World();
+    const e = drivable(w); // cap 12
+    w.add(e, Boost, { heat: 0, overheated: false, active: false, surgeSpeed: 0, surgeAccel: 0 });
+    w.get(e, Velocity)!.speed = 18; // just finished boosting, above the cap
+    w.get(e, DriveControl)!.throttle = 1; // still flooring it
+    movementSystem(w, 0.1);
+    const s = w.get(e, Velocity)!.speed;
+    expect(s).toBeLessThan(18);    // bleeding down under friction
+    expect(s).toBeGreaterThan(12); // ...but not snapped straight to the cap
   });
 });
 

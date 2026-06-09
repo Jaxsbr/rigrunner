@@ -8,6 +8,7 @@ import { defineComponent } from '@core/component';
 export interface DriveControl {
   throttle: number;      // -1 reverse … 0 … 1 forward
   steer: number;         // -1 right … 0 … 1 left — the raw input target
+  boost?: boolean;       // Shift held — request boost (the boost system gates it on heat + engine)
   appliedSteer?: number; // ramped steer the movement system eases toward `steer` (sim-managed; input never sets it)
 }
 

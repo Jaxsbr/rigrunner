@@ -3,6 +3,7 @@ import { Transform } from '@common/components/transform';
 import { Drivetrain } from '@features/drive/drivetrain';
 import { Velocity } from '@features/drive/velocity';
 import { DriveControl } from '@features/drive/drive-control';
+import { Boost } from '@common/components/boost';
 import { rigPerformance } from './drive';
 import { steeringPivotLz } from './steering';
 
@@ -10,12 +11,15 @@ import { steeringPivotLz } from './steering';
  * Integrates throttle/steer intent into motion for every entity that can be driven
  * (has Transform + Drivetrain + Velocity + DriveControl).
  *
- * Propulsion comes from the rig's engines, resolved by rigPerformance (drive.ts). A stronger engine
- * drives faster and accelerates harder, and engines sum linearly — two beat one, six give the most,
- * with no diminishing-returns cliff. Weight drags on that output (rigPerformance's mobility factor),
- * so a rig laden with cargo is slower and slower to respond than the same rig empty. A rig with NO
- * engine has zero output: throttle is dead and it coasts to rest under friction — the "I built a rig
- * but forgot the engine" teaching moment, felt directly in the controls.
+ * Propulsion comes from the rig's engines, resolved by rigPerformance (drive.ts): top speed is capped
+ * by the chassis ceiling, and engines compound with diminishing returns. Weight drags on that output
+ * (rigPerformance's mobility factor), so a rig laden with cargo is slower and slower to respond than
+ * the same rig empty. A rig with NO engine has zero output: throttle is dead and it coasts to rest
+ * under friction — the "I built a rig but forgot the engine" teaching moment, felt in the controls.
+ *
+ * Boost (set by the boost system on the rig's `Boost`) briefly lifts the forward cap ABOVE the ceiling
+ * and adds an acceleration surge — a flat bonus, so it transforms a slow rig and barely flatters a
+ * fast one. When boost ends, the over-cap speed coasts down under friction rather than snapping back.
  *
  * Steering combines three effects: the applied steer RAMPS toward the input (STEER_RAMP) so a hard
  * turn builds up rather than snapping 0→full; a turning-RADIUS model (yaw ∝ speed, so the rig arcs
@@ -38,15 +42,30 @@ export function movementSystem(world: World, dt: number): void {
 
     const perf = rigPerformance(world, e);
 
-    // Throttle accelerates (or reverses) only while there's propulsion; otherwise — and whenever
-    // throttle is released — friction bleeds speed to 0.
-    if (perf.topSpeed > 0 && ctl.throttle !== 0) {
-      vel.speed += perf.acceleration * ctl.throttle * dt;
+    // Boost (set by the boost system) raises the forward cap above the chassis ceiling and adds an
+    // acceleration surge — both flat, both forward-only (the boost system zeroes them otherwise).
+    const boost = world.get(e, Boost);
+    const boosting = !!(boost && boost.active);
+    const cap = perf.topSpeed + (boosting ? boost!.surgeSpeed : 0);
+    const accel = perf.acceleration + (boosting ? boost!.surgeAccel : 0);
+
+    // Throttle drives toward the (possibly boosted) cap; reverse toward the reverse cap; otherwise
+    // friction bleeds speed to 0. The engine never forces speed DOWN, so speed carried above the cap
+    // (a boost that just ended) coasts off under friction below rather than snapping to the cap.
+    if (perf.topSpeed > 0 && ctl.throttle > 0) {
+      if (vel.speed < cap) vel.speed = Math.min(cap, vel.speed + accel * ctl.throttle * dt);
+    } else if (perf.topSpeed > 0 && ctl.throttle < 0) {
+      if (vel.speed > -perf.reverse) {
+        vel.speed = Math.max(-perf.reverse, vel.speed + perf.acceleration * ctl.throttle * dt);
+      }
     } else {
       const drop = Math.min(Math.abs(vel.speed), drive.friction * dt);
       vel.speed -= Math.sign(vel.speed) * drop;
     }
-    vel.speed = Math.max(-perf.reverse, Math.min(perf.topSpeed, vel.speed));
+    // Boost momentum: speed above the current cap bleeds off under friction (a smooth fade after a
+    // boost ends), and the reverse floor is held — forward over-cap is the intended coast-down.
+    if (vel.speed > cap) vel.speed = Math.max(cap, vel.speed - drive.friction * dt);
+    if (vel.speed < -perf.reverse) vel.speed = -perf.reverse;
 
     // Steering = a turning-RADIUS model, taken about an engine-set PIVOT:
     //  • yaw rate is proportional to forward speed (yaw = speed / turnRadius), so the rig ARCS through

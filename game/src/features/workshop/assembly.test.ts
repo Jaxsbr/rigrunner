@@ -73,7 +73,7 @@ describe('assembly — attribute summing', () => {
     const w = setup();
     expect(sumPartStats(w, [w.createEntity()])).toEqual({
       power: 0, torque: 0, weight: 0, durability: 0, burst: 0,
-      grip: 0, turning: 0, loadCapacity: 0, capacity: 0,
+      topSpeed: 0, grip: 0, turning: 0, loadCapacity: 0, capacity: 0,
     });
   });
 });
@@ -94,10 +94,10 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     expect(sumPartStats(w, [shell])).toMatchObject({ weight: 3, capacity: 3 });
   });
 
-  it('an iron part resolves up — base × 1.8, rounded', () => {
+  it('an iron part resolves up — base × 1.6, rounded', () => {
     const w = setup();
     const shell = placeOnSlotAtTier(w, 'container-shell', 'iron');
-    // base capacity 3 × 1.8 = 5.4 → 5; base weight 3 × 1.8 = 5.4 → 5
+    // base capacity 3 × 1.6 = 4.8 → 5; base weight 3 × 1.6 = 4.8 → 5
     expect(sumPartStats(w, [shell])).toMatchObject({ weight: 5, capacity: 5 });
   });
 
@@ -115,7 +115,7 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     ]);
     const mixed = sumPartStats(w, [
       spawnCatalogPart(w, partDef('container-shell')!, 'rusty'), // 3
-      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(1 × 1.8) = 2
+      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(1 × 1.6) = 2
     ]);
 
     expect(rusty.capacity).toBe(4);  // 3 + 1 — the tier-1 CONTAINER_CAPACITY

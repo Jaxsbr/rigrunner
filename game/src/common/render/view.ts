@@ -51,6 +51,8 @@ export class RenderView {
   follow(t: Transform, intent: CameraIntent, dt: number, retarget = false): void {
     this.orbit.follow(t, intent, dt, retarget);
   }
+  /** Extra camera FOV (degrees), eased — the composition root drives it (e.g. a boost speed-kick). */
+  setFovExtra(deg: number): void { this.orbit.setFovExtra(deg); }
   render(): void { this.stage.render(this.orbit.camera); }
 
   // ── build interaction (queried/toggled by the build controller) ─────────────────────────────

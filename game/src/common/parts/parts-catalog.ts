@@ -69,10 +69,12 @@ export interface PartAttributes {
   durability: number; // reserved (casing toughness) — not consumed in MW
   burst: number;      // reserved (regulator boost/overdrive magnitude) — not consumed in MW
   // Chassis sub-part contributions — summed into a `Chassis` at assembly. Omitted (≡ 0) on every
-  // non-chassis part. `grip` (wheel/axle) and `turning` (suspension) now feed handling — see
-  // `chassisToRig`: grip → off-throttle deceleration, turning → turn rate. `loadCapacity` (frame) is
-  // the rated carry weight the HUD reads. All three scale with the part's tier, so an iron chassis
-  // brakes harder, turns sharper and hauls more.
+  // non-chassis part. `topSpeed` + `grip` (wheel/axle), `turning` (suspension) and `loadCapacity`
+  // (frame) feed driving + handling — see `drive.ts`/`chassisToRig`: topSpeed → the forward top-speed
+  // CEILING the engines fill toward, grip → off-throttle deceleration, turning → turn rate,
+  // loadCapacity → the rated carry weight the HUD reads. All scale with the part's tier, so iron
+  // running gear lifts the ceiling, brakes harder, turns sharper and hauls more.
+  topSpeed?: number;
   grip?: number;
   turning?: number;
   loadCapacity?: number;
@@ -117,16 +119,19 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   'reclaimer-arm': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0 },
   'reclaimer-bucket': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
 
-  // 🛞 Chassis — each slot owns one handling/structural attribute plus its own weight; power/torque/
-  // durability/burst stay 0. Per SIZE: wheel/axle → `grip` (off-throttle deceleration), suspension →
-  // `turning` (turn rate), frame → `loadCapacity`. The scout (1×3) turns sharper (turning 8 > 5); the
-  // hauler (3×5) is heavier and carries more (loadCapacity 60 > 24). grip rusty-sums to the old
-  // constant brake feel; the tier multiplier lifts it (and turning) from there — an iron chassis
-  // handles better. (Tier is the orthogonal material axis on the INSTANCE, scaled at resolve.)
-  'wheel-axle-1x3': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0, grip: 6 },
+  // 🛞 Chassis — each slot owns its handling/structural attributes plus its own weight; power/torque/
+  // durability/burst stay 0. Per SIZE: wheel/axle → `topSpeed` (the top-speed CEILING) + `grip`
+  // (off-throttle deceleration), suspension → `turning` (turn rate), frame → `loadCapacity`. The
+  // scout (1×3) turns sharper (turning 8 > 5); the hauler (3×5) is heavier, carries more
+  // (loadCapacity 60 > 24) and rolls a slightly higher ceiling (topSpeed 14 > 12). The ceiling sits
+  // just above a fair fully-built top speed, so it bites only over-powered / high-tier builds; the
+  // tier multiplier lifts topSpeed/grip/turning from there — iron running gear is faster and handles
+  // better. (Tier is the orthogonal material axis on the INSTANCE, scaled at resolve. topSpeed values
+  // are strawmen — tune to feel.)
+  'wheel-axle-1x3': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0, topSpeed: 12, grip: 6 },
   'suspension-steering-1x3': { power: 0, torque: 0, weight: 2, durability: 0, burst: 0, turning: 8 },
   'frame-1x3': { power: 0, torque: 0, weight: 6, durability: 0, burst: 0, loadCapacity: 24 },
-  'wheel-axle-3x5': { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, grip: 6 },
+  'wheel-axle-3x5': { power: 0, torque: 0, weight: 7, durability: 0, burst: 0, topSpeed: 14, grip: 6 },
   'suspension-steering-3x5': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0, turning: 5 },
   'frame-3x5': { power: 0, torque: 0, weight: 14, durability: 0, burst: 0, loadCapacity: 60 },
 

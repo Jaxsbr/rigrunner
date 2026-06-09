@@ -6,19 +6,18 @@ import { EngineSpec } from '@common/components/engine-spec';
 
 /**
  * Aggregating engine power. A rig can carry more than one engine, so the drive system asks here for
- * the *combined* output of everything mounted on it — and the answer is a plain per-attribute sum.
+ * the *combined* output of everything mounted on it.
  *
- * Linear scaling, on purpose: every engine contributes its full power and torque, so two engines are
- * twice one and six give the most. An earlier build damped each extra engine on a falloff curve;
- * combined with each engine's own weight dragging on mobility (see drive.ts history), that made the
- * 4th–6th engine a net *loss* — bolting on more drive made you slower. That whole algorithm is gone:
- * more engines are now strictly more performance, never a detriment.
+ * Engines compound with DIMINISHING RETURNS: each added engine still helps, but less than the last.
+ * Per attribute, the mounted engines' contributions are sorted high→low and scaled by a falling
+ * series of marginal weights ([1, 0.7, 0.5, …]) — the strongest source runs at full weight, the next
+ * at 0.7, the next at 0.5 — so two engines beat one and three beat two, but never by a full multiple.
+ * The weights are chosen so each engine's gain comfortably exceeds the weight it drags on (drive.ts
+ * mobility), keeping every extra engine a net gain — the marginal falls but never turns negative.
  *
- * With the masking removed, the only thing distinguishing a build is the engines' own profiles —
- * electric (high power / low torque) tops out faster, steam (the reverse) accelerates harder.
- *
- * The sum is per-attribute, so an engine that's strong in torque but weak in power lends its torque
- * in full regardless of what else is mounted.
+ * The series is applied to power and torque INDEPENDENTLY, so a mixed-type rig leads each attribute
+ * with its best source: an electric (high power) tops the power series, a steam (high torque) tops the
+ * torque series — rewarding a balanced pair without any special blending.
  */
 
 export interface EngineOutput {
@@ -35,11 +34,25 @@ export function mountedEngines(world: World, rig: EntityId): EntityId[] {
   return engines;
 }
 
-/** Combined output of every engine mounted on `rig` — a straight per-attribute sum. Zero if none. */
+/** The marginal weights for stacked engines: engine 1 runs full, engine 2 adds 70%, engine 3 adds
+ *  50%. Ranks past the table hold the last weight, so a hypothetical larger deck still gains per
+ *  engine. Tunable to feel — each must beat the weight its engine adds (see header). */
+const MARGINAL_WEIGHTS = [1, 0.7, 0.5] as const;
+
+/** Sum one attribute across engines with diminishing returns: sort high→low, scale each by its rank's
+ *  marginal weight. Order-independent and per-attribute, so the strongest source of each attribute leads. */
+function diminishingSum(values: number[]): number {
+  return values
+    .slice()
+    .sort((a, b) => b - a)
+    .reduce((sum, v, i) => sum + v * MARGINAL_WEIGHTS[Math.min(i, MARGINAL_WEIGHTS.length - 1)], 0);
+}
+
+/** Combined output of every engine mounted on `rig`, compounded with diminishing returns. Zero if none. */
 export function aggregateEngineOutput(world: World, rig: EntityId): EngineOutput {
   const specs = mountedEngines(world, rig).map((e) => world.get(e, EngineSpec)!);
   return {
-    power: specs.reduce((sum, s) => sum + s.power, 0),
-    torque: specs.reduce((sum, s) => sum + s.torque, 0),
+    power: diminishingSum(specs.map((s) => s.power)),
+    torque: diminishingSum(specs.map((s) => s.torque)),
   };
 }

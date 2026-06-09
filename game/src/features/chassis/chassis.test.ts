@@ -57,7 +57,7 @@ describe('composing a chassis', () => {
     expect(w.get(c, Part)!.kind).toBe('chassis');
     expect(w.get(c, Part)!.footprint).toEqual({ cols: 2, rows: 2 }); // composed as a packed 2×2 kit
     expect(w.get(c, Chassis)).toMatchObject({
-      size: '1x3', engineMin: 1, engineMax: 1, grip: 6, turning: 8, loadCapacity: 24,
+      size: '1x3', engineMin: 1, engineMax: 1, topSpeed: 12, grip: 6, turning: 8, loadCapacity: 24,
     });
     // Deck dimensions come from the recipe, not the sub-parts.
     expect(w.get(c, MountGrid)).toMatchObject({ cols: 1, rows: 3, cellSize: 1, deckY: 0.70 });
@@ -70,7 +70,7 @@ describe('composing a chassis', () => {
     const c = composeProduct(w, chassisRecipeForSize('3x5'), chassisParts('3x5'));
 
     expect(w.get(c, Chassis)).toMatchObject({
-      size: '3x5', engineMin: 1, engineMax: 3, grip: 6, turning: 5, loadCapacity: 60,
+      size: '3x5', engineMin: 1, engineMax: 2, topSpeed: 14, grip: 6, turning: 5, loadCapacity: 60,
     });
     expect(w.get(c, MountGrid)).toMatchObject({ cols: 3, rows: 5 });
     expect(w.get(c, Weight)!.value).toBe(26); // 7 + 5 + 14
@@ -96,7 +96,7 @@ describe('spawnRig', () => {
   it('builds a 3×5 rig when asked', () => {
     const w = new World();
     const rig = spawnRig(w, 0, 0, '3x5');
-    expect(w.get(rig, Chassis)!.engineMax).toBe(3);
+    expect(w.get(rig, Chassis)!.engineMax).toBe(2);
     expect(w.get(rig, MountGrid)).toMatchObject({ cols: 3, rows: 5 });
     expect(w.get(rig, Renderable)).toMatchObject({ shape: 'assembly', groupId: 'chassis-3x5' });
   });
