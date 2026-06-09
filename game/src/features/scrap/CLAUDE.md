@@ -7,8 +7,7 @@ you see the mechanic end to end.
 
 What's here:
 
-- **Components:** `collectible` (loose scrap), `scrap-pile`, `digging` (the rummage marker the
-  Reclaimer animator reads), `dissolving` (the reclaim-dissolve clock a fully-rummaged pile runs — its
+- **Components:** `collectible` (loose scrap), `scrap-pile`, `dissolving` (the reclaim-dissolve clock a fully-rummaged pile runs — its
   heap sinks while a stump rises; scrap's sibling of the camp's `Camp.tornDown`). On reclaim the pile
   emits a `RestorableSite{kind:'scrap'}` stump — the SAME marker a cleared camp leaves — which lives in
   `@common/components` (the shared restoration seam).
@@ -27,7 +26,9 @@ Single-owner / placement rules at the point of edit:
 - **Collision now lives in `@common/sim/collision`** — it was promoted out of scrap when camps became
   its second consumer (projectile/enemy/ram hits), exactly as its header always said it should be. Both
   scrap (drive-over collection) and camps call the one shared pair finder; don't re-add a copy here.
-- **The Reclaimer animator lives in scrap** (`reclaimer-animator.ts`) because it reads scrap's
-  `Digging` marker; keep that edge pointing at scrap, not at mounting (which would cycle).
+- **The Reclaimer animator lives in scrap** (`reclaimer-animator.ts`) because rummaging began here; it
+  reads the shared `@common/components/reclaimer-working` `ReclaimerWorking` marker (promoted out of scrap
+  once restoration's stump-heal became its second consumer — both deploy the same arm). Keep the animator
+  here, not in mounting (which would cycle).
 - Cross-feature: scrap depends downhill on `storage` (`mounted-storages`) and `economy` (loot grant)
   — never the reverse. `@common`/`@core` never import scrap.

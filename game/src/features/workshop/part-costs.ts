@@ -34,6 +34,9 @@ export const PART_COSTS: readonly PartCost[] = [
   // (5) — a deliberate save-up. Tune here against feel (this is the single price surface).
   { partId: 'reclaimer-arm', buyCost: 24 },
   { partId: 'reclaimer-bucket', buyCost: 12 },
+  // The stump-healer head — an alternative to the bucket, priced on a par with it. A restoration tool is
+  // an OPTIONAL, deliberate buy (you swap the bucket for it to grow cleared sites), not a core loop gate.
+  { partId: 'stump-healer', buyCost: 14 },
 
   // Weapon (looter camps) — the auto-fire gun: Mount + Barrel. Same bootstrap rule as the Reclaimer:
   // you can't loot your way to the tool that lets you loot, so the pair must be affordable from loose

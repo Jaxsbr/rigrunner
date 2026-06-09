@@ -5,7 +5,7 @@ import { Assembly } from '@common/components/assembly';
 import type { EnergyType } from '@common/parts/parts-catalog';
 import { tierOf, DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { partIdentity, productComposition } from '@shared/part-identity';
-import { assetTier, chassisTier, productSubPartTiers } from '@common/sim/assembly';
+import { assetTier, chassisTier, productSubPartTiers, reclaimerHeadPartId } from '@common/sim/assembly';
 import { isArticulated, BUCKET_ASSET } from '@common/render/articulation';
 
 /**
@@ -38,8 +38,10 @@ export function productAssetId(kind: PartKind, recipeId: string, type?: EnergyTy
 export interface ProductTints {
   /** Wash for the base model. */
   tint?: number;
-  /** Wash for an articulated asset's socket head (the Reclaimer's bucket). */
+  /** Wash for an articulated asset's socket head (the Reclaimer's head). */
   headTint?: number;
+  /** Which head GLB rides the wrist socket (the swappable head — bucket or stump-healer); omitted ⇒ bucket. */
+  headAssetId?: string;
 }
 
 /**
@@ -54,7 +56,12 @@ export function productTints(world: World, product: EntityId, assetId: string): 
   const base = assetTier(world, product, assetId);
   if (base) tints.tint = tierOf(base).finishColor;
   if (isArticulated(assetId)) {
-    const head = assetTier(world, product, BUCKET_ASSET);
+    // Grade the head that is ACTUALLY composed onto the arm, not always the bucket — so a stump-healer
+    // head (or an iron one) reads at its own grade. The GLB to attach is named here too, for the render.
+    const headPartId = reclaimerHeadPartId(world, product);
+    const headAssetId = (headPartId ? partIdentity(headPartId)?.assetId : undefined) ?? BUCKET_ASSET;
+    if (headAssetId !== BUCKET_ASSET) tints.headAssetId = headAssetId;
+    const head = assetTier(world, product, headAssetId);
     if (head) tints.headTint = tierOf(head).finishColor;
   }
   return tints;
@@ -74,7 +81,7 @@ export function productTints(world: World, product: EntityId, assetId: string): 
  */
 export type ProductRenderSpec =
   | { compose: true; groupId: string; tiers: Record<string, TierId>; assetId: string; tint: number }
-  | { compose: false; assetId: string; tint?: number; headTint?: number };
+  | { compose: false; assetId: string; tint?: number; headTint?: number; headAssetId?: string };
 
 export function productRenderSpec(world: World, product: EntityId): ProductRenderSpec {
   const asm = world.get(product, Assembly);
@@ -102,6 +109,12 @@ export function productRenderSpec(world: World, product: EntityId): ProductRende
     const ct = chassisTier(world, product);
     return { compose: false, assetId, ...(ct ? { tint: tierOf(ct).finishColor } : {}) };
   }
-  const { tint, headTint } = productTints(world, product, assetId);
-  return { compose: false, assetId, ...(tint !== undefined ? { tint } : {}), ...(headTint !== undefined ? { headTint } : {}) };
+  const { tint, headTint, headAssetId } = productTints(world, product, assetId);
+  return {
+    compose: false,
+    assetId,
+    ...(tint !== undefined ? { tint } : {}),
+    ...(headTint !== undefined ? { headTint } : {}),
+    ...(headAssetId !== undefined ? { headAssetId } : {}),
+  };
 }

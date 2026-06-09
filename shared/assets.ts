@@ -29,6 +29,9 @@ export const MODEL_ASSETS: Record<string, string> = {
   // point) and its swappable unearthing-bucket head. See docs/asset-style.md "Articulated assets".
   'reclaimer-arm': '/assets/reclaimer-arm.glb',
   'reclaimer-bucket': '/assets/reclaimer-bucket.glb',
+  // The stump-healer head — the restoration tool that swaps onto the arm in place of the bucket: a
+  // watering-can-like vessel with a green sprout, rides the same `socket_wrist` (the swappable-head axis).
+  'stump-healer': '/assets/stump-healer.glb',
 
   // Part-identity sub-parts (part-identity-spec.md Phase 2) — every catalog sub-part gets its own
   // authored model, so a Core reads as a core and a Boiler as a boiler in the shop, inventory inspect,

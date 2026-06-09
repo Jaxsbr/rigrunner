@@ -43,6 +43,7 @@ export const DEFAULT_VIEW: PartView = { zoom: 1, facing: 0 };
 export const PART_VIEWS: Record<string, Partial<PartView>> = {
   // Tuned against the real models via the Playwright review workflow.
   'reclaimer-bucket': { zoom: 0.35 }, // a small scoop — read it as small, not screen-filling
+  'stump-healer': { zoom: 0.35 }, // a small can-and-sprout head, framed like its sibling bucket
   'reclaimer-arm': { zoom: 0.7 }, // a mid-size tool, a touch pulled back from full-frame
 
   // ⚡ Electric engine — the Casing and Regulator carry their identity on the FRONT face (panel +

@@ -75,6 +75,11 @@ import { findDisarmTarget } from '@features/camps/disarm-gate';
 import { campDiscs } from '@features/camps/overlays';
 import { DEFAULT_TIER } from '@common/parts/tiers';
 import { HealthHud } from '@features/hud/health-hud';
+import { restorationSystem } from '@features/restoration/restoration-system';
+import { RestorationStains } from '@features/restoration/restoration-stains';
+import { TreeGrower } from '@features/restoration/tree-grower';
+import { HealPrompt } from '@features/restoration/heal-prompt';
+import { healDiscs } from '@features/restoration/overlays';
 
 /**
  * Composition root. The ONLY place that knows about all three tiers and every feature at once: it
@@ -122,7 +127,8 @@ const workshop = spawnWorkshop(world, 0, 8);
   stageProduct(world, composeProduct(world, ELECTRIC_ENGINE_RECIPE, engineParts('electric'), 'iron'), workshop, 1, 0); // iron electric
   stageProduct(world, composeProduct(world, STEAM_ENGINE_RECIPE, engineParts('steam'), 'iron'), workshop, 2, 0);    // iron steam
   stageProduct(world, composeProduct(world, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!)), workshop, 0, 2);   // storage container
-  stageProduct(world, composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!)), workshop, 2, 2); // Reclaimer
+  stageProduct(world, composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'reclaimer-bucket'].map((id) => partDef(id)!)), workshop, 2, 2); // Reclaimer (bucket — digs scrap)
+  stageProduct(world, composeProduct(world, RECLAIMER_RECIPE, ['reclaimer-arm', 'stump-healer'].map((id) => partDef(id)!)), workshop, 1, 2);    // Reclaimer (stump-healer — grows stumps)
 }
 // Rummageable scrap piles (Option C / PR4–5) scattered around the field. A pile only lights up once
 // the rig parks in reach with a MOUNTED RECLAIMER aimed at it (the capability + facing gate); then
@@ -210,6 +216,10 @@ const zones = new ZoneOverlays(view.scene);
 const stains = new ScrapStains(view.scene);
 const pileStains = new ScrapPileStains(view.scene);
 const campStains = new CampStains(view.scene);
+// Restoration render: the green regrowth patch under each cleared-site stump, and the procedural young
+// tree that rises out of a stump as the player grows it (posed off the sim's `Healable.growth`).
+const restorationStains = new RestorationStains(view.scene);
+const treeGrower = new TreeGrower();
 // Fading tread trails pressed into the ground by everything that drives (the rig + camp guards).
 const tracks = new TrackMarks(view.scene);
 
@@ -267,6 +277,10 @@ const packPrompt = new PackPrompt(document.querySelector<HTMLElement>('#pack-pro
 // DISARMABLE camp with a trap arm mounted. Main pushes the same gate the camp's proximity disc lights
 // on, so the ring and the prompt appear together.
 const disarmPrompt = new DisarmPrompt(document.querySelector<HTMLElement>('#disarm-prompt')!);
+
+// The heal prompt, sharing that bottom-centre slot: shown when the rig is parked with a stump-healer
+// Reclaimer aimed at a not-yet-grown stump. Mirrors the scrap prompt (a held-E interaction).
+const healPrompt = new HealPrompt(document.querySelector<HTMLElement>('#heal-prompt')!);
 
 /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
 function anyZoneActive(): boolean {
@@ -360,6 +374,12 @@ function frame(now: number): void {
     // so it freezes behind the loot popup the empty pile just opened — the dissolve plays once collected.
     pileClearSystem(world, dt);
 
+    // restoration: recompute each cleared-site stump's heal gate (a stump-healer Reclaimer aimed at it in
+    // reach), then turn a held work key into the grow — the arm works and the stump's growth advances,
+    // the tree-grower rendering a young tree rising out of it. Runs after the pile gate (they share the
+    // work key, but the bucket↔healer head split keeps them from contending over the same arm).
+    restorationSystem(world, activeRig, work, dt);
+
     // camps combat: enemies act, the rig's weapon fires, then all shots travel — all BEFORE the one
     // collision pass below, so this frame's positions are what hits resolve against.
     enemyAiSystem(world, activeRig, dt);
@@ -407,6 +427,11 @@ function frame(now: number): void {
   disarm.tick(dt);
   // the disarm prompt mirrors that gate, shown only while the sim runs (the overlay hides it once open).
   disarmPrompt.sync(disarmTarget !== null && !paused && !dying);
+  // the heal prompt: shown while the sim runs and some healable stump's gate is lit (a stump-healer aimed
+  // at a not-yet-grown stump). Computed once and reused by the proximity discs below, so the ring and the
+  // prompt read the same gate and appear together.
+  const healZones = healDiscs(world);
+  healPrompt.sync(!paused && !dying && healZones.some((d) => d.active));
 
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
@@ -431,7 +456,7 @@ function frame(now: number): void {
   // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
   // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
   // overlay rather than popping on resume.
-  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig)], dt);
+  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig), ...healZones], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);
@@ -439,6 +464,10 @@ function frame(now: number): void {
   pileStains.sync(world, dt);
   // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
   campStains.sync(world, dt);
+  // restoration regrowth: a faint green patch shows under every cleared-site stump and DEEPENS as the
+  // player grows it into a tree (scaled by Healable.growth) — the land healing. Runs always so a live grow
+  // and any fade finish smoothly behind an overlay.
+  restorationStains.sync(world, dt);
   // tread trails: stamp new marks behind everything that drove this frame and fade the old ones. Runs
   // always so trails keep fading behind an overlay; the sim being frozen means nothing moves, so no new
   // marks are laid while paused.
@@ -449,6 +478,9 @@ function frame(now: number): void {
   // the pile's reclaim dissolve: an emptied heap sinks while its stump rises, off the shared Dissolving
   // clock. Runs always (like the camp teardown) so the dissolve holds behind the loot popup, not snaps.
   animateScrapPileClear(view.entityViews, world);
+  // the growing tree: a young tree rises out of each stump being healed, posed off Healable.growth. Runs
+  // always so a mid-grow pose holds behind an overlay rather than snapping (like the dissolve animators).
+  treeGrower.sync(view.entityViews, world);
   if (!paused && !dying) {
     animateWheels(view.entityViews, world, dt);
     animateChassisDeploy(view.entityViews, world, dt);

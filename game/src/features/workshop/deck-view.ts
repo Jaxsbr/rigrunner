@@ -50,8 +50,10 @@ export interface DeckPart {
   footprint: { cols: number; rows: number };
   /** The tier finish to wash the model toward (§3), or omitted for the GLB's own colours. */
   tint?: number;
-  /** The tier finish for an articulated asset's socket head (the Reclaimer's bucket). */
+  /** The tier finish for an articulated asset's socket head (the Reclaimer's head). */
   headTint?: number;
+  /** Which head GLB rides the wrist socket (the swappable head — bucket or stump-healer); omitted ⇒ bucket. */
+  headAssetId?: string;
 }
 
 export interface DeckSnapshot {
@@ -157,6 +159,7 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     entity?: EntityId,
     tint?: number,
     headTint?: number,
+    headAssetId?: string,
   ): void {
     const myToken = token;
     const group = new THREE.Group();
@@ -178,11 +181,11 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
         const instance = template.clone(true);
         if (tint !== undefined) tintModel(instance, tint);
         group.add(instance);
-        // An articulated arm (the Reclaimer) gets its bucket head parented onto the wrist socket in
-        // a static stow pose — mirroring the live world (render/entity-views), so a staged Reclaimer
-        // reads as the whole tool here too, not a bare headless arm. A no-op for any other asset. The
-        // head wears its own sub-part's tier finish, independent of the arm's.
-        void attachStaticHead(assetId, instance, models, headTint);
+        // An articulated arm (the Reclaimer) gets its head parented onto the wrist socket in a static
+        // stow pose — mirroring the live world (render/entity-views), so a staged Reclaimer reads as the
+        // whole tool here too, not a bare headless arm. A no-op for any other asset. WHICH head (bucket
+        // or stump-healer) is `headAssetId`; the head wears its own sub-part's tier finish.
+        void attachStaticHead(assetId, instance, models, headAssetId, headTint);
       })
       .catch(() => {
         if (myToken !== token) return;
@@ -241,7 +244,7 @@ export function createDeckView(host: HTMLElement, opts: DeckViewOptions): DeckVi
     for (const p of snapshot.parts) {
       const c = regionCenter(p.col, p.row, p.footprint);
       if (p.groupId) addComposed(p.groupId, p.tiers ?? {}, c.x, grid.deckY, c.z, p.yaw, p.entity);
-      else addModel(p.assetId ?? '', c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint, p.headTint);
+      else addModel(p.assetId ?? '', c.x, grid.deckY, c.z, p.yaw, p.entity, p.tint, p.headTint, p.headAssetId);
     }
 
     // Selected staged product → a soft blue highlight over its region (distinct from the drop

@@ -66,19 +66,21 @@ export function isArticulated(assetId: string): boolean {
  * and cloned onto the wrist socket. Those live views animate the rig per frame; these don't, so a
  * single resting `stow()` is enough here.
  *
- * `headTint` washes the bucket toward its own sub-part's tier finish (§3) — so a composed Reclaimer
- * shows its head's grade independently of its arm's (an iron arm + rusty bucket reads as such).
+ * `headAssetId` names WHICH head GLB to attach (the swappable head — the bucket or the stump-healer),
+ * defaulting to the bucket. `headTint` washes that head toward its own sub-part's tier finish (§3) — so a
+ * composed Reclaimer shows its head's grade independently of its arm's (an iron arm + rusty head reads as such).
  */
 export async function attachStaticHead(
   assetId: string,
   arm: THREE.Object3D,
   loader: ModelLoader,
+  headAssetId: string = BUCKET_ASSET,
   headTint?: number,
 ): Promise<void> {
   if (!isArticulated(assetId)) return;
-  const bucket = (await loader.load(BUCKET_ASSET)).clone(true);
-  if (headTint !== undefined) tintModel(bucket, headTint);
-  new ReclaimerRig(arm, bucket).stow();
+  const head = (await loader.load(headAssetId)).clone(true);
+  if (headTint !== undefined) tintModel(head, headTint);
+  new ReclaimerRig(arm, head).stow();
 }
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;

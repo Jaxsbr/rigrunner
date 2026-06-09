@@ -118,6 +118,9 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   // socket); power/torque/durability/burst stay 0.
   'reclaimer-arm': { power: 0, torque: 0, weight: 5, durability: 0, burst: 0 },
   'reclaimer-bucket': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
+  // The stump-healer head — the restoration tool that swaps in for the bucket. Same weight class as the
+  // bucket (a head you haul), so a healer reclaimer handles like a digging one; its only stat is WEIGHT.
+  'stump-healer': { power: 0, torque: 0, weight: 3, durability: 0, burst: 0 },
 
   // 🛞 Chassis — each slot owns its handling/structural attributes plus its own weight; power/torque/
   // durability/burst stay 0. Per SIZE: wheel/axle → `topSpeed` (the top-speed CEILING) + `grip`

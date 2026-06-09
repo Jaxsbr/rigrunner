@@ -182,8 +182,9 @@ export class WorkshopOverlay {
   private readonly deck: DeckView;
   private readonly slotEls = new Map<string, HTMLElement>();
   private renderedRecipeId: string | null = null; // which recipe's slot DOM is currently built
-  private decorateHead = false; // gate: attach the bucket head only for the assembled Reclaimer product
-  private headTint?: number; // the selected Reclaimer's bucket finish — the decorate hook tints the head with it
+  private decorateHead = false; // gate: attach the head only for the assembled Reclaimer product
+  private headTint?: number; // the selected Reclaimer's head finish — the decorate hook tints the head with it
+  private headAssetId?: string; // which head GLB to attach (bucket or stump-healer); undefined ⇒ the bucket
   // Set per selection: the inspect portrait composes a product's sub-parts onto its host (engine/storage)
   // through the shared assembler, mirroring the world/deck/viewer. Null for a loose part or a whole-GLB product.
   private composeSpec: { groupId: string; tiers: Record<string, TierId> } | null = null;
@@ -242,7 +243,7 @@ export class WorkshopOverlay {
         this.composeSpec
           ? attachSubParts(model, this.composeSpec.groupId, this.composeSpec.tiers, this.headLoader).then(() => {})
           : this.decorateHead
-            ? attachStaticHead(assetId, model, this.headLoader, this.headTint)
+            ? attachStaticHead(assetId, model, this.headLoader, this.headAssetId, this.headTint)
             : undefined,
     });
     this.deck = createDeckView(this.deckHost, { onSelect: (e) => this.onDeckSelect(e) });
@@ -810,6 +811,7 @@ export class WorkshopOverlay {
     if (!view) {
       this.decorateHead = false;
       this.headTint = undefined;
+      this.headAssetId = undefined;
       this.detailEl.innerHTML =
         `<div class="wk-detail-empty">Select a part or product to inspect it. Build on the ` +
         `Bench; drag finished products onto the Workshop Deck to stage them.</div>`;
@@ -823,6 +825,7 @@ export class WorkshopOverlay {
     this.decorateHead = false;
     this.composeSpec = null;
     this.headTint = undefined;
+    this.headAssetId = undefined;
     let portraitAsset = view.assetId;
     let baseTint = view.tierFinish;
     if (view.isProduct) {
@@ -834,6 +837,7 @@ export class WorkshopOverlay {
       } else {
         this.decorateHead = this.world.get(view.entity, Part)?.kind === 'reclaimer';
         this.headTint = spec.headTint;
+        this.headAssetId = spec.headAssetId;
       }
     }
     const a = view.attrs;
@@ -923,6 +927,7 @@ export class WorkshopOverlay {
             assetId: r.assetId,
             ...(r.tint !== undefined ? { tint: r.tint } : {}),
             ...(r.headTint !== undefined ? { headTint: r.headTint } : {}),
+            ...(r.headAssetId !== undefined ? { headAssetId: r.headAssetId } : {}),
           });
         } else {
           const asm = this.world.get(e, Assembly);
