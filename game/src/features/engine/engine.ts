@@ -45,7 +45,7 @@ function diminishingSum(values: number[]): number {
   return values
     .slice()
     .sort((a, b) => b - a)
-    .reduce((sum, v, i) => sum + v * (MARGINAL_WEIGHTS[Math.min(i, MARGINAL_WEIGHTS.length - 1)] ?? 0), 0);
+    .reduce((sum, v, i) => sum + v * MARGINAL_WEIGHTS[Math.min(i, MARGINAL_WEIGHTS.length - 1)], 0);
 }
 
 /** Combined output of every engine mounted on `rig`, compounded with diminishing returns. Zero if none. */
