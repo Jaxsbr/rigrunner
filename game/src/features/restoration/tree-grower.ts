@@ -28,6 +28,8 @@ import { Healable } from './healable';
  */
 
 const STUMP_TOP_Y = 0.34;       // where the trunk emerges from the camp-sprout stump's cut top (model units)
+const TREE_SCALE = 2.0;         // overall size of the young tree — built at unit scale, then scaled up as a
+                                // whole about its base so a fully-grown tree reads as a real sapling, not a twig
 const GOLDEN = 2.399963229728653; // golden angle (rad) — fans successive branches evenly around the trunk
 const TRUNK_LEN = 1.15;
 const TRUNK_BASE_R = 0.24;      // full trunk radius (~½ the ~0.48 stump radius) — reached only at growth 1
@@ -207,7 +209,11 @@ export class TreeGrower {
     };
 
     const trunkDir = new THREE.Vector3((rng() - 0.5) * 0.12, 1, (rng() - 0.5) * 0.12).normalize();
-    grow(new THREE.Vector3(0, STUMP_TOP_Y, 0), trunkDir, TRUNK_LEN, TRUNK_BASE_R, 0, rng() * Math.PI * 2);
+    // Build with the trunk base at the local origin, then anchor the whole tree at the stump top and scale
+    // it up about that base — so scaling changes its SIZE without lifting it off the stump.
+    grow(new THREE.Vector3(0, 0, 0), trunkDir, TRUNK_LEN, TRUNK_BASE_R, 0, rng() * Math.PI * 2);
+    root.position.set(0, STUMP_TOP_Y, 0);
+    root.scale.setScalar(TREE_SCALE);
 
     return { root, segments, leaves };
   }
