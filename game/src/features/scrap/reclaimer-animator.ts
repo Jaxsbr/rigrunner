@@ -1,15 +1,16 @@
 import type { World } from '@core/world';
 import type { EntityViews } from '@common/render/entity-views';
 import type { ReclaimerRig } from '@common/render/articulation';
-import { Digging } from './digging';
+import { ReclaimerWorking } from '@common/components/reclaimer-working';
 
 /**
- * The Reclaimer's sim-driven render: deploy/retract its articulated arm as the player rummages. It
- * READS the sim's `Digging` marker (set on a Reclaimer by `scrapRummageSystem` while the player works
- * a pile) and ramps a view-side `deploy` factor toward 1 while digging, 0 while idle. Lives with
- * scrap (it reads scrap's `Digging` marker, and rummaging IS a scrap interaction); the arm geometry
- * itself is generic articulation in `@common/render/articulation`. Dispatched from `main.ts` so the
- * shared render tier never imports a feature (ADR-003 §4).
+ * The Reclaimer's sim-driven render: deploy/retract its articulated arm as the player works it. It
+ * READS the shared `ReclaimerWorking` marker (set on a Reclaimer while the player rummages a pile OR
+ * heals a stump) and ramps a view-side `deploy` factor toward 1 while working, 0 while idle. Lives with
+ * scrap (rummaging is a scrap interaction and this began here); the marker is shared (`@common`) so
+ * restoration drives the same motion, and the arm geometry is generic articulation in
+ * `@common/render/articulation`. Dispatched from `main.ts` so the shared render tier never imports a
+ * feature (ADR-003 §4).
  */
 
 /** How fast the arm deploys / retracts, in deploy-units per second (≈0.4 s for the full travel). */
@@ -29,7 +30,7 @@ export function animateReclaimer(views: EntityViews, world: World, dt: number): 
     const elapsed = ((obj.userData['reclaimerElapsed'] as number) ?? 0) + dt;
     obj.userData['reclaimerElapsed'] = elapsed;
 
-    const target = world.isAlive(id) && world.has(id, Digging) ? 1 : 0;
+    const target = world.isAlive(id) && world.has(id, ReclaimerWorking) ? 1 : 0;
     let deploy = (obj.userData['reclaimerDeploy'] as number) ?? 0;
     const step = dt * DEPLOY_RATE;
     deploy += Math.sign(target - deploy) * Math.min(step, Math.abs(target - deploy)); // linear ramp

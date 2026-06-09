@@ -6,13 +6,14 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { Renderable } from '@common/components/renderable';
 import { ScrapPile } from '@features/scrap/scrap-pile';
-import { Digging } from '@features/scrap/digging';
+import { ReclaimerWorking } from '@common/components/reclaimer-working';
 import { LootDrop } from '@common/components/loot-drop';
 import { RestorableSite } from '@common/components/restorable-site';
 import { Dissolving, DISSOLVE_DURATION } from '@features/scrap/dissolving';
 import { scatterScrapAround } from '@features/scrap/scrap';
 import { rollLoot, rollScrapBurst } from '@features/scrap/loot-table';
 import { facingWithinFov } from '@common/sim/fov';
+import { reclaimerHeadPartId } from '@common/sim/assembly';
 
 /**
  * The scrap-pile interaction: the capability-gated, hold-to-work rummage (Option C / PR4).
@@ -21,11 +22,11 @@ import { facingWithinFov } from '@common/sim/fov';
  *   - scrapPileSystem  recomputes every pile's `active` gate (the rig in range AND carrying a
  *     mounted Reclaimer AND aiming its arm at the pile within the pile's FOV).
  *   - scrapRummageSystem turns "the work key is held over an active pile" into the felt beat: it
- *     marks the Reclaimer as Digging (the render layer deploys the arm), drains the pile a WAVE at
- *     a time, and bursts loose scrap around the rig for M1's drive-over collection to sweep up.
+ *     marks the Reclaimer as ReclaimerWorking (the render layer deploys the arm), drains the pile a
+ *     WAVE at a time, and bursts loose scrap around the rig for M1's drive-over collection to sweep up.
  *
- * Both are pure over the World apart from the mutations they ARE (the gate flag; Digging; the pile's
- * remaining/worked; the spawned scrap; destroying an emptied pile), so they run and test headless.
+ * Both are pure over the World apart from the mutations they ARE (the gate flag; ReclaimerWorking; the
+ * pile's remaining/worked; the spawned scrap; destroying an emptied pile), so they run and test headless.
  */
 
 // Hold-to-work tuning. A wave is one "bite" of the heap: it drops `remaining` by one and scatters a
@@ -35,10 +36,16 @@ const WAVE_INTERVAL = 0.45;      // seconds of holding between waves
 const BURST_MIN_R = 1.8;         // inner radius scrap scatters to around the rig (some auto-collected)
 const BURST_MAX_R = 3.5;         // outer radius (these you nudge the rig over to sweep up)
 
-/** The Reclaimer part mounted on `rig`, or null if the rig carries none. */
+/**
+ * The DIGGING Reclaimer mounted on `rig`, or null. A Reclaimer counts as a digger unless its head is the
+ * stump-healer — that head is the restoration tool (it grows stumps into trees, `@features/restoration`),
+ * not a scoop, so swapping it in dismantles the rig's ability to rummage. A reclaimer with no resolvable
+ * head (the bare arm, or a headless test fixture) still digs — only the explicit stump-healer is excluded.
+ */
 function mountedReclaimer(world: World, rig: EntityId): EntityId | null {
   for (const p of world.query(Part, Mount, Transform)) {
-    if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === 'reclaimer') return p;
+    if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === 'reclaimer'
+        && reclaimerHeadPartId(world, p) !== 'stump-healer') return p;
   }
   return null;
 }
@@ -104,10 +111,10 @@ export function scrapRummageSystem(
 
   const digging = working && target !== null;
 
-  // Drive the arm's dig state through the Reclaimer (the render layer reads Digging).
+  // Drive the arm's dig state through the Reclaimer (the render layer reads ReclaimerWorking).
   if (reclaimer !== null) {
-    if (digging && !world.has(reclaimer, Digging)) world.add(reclaimer, Digging, { since: 0 });
-    else if (!digging && world.has(reclaimer, Digging)) world.remove(reclaimer, Digging);
+    if (digging && !world.has(reclaimer, ReclaimerWorking)) world.add(reclaimer, ReclaimerWorking, { since: 0 });
+    else if (!digging && world.has(reclaimer, ReclaimerWorking)) world.remove(reclaimer, ReclaimerWorking);
   }
 
   const spawned: EntityId[] = [];
@@ -133,7 +140,7 @@ export function scrapRummageSystem(
       // DISSOLVE instead of vanishing — the heap sinks + shrinks while a stump rises in its place
       // (`pileClearSystem` advances the clock; the clear animator poses both). The pile entity lingers
       // until the dissolve completes, so its pollution stain holds through the sink and the gate skips it.
-      if (reclaimer !== null && world.has(reclaimer, Digging)) world.remove(reclaimer, Digging);
+      if (reclaimer !== null && world.has(reclaimer, ReclaimerWorking)) world.remove(reclaimer, ReclaimerWorking);
       const pt = world.get(p, Transform)!;
       // Empty-roll the loot table and queue a LootDrop for the loot UI. ALWAYS created: a pile always
       // gave scrap (the burst), so the popup always reports the haul; `finds` carries any non-scrap

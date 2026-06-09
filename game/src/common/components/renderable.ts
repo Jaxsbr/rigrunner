@@ -17,7 +17,9 @@ import type { TierId } from '@common/parts/tiers';
  *                grey-box GLB reads as a different material grade by looking; omitted = the GLB's own
  *                colours. `headTint` is the same for an articulated asset's socket-attached head (the
  *                Reclaimer's bucket), so a composed tool can wear a different grade on its head than its
- *                base — each sub-part its own tier; ignored by non-articulated assets.
+ *                base — each sub-part its own tier; ignored by non-articulated assets. `headAssetId`
+ *                names WHICH head GLB rides the wrist socket (the Reclaimer's swappable head — a bucket
+ *                or a stump-healer); omitted ⇒ the default bucket. Ignored by non-articulated assets.
  * - `assembly` — a COMPOSED product (an engine, a container) drawn as its positioned sub-parts via the
  *                shared assembler (`@shared/assembler`, the same path the viewer composes by — §2b).
  *                `groupId` is the product-group/recipe id; `tiers` maps each sub-part id to its grade, so
@@ -26,7 +28,7 @@ import type { TierId } from '@common/parts/tiers';
  */
 export type Renderable =
   | { shape: 'box'; size: { x: number; y: number; z: number }; color: number }
-  | { shape: 'model'; assetId: string; scale?: number; tint?: number; headTint?: number }
+  | { shape: 'model'; assetId: string; scale?: number; tint?: number; headTint?: number; headAssetId?: string }
   | { shape: 'assembly'; groupId: string; tiers: Record<string, TierId>; scale?: number };
 
 export const Renderable = defineComponent<Renderable>('Renderable');

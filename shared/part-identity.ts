@@ -134,9 +134,12 @@ export const PART_IDENTITIES: readonly PartIdentity[] = [
   { id: 'container-shell', slot: 'shell', category: 'storage', displayName: 'Shell', assetId: 'container-shell' },
   { id: 'container-rim', slot: 'rim', category: 'storage', displayName: 'Rim', assetId: 'container-rim' },
 
-  // 🦾 Reclaimer — the only product whose sub-parts are already modelled (arm + bucket head).
+  // 🦾 Reclaimer — a base Arm hosting one swappable HEAD. The digging Bucket rummages scrap; the
+  // restoration Stump Healer grows a cleared site's stump into a young tree (`@features/restoration`).
+  // Both fill the recipe's single `head` slot, so swapping heads dismantles one job to fit the other.
   { id: 'reclaimer-arm', slot: 'arm', category: 'reclaimer', displayName: 'Arm', assetId: 'reclaimer-arm' },
   { id: 'reclaimer-bucket', slot: 'head', category: 'reclaimer', displayName: 'Bucket', assetId: 'reclaimer-bucket' },
+  { id: 'stump-healer', slot: 'head', category: 'reclaimer', displayName: 'Stump Healer', assetId: 'stump-healer' },
 
   // 🛞 Chassis 1×3 — the light scout foundation. Every sub-part is per-size: the scout's Frame, its
   // SMALLER Wheel (lower stance) and its scaled-down Suspension. The 1×3 and 3×5 diverged enough that
@@ -192,7 +195,7 @@ export const PRODUCT_GROUPS: readonly ProductGroup[] = [
   { id: 'electric-engine', label: 'Electric Engine', emoji: '⚡', subPartIds: ['e-casing', 'e-core', 'e-coupling', 'e-regulator'] },
   { id: 'steam-engine', label: 'Steam Engine', emoji: '♨', subPartIds: ['s-boiler', 's-piston', 's-driveshaft', 's-throttle'] },
   { id: 'storage', label: 'Storage Container', emoji: '📦', subPartIds: ['container-shell', 'container-rim'] },
-  { id: 'reclaimer', label: 'Reclaimer', emoji: '🦾', subPartIds: ['reclaimer-arm', 'reclaimer-bucket'] },
+  { id: 'reclaimer', label: 'Reclaimer', emoji: '🦾', subPartIds: ['reclaimer-arm', 'reclaimer-bucket', 'stump-healer'] },
   { id: 'chassis-1x3', label: 'Chassis (1×3)', emoji: '🛞', subPartIds: ['wheel-axle-1x3', 'suspension-steering-1x3', 'frame-1x3'] },
   { id: 'chassis-3x5', label: 'Chassis (3×5)', emoji: '🛞', subPartIds: ['wheel-axle-3x5', 'suspension-steering-3x5', 'frame-3x5'] },
   { id: 'weapon', label: 'Weapon', emoji: '🔫', subPartIds: ['weapon-mount', 'weapon-barrel'] },

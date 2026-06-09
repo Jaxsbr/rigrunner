@@ -156,6 +156,24 @@ export function chassisTier(world: World, product: EntityId): TierId | null {
 }
 
 /**
+ * The catalog id of the HEAD sub-part composed onto a Reclaimer (the part filling the recipe's `head`
+ * slot), or null when the product carries no resolvable head (a bare arm, or a non-Assembly fixture). It
+ * is the seam the swappable-head behaviour pivots on: the render layer maps it to the head GLB to attach
+ * to the arm's wrist socket (`reclaimer-bucket` vs `stump-healer`), and the two interaction gates read it
+ * to tell a digging reclaimer (bucket) from a healing one (stump-healer). Generalises to any arm+head
+ * product, but the Reclaimer is its one consumer today.
+ */
+export function reclaimerHeadPartId(world: World, product: EntityId): string | null {
+  const asm = world.get(product, Assembly);
+  if (!asm) return null;
+  for (const e of asm.parts) {
+    const ep = world.get(e, EnginePart);
+    if (ep && partDef(ep.id)?.slot === 'head') return ep.id;
+  }
+  return null;
+}
+
+/**
  * The tier each sub-part of a product wears, keyed by its sub-part (catalog) id — the input the shared
  * assembler (`@shared/assembler`) composes from. Empty for a product with no `Assembly` (a directly-
  * spawned one supplies its own defaults). Lives here in the shared sim core because two features read it:

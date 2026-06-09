@@ -73,7 +73,7 @@ export class EntityViews {
 
   private createObject(r: Renderable): THREE.Object3D {
     if (r.shape === 'assembly') return this.createAssembly(r.groupId, r.tiers, r.scale ?? 1);
-    if (r.shape === 'model') return this.createModel(r.assetId, r.scale ?? 1, r.tint, r.headTint);
+    if (r.shape === 'model') return this.createModel(r.assetId, r.scale ?? 1, r.tint, r.headTint, r.headAssetId);
     return this.createBox(r);
   }
 
@@ -131,7 +131,7 @@ export class EntityViews {
    * waits on I/O). A placeholder fills it until the GLB loads; on success the real model
    * swaps in. Origin convention: base-centre → restY 0 (the model sits on the ground).
    */
-  private createModel(assetId: string, scale = 1, tint?: number, headTint?: number): THREE.Object3D {
+  private createModel(assetId: string, scale = 1, tint?: number, headTint?: number, headAssetId?: string): THREE.Object3D {
     const group = new THREE.Group();
     group.userData['restY'] = 0;
     group.userData['wheels'] = []; // populated on load; animateWheels reads it (safe when empty)
@@ -162,23 +162,25 @@ export class EntityViews {
         group.userData['wheels'] = wheels;
 
         // An articulated arm gets its head parented onto the wrist socket and a motion rig built
-        // over its joint_* nodes (the same node-name contract the viewer drives). The bucket is a
+        // over its joint_* nodes (the same node-name contract the viewer drives). The head is a
         // second async load; it rides the socket, so it inherits the arm's pose and needs no entity
-        // of its own. The rig lands in userData for animateReclaimer to drive each frame.
+        // of its own. WHICH head GLB it loads is `headAssetId` (the swappable head — the digging bucket
+        // or the stump-healer), defaulting to the bucket. The rig lands in userData for animateReclaimer.
         if (isArticulated(assetId)) {
+          const headId = headAssetId ?? BUCKET_ASSET;
           void this.models
-            .load(BUCKET_ASSET)
-            .then((bucketTemplate) => {
-              const bucket = bucketTemplate.clone(true);
+            .load(headId)
+            .then((headTemplate) => {
+              const head = headTemplate.clone(true);
               // The head wears its OWN sub-part's tier finish, independent of the arm's.
-              if (headTint !== undefined) tintModel(bucket, headTint);
-              enableShadows(bucket);
-              const rig = new ReclaimerRig(instance, bucket);
+              if (headTint !== undefined) tintModel(head, headTint);
+              enableShadows(head);
+              const rig = new ReclaimerRig(instance, head);
               rig.idle(0); // hold the resting idle pose until the first animator tick
               group.userData['reclaimer'] = rig;
             })
             .catch((err: unknown) => {
-              console.warn(`[assets] could not load '${BUCKET_ASSET}' head for '${assetId}':`, err);
+              console.warn(`[assets] could not load '${headId}' head for '${assetId}':`, err);
             });
         }
       })
@@ -197,7 +199,7 @@ export class EntityViews {
  * deploy) is reflected.
  */
 function renderSig(r: Renderable): string {
-  if (r.shape === 'model') return `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}:${r.headTint ?? ''}`;
+  if (r.shape === 'model') return `model:${r.assetId}:${r.scale ?? 1}:${r.tint ?? ''}:${r.headTint ?? ''}:${r.headAssetId ?? ''}`;
   if (r.shape === 'assembly') {
     // A per-sub-part tier change must rebuild the composed object, so fold the whole tier map into the
     // signature (sorted, so key order can't spuriously churn it).

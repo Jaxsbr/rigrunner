@@ -408,20 +408,23 @@ async function selectProduct(groupId: string, tiers: Map<string, TierId>): Promi
   hud.innerHTML = `<b>${group.emoji} ${group.label}</b> — loading…`;
 
   if (groupId === 'reclaimer') {
-    // The Reclaimer composes too — the bucket rides the arm's wrist socket — but it ALSO animates, so it
-    // keeps its own `ReclaimerRig` driver (held static here) rather than the static assembler. Each piece
-    // is graded by its own tier.
+    // The Reclaimer composes too — a swappable HEAD rides the arm's wrist socket — but it ALSO animates, so
+    // it keeps its own `ReclaimerRig` driver (held static here) rather than the static assembler. Each piece
+    // is graded by its own tier. The arm hosts one head; the compose preview shows the first head member
+    // (the digging bucket), and each head is also inspectable on its own from the Parts list (the
+    // stump-healer included). Data-driven off the group's head members, not a hardcoded bucket.
     const armTier = tiers.get('reclaimer-arm') ?? DEFAULT_TIER;
-    const headTier = tiers.get('reclaimer-bucket') ?? DEFAULT_TIER;
+    const headIdent = members.find((m) => m.slot === 'head') ?? partIdentity('reclaimer-bucket')!;
+    const headTier = tiers.get(headIdent.id) ?? DEFAULT_TIER;
     const arm = await loadGraded('reclaimer-arm', armTier);
-    const head = await loadGraded('reclaimer-bucket', headTier);
+    const head = await loadGraded(headIdent.assetId, headTier);
     if (t !== token) return;
     new ReclaimerRig(arm.obj, head.obj).stow(); // parents the head onto the socket + holds a static pose
     restOnFloor(arm.obj);
     holder.add(arm.obj);
     rendered = [
       { assetId: 'reclaimer-arm', tier: armTier, isRealModel: arm.isRealModel, tris: arm.tris },
-      { assetId: 'reclaimer-bucket', tier: headTier, isRealModel: head.isRealModel, tris: head.tris },
+      { assetId: headIdent.assetId, tier: headTier, isRealModel: head.isRealModel, tris: head.tris },
     ];
   } else {
     // Every other product composes through the SHARED assembler — the SAME path the game renders them by,

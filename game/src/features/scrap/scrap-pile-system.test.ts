@@ -7,7 +7,7 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { ScrapPile } from '@features/scrap/scrap-pile';
-import { Digging } from '@features/scrap/digging';
+import { ReclaimerWorking } from '@common/components/reclaimer-working';
 import { Collectible } from '@features/scrap/collectible';
 import { LootDrop } from '@common/components/loot-drop';
 import { RestorableSite } from '@common/components/restorable-site';
@@ -102,18 +102,18 @@ describe('scrapRummageSystem (hold-to-work)', () => {
   it('marks the Reclaimer Digging while working an active pile, clears it when released', () => {
     const { world, rec, p } = workableWorld();
     scrapRummageSystem(world, /* rig */ world.get(rec, Mount)!.rig, true, 0.1);
-    expect(world.has(rec, Digging)).toBe(true);
+    expect(world.has(rec, ReclaimerWorking)).toBe(true);
     expect(world.get(p, ScrapPile)!.active).toBe(true); // unchanged by rummage
 
     scrapRummageSystem(world, world.get(rec, Mount)!.rig, false, 0.1);
-    expect(world.has(rec, Digging)).toBe(false);
+    expect(world.has(rec, ReclaimerWorking)).toBe(false);
   });
 
   it('does not dig when the gate is not met (pile dormant)', () => {
     const { world, r, rec, p } = workableWorld();
     world.get(p, ScrapPile)!.active = false; // simulate facing away / out of range
     scrapRummageSystem(world, r, true, 0.5);
-    expect(world.has(rec, Digging)).toBe(false);
+    expect(world.has(rec, ReclaimerWorking)).toBe(false);
     expect(world.get(p, ScrapPile)!.remaining).toBe(8); // untouched
   });
 
@@ -143,7 +143,7 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     expect(world.isAlive(p)).toBe(true);            // lingers — it dissolves rather than vanishing
     expect(world.has(p, Dissolving)).toBe(true);    // the dissolve clock has started
     expect(world.get(p, Dissolving)!.elapsed).toBe(0);
-    expect(world.has(rec, Digging)).toBe(false);    // the dig stops on empty
+    expect(world.has(rec, ReclaimerWorking)).toBe(false);    // the dig stops on empty
     expect(world.get(p, ScrapPile)!.active).toBe(false); // disc cleared at once (popup freezes the gate)
   });
 

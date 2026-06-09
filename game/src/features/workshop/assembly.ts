@@ -143,6 +143,7 @@ export function placeProductInWorld(world: World, product: EntityId, x: number, 
         assetId: spec.assetId,
         ...(spec.tint !== undefined ? { tint: spec.tint } : {}),
         ...(spec.headTint !== undefined ? { headTint: spec.headTint } : {}),
+        ...(spec.headAssetId !== undefined ? { headAssetId: spec.headAssetId } : {}),
       });
   world.add(product, Collider, { radius: 0.5 });
   if (part.kind === 'engine' || part.kind === 'reclaimer' || part.kind === 'weapon' || part.kind === 'trap-arm') {
