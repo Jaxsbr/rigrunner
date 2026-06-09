@@ -34,8 +34,9 @@ const GOLDEN = 2.399963229728653; // golden angle (rad) — fans successive bran
 const TRUNK_LEN = 1.15;
 const TRUNK_BASE_R = 0.24;      // full trunk radius (~½ the ~0.48 stump radius) — reached only at growth 1
 
-const BARK_COLOR = 0x8a4b2f;    // rust — the palette's weathered-wood tone
-const LEAF_COLOR = 0x50a336;    // nature_green — restoration foliage
+const BARK_COLOR = 0x7a4329;    // weathered-wood brown — the palette's rust, nudged darker/earthier for bark
+const LEAF_COLOR = 0x6f8a3f;    // dusty sage-green — restoration foliage muted + warmed to sit in the
+                                // sun-baked wasteland (the saturated nature_green popped as neon under the warm sun)
 
 const clamp01 = (t: number): number => (t < 0 ? 0 : t > 1 ? 1 : t);
 const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);

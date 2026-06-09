@@ -31,8 +31,8 @@ type GreenKind = 'moss' | 'grass';
  *  deeper shade tight under the stump, grass a lighter spread. Derived from `nature_green` (#50A336),
  *  kept muted so it reads as regrowth, not neon. No wet sheen — nothing here is a slick. */
 const GREEN_PALETTE: StainPalette<GreenKind> = {
-  moss: { core: '58,120,46', mid: '74,138,58', pool: '40,84,34', sheen: false },
-  grass: { core: '96,158,66', mid: '120,176,86', pool: '70,128,52', sheen: false },
+  moss: { core: '70,86,44', mid: '86,102,56', pool: '50,64,34', sheen: false },
+  grass: { core: '104,118,62', mid: '126,140,82', pool: '82,96,50', sheen: false },
 };
 
 /**
