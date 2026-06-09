@@ -27,7 +27,9 @@ import { Healable } from './healable';
  * shared `ReclaimerWorking` marker — no contention.
  */
 
-const HEAL_RADIUS = 4.0;                  // metres the rig must reach (circle-vs-circle, like the scrap pile)
+/** Metres the rig must reach to heal (circle-vs-circle, like the scrap pile). Exported so the proximity
+ *  ring (`overlays.healDiscs`) draws at exactly the gate's reach — one source, so the ring can't lie. */
+export const HEAL_RADIUS = 4.0;
 const HEAL_FOV = (120 * Math.PI) / 180;   // the arm must have the stump within this cone (full angle)
 const GROW_DURATION = 6.0;                // seconds of holding to grow a stump fully — a weighty "I grew a tree"
 
@@ -45,8 +47,9 @@ function mountedHealer(world: World, rig: EntityId): EntityId | null {
  * frame; `dt` advances the growth. Returns the stump being grown this frame (for tests/feedback), or null.
  */
 export function restorationSystem(world: World, rig: EntityId, working: boolean, dt: number): EntityId | null {
-  // Every cleared site becomes healable. (A stump still rising out of the soil is harmless to tag — its
-  // gate simply won't be aimed at until it has settled; the loot popup freezes a pile's rise anyway.)
+  // Every cleared site becomes healable. Tagging one that is still rising out of the soil is fine: the
+  // growing tree is parented under the stump's render object, so it rides the same rise — stump and tree
+  // emerge together, never a tree floating above a half-buried stump.
   for (const s of world.query(RestorableSite, Transform)) {
     if (!world.has(s, Healable)) world.add(s, Healable, { growth: 0, active: false });
   }

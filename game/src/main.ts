@@ -428,8 +428,10 @@ function frame(now: number): void {
   // the disarm prompt mirrors that gate, shown only while the sim runs (the overlay hides it once open).
   disarmPrompt.sync(disarmTarget !== null && !paused && !dying);
   // the heal prompt: shown while the sim runs and some healable stump's gate is lit (a stump-healer aimed
-  // at a not-yet-grown stump). Lit off the same gate its proximity disc reads, so the two appear together.
-  healPrompt.sync(!paused && !dying && healDiscs(world).some((d) => d.active));
+  // at a not-yet-grown stump). Computed once and reused by the proximity discs below, so the ring and the
+  // prompt read the same gate and appear together.
+  const healZones = healDiscs(world);
+  healPrompt.sync(!paused && !dying && healZones.some((d) => d.active));
 
   // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
   // sim until the player collects). Checked every frame; a no-op once open or when no drop is pending.
@@ -454,7 +456,7 @@ function frame(now: number): void {
   // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
   // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
   // overlay rather than popping on resume.
-  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig), ...healDiscs(world)], dt);
+  zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig), ...healZones], dt);
   // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
   // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
   stains.sync(world, dt);

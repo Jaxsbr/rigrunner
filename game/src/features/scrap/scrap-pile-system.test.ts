@@ -99,7 +99,7 @@ describe('scrapRummageSystem (hold-to-work)', () => {
     return { world, r, rec, p };
   }
 
-  it('marks the Reclaimer Digging while working an active pile, clears it when released', () => {
+  it('marks the Reclaimer ReclaimerWorking while working an active pile, clears it when released', () => {
     const { world, rec, p } = workableWorld();
     scrapRummageSystem(world, /* rig */ world.get(rec, Mount)!.rig, true, 0.1);
     expect(world.has(rec, ReclaimerWorking)).toBe(true);

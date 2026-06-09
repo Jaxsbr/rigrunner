@@ -2,9 +2,7 @@ import type { World } from '@core/world';
 import { Transform } from '@common/components/transform';
 import type { ZoneDisc } from '@common/render/zone-overlays';
 import { Healable } from './healable';
-
-/** Metres of the heal zone's proximity ring — matches `HEAL_RADIUS` in the restoration system. */
-const HEAL_RADIUS = 4.0;
+import { HEAL_RADIUS } from './restoration-system';
 
 /**
  * The proximity discs for healable stumps — one per stump that is not yet fully grown, lit while its gate

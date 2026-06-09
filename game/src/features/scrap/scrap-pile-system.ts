@@ -81,7 +81,7 @@ export function scrapPileSystem(world: World, rig: EntityId): void {
 
 /**
  * The hold-to-work beat. With `working` true (the work key held) and a pile `active`, the rig's
- * Reclaimer is marked Digging (its arm deploys + animates) and the pile drains a wave at a time,
+ * Reclaimer is marked ReclaimerWorking (its arm deploys + animates) and the pile drains a wave at a time,
  * each wave bursting loose scrap around the rig. When `working` is false or no pile is active, the
  * Reclaimer stops digging and partial wave progress resets.
  *
