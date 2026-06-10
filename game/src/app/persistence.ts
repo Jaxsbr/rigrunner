@@ -38,6 +38,11 @@ export function loadGame(): GameSnapshot | null {
   try {
     const parsed = JSON.parse(raw) as GameSnapshot;
     if (parsed?.version !== SNAPSHOT_VERSION) return null;
+    // Light structural sanity beyond the version: a slot with no rig to control or no wallet would
+    // hydrate an unplayable world (bootstrap's frame loop asserts an active rig exists) — treat it
+    // as corrupt and fall back to a fresh start, per the contract above.
+    if (!Array.isArray(parsed.rigs) || parsed.rigs.length === 0) return null;
+    if (typeof parsed.wallet?.scrap !== 'number') return null;
     return parsed;
   } catch {
     return null;

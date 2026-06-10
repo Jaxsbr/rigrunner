@@ -4,8 +4,9 @@ import { Transform } from '@common/components/transform';
 import { Storage } from '@common/components/storage';
 import { LootDrop } from '@common/components/loot-drop';
 import type { CameraPose } from '@common/render/orbit-camera';
-import { Wallet, getWallet } from '@features/economy/wallet';
-import { Inventory, addToInventory, inventoryItems } from '@features/economy/inventory';
+import { getWallet } from '@features/economy/wallet';
+import { addToInventory, inventoryItems } from '@features/economy/inventory';
+import { createPlayerStore } from '@features/economy/player-store';
 import {
   describeProduct,
   rebuildProduct,
@@ -119,6 +120,12 @@ interface BenchSave {
   slots: Record<string, ItemDescriptor>;
 }
 
+/** A field-by-field copy of a `LootDrop` (already plain data) — shared by capture (so the save never
+ *  aliases live state) and restore (so the world never aliases the parsed save). */
+function cloneLootDrop(d: LootDrop): LootDrop {
+  return { scrap: d.scrap, finds: [...d.finds], ...(d.walletScrap !== undefined ? { walletScrap: d.walletScrap } : {}) };
+}
+
 /** Describe every product mounted on a platform (a rig's deck, or the workshop deck) by cell + facing. */
 function describeMounts(world: World, platform: EntityId): MountSave[] {
   return mountedPartsOn(world, platform).map((m): MountSave => {
@@ -147,10 +154,7 @@ export function captureSnapshot(world: World): GameSnapshot {
     staged: workshop !== null ? describeMounts(world, workshop) : [],
     bench: describeBench(world),
     looseScrap: describeLooseScrap(world),
-    pendingLoot: world.query(LootDrop).map((e) => {
-      const d = world.get(e, LootDrop)!;
-      return { scrap: d.scrap, finds: [...d.finds], ...(d.walletScrap !== undefined ? { walletScrap: d.walletScrap } : {}) };
-    }),
+    pendingLoot: world.query(LootDrop).map((e) => cloneLootDrop(world.get(e, LootDrop)!)),
     sites: [
       ...describeScrapPiles(world).map((p): SiteSave => ({ type: 'pile', ...p })),
       ...describeCamps(world).map((c): SiteSave => ({ type: 'camp', ...c })),
@@ -199,9 +203,7 @@ function mountSavedProduct(world: World, platform: EntityId, m: MountSave, x: nu
  */
 export function restoreSnapshot(world: World, snap: GameSnapshot): void {
   // Player store — created here (not by the static seed) so the saved totals land on it.
-  const store = world.createEntity();
-  world.add(store, Wallet, { scrap: snap.wallet.scrap });
-  world.add(store, Inventory, { items: [] });
+  createPlayerStore(world, snap.wallet.scrap);
   for (const item of snap.inventory) addToInventory(world, rebuildItem(world, item));
 
   // Rigs — rebuild each chassis product, bolt on the drive components, re-mount its loadout.
@@ -248,7 +250,6 @@ export function restoreSnapshot(world: World, snap: GameSnapshot): void {
 
   // Pending loot drops — the loot overlay re-opens them the first frame, so an uncollected find survives.
   for (const d of snap.pendingLoot ?? []) {
-    const e = world.createEntity();
-    world.add(e, LootDrop, { scrap: d.scrap, finds: [...d.finds], ...(d.walletScrap !== undefined ? { walletScrap: d.walletScrap } : {}) });
+    world.add(world.createEntity(), LootDrop, cloneLootDrop(d));
   }
 }

@@ -152,13 +152,14 @@ export function describeCamps(world: World): CampSave[] {
 }
 
 /**
- * Respawn a camp from its save with ONLY its surviving guards. A camp whose guards were all killed
- * comes back with none and is marked `disarmable` directly — so a fully-fought camp opens straight to
- * its disarm instead of re-arming every guard you'd already cleared.
+ * Respawn a camp from its save with ONLY its surviving guards — a fully-fought camp comes back with
+ * none and opens straight to its disarm, instead of re-arming guards you'd already cleared. State is
+ * deliberately left `guarded` even then: `campSystem` owns the guarded→disarmable transition and flips
+ * a guardless camp on the first sim tick (the same path a live last-guard kill takes), so the rule has
+ * a single owner and runs before anything reads the state that frame.
  */
 export function spawnCampFromSave(world: World, d: CampSave): EntityId {
   const camp = spawnCampStructure(world, d.x, d.z, d.level);
   for (const g of d.guards) spawnGuardAt(world, camp, g.x, g.z, d.level);
-  if (d.guards.length === 0) world.get(camp, Camp)!.state = 'disarmable';
   return camp;
 }

@@ -1,8 +1,8 @@
 import { World } from '@core/world';
 import { bootstrap } from './app/bootstrap';
 import { showMenu } from './app/menu';
-import { sandboxScenario } from './app/scenarios/sandbox';
-import { realGameScenario, seedStaticWorld } from './app/scenarios/real-game';
+import { seedSandboxWorld } from './app/scenarios/sandbox';
+import { seedRealGameWorld, seedStaticWorld } from './app/scenarios/real-game';
 import { captureSnapshot, restoreSnapshot } from './app/snapshot';
 import { hasSave, loadGame, saveGame } from './app/persistence';
 
@@ -22,31 +22,25 @@ import { hasSave, loadGame, saveGame } from './app/persistence';
  */
 if (import.meta.env.MODE === 'sandbox') {
   const world = new World();
-  sandboxScenario.seed(world);
+  seedSandboxWorld(world);
   bootstrap(world, { dev: true }); // dev affordances on; the sandbox never persists
 } else {
   showMenu({
     canContinue: hasSave(),
     onChoose: (choice) => {
       const world = new World();
-      let camera; // the saved camera pose, if continuing — view state rides outside the World
-      if (choice.kind === 'continue') {
-        const snapshot = loadGame();
-        // A save can vanish between the menu rendering and the click (another tab clearing it); fall
-        // back to a fresh cold-open rather than booting an empty world.
-        if (snapshot) {
-          seedStaticWorld(world);
-          restoreSnapshot(world, snapshot);
-          camera = snapshot.camera;
-        } else {
-          realGameScenario.seed(world);
-        }
+      // Continue loads the save; a missing/corrupt slot (it can vanish between the menu rendering and
+      // the click) falls through to a fresh cold-open, exactly like New Game.
+      const snapshot = choice.kind === 'continue' ? loadGame() : null;
+      if (snapshot) {
+        seedStaticWorld(world);
+        restoreSnapshot(world, snapshot);
       } else {
-        realGameScenario.seed(world);
+        seedRealGameWorld(world);
       }
       bootstrap(world, {
         dev: false,
-        camera,
+        camera: snapshot?.camera, // resume the saved view pose; undefined opens at the default
         // World state via captureSnapshot; the camera pose (view state) rides along off the view.
         onPersist: (view) => saveGame({ ...captureSnapshot(world), camera: view.cameraPose() }),
       });

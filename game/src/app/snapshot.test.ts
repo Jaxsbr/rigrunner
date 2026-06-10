@@ -12,6 +12,7 @@ import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Collectible } from '@features/scrap/collectible';
 import { Transform } from '@common/components/transform';
 import { Camp } from '@features/camps/camp';
+import { campSystem } from '@features/camps/camp-system';
 import { Enemy } from '@features/camps/enemy';
 import { Dissolving } from '@features/scrap/dissolving';
 import { LootDrop } from '@common/components/loot-drop';
@@ -169,6 +170,9 @@ describe('game snapshot round-trip', () => {
     const b = continueFrom(captureSnapshot(a));
 
     expect(b.query(Enemy).length).toBe(0);
+    // The restore leaves state to the state machine: the first sim tick flips a guardless camp
+    // guarded→disarmable through campSystem (its single owner), before anything reads it that frame.
+    campSystem(b, 0.016);
     expect(b.get(b.query(Camp)[0]!, Camp)!.state).toBe('disarmable');
   });
 

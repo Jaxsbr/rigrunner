@@ -1,12 +1,10 @@
 import { World } from '@core/world';
-import type { Scenario } from '../scenario';
 import { spawnRig } from '@features/mounting/rig';
 import { engineParts } from '@features/engine/engines';
 import { spawnWorkshop } from '@features/workshop/workshop';
 import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
-import { Wallet } from '@features/economy/wallet';
-import { Inventory } from '@features/economy/inventory';
+import { createPlayerStore } from '@features/economy/player-store';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
 import { ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE } from '@common/parts/recipes';
 import { partDef } from '@common/parts/parts-catalog';
@@ -27,16 +25,14 @@ import { spawnCamp } from '@features/camps/camp-spawn';
  *    wallet) — the stuff a save later carries. Only New Game runs it; Continue instead rebuilds that
  *    progress from the snapshot (`restoreSnapshot`).
  *
- * `seed` (the `Scenario` contract, used for a brand-new game) is the two together. The cold-open is
- * **provisional** — Phase 1 of `real-world-and-progression-spec.md` crafts the designed opening in
- * earnest. What matters now is that the real game stands on its own, free of the sandbox's scaffolding.
+ * `seedRealGameWorld` (a brand-new game) is the two together. The cold-open is **provisional** —
+ * Phase 1 of `real-world-and-progression-spec.md` crafts the designed opening in earnest. What
+ * matters now is that the real game stands on its own, free of the sandbox's scaffolding.
  */
-export const realGameScenario: Scenario = {
-  seed(world: World): void {
-    seedStaticWorld(world);
-    seedNewGameContent(world);
-  },
-};
+export function seedRealGameWorld(world: World): void {
+  seedStaticWorld(world);
+  seedNewGameContent(world);
+}
 
 /** The fixed, non-progress scaffolding both New Game and Continue lay down first. */
 export function seedStaticWorld(world: World): void {
@@ -81,10 +77,7 @@ export function seedNewGameContent(world: World): void {
     spawnScrapPile(world, x, z);
   }
   spawnCamp(world, 26, 22, 1);
-  // The player store: one singleton holding what the player OWNS across rebuilds — Wallet (banked
-  // scrap) + Inventory (loose parts / assembled products). A small starting stake; the inventory starts
-  // empty (every build sub-part is bought).
-  const playerStore = world.createEntity();
-  world.add(playerStore, Wallet, { scrap: 100 });
-  world.add(playerStore, Inventory, { items: [] });
+  // The player store (wallet + inventory): a small starting stake; the inventory starts empty (every
+  // build sub-part is bought).
+  createPlayerStore(world, 100);
 }
