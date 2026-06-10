@@ -11,6 +11,11 @@ import { Camp } from '@features/camps/camp';
 import { Healable } from '@features/restoration/healable';
 import { RestorableSite } from '@common/components/restorable-site';
 import { Storage } from '@common/components/storage';
+import { workshopEntity, stagedProducts, stageProduct } from '@features/workshop/staging';
+import { getBench, loadRecipe, placeOnBench } from '@features/workshop/bench';
+import { composeProduct } from '@common/sim/assembly';
+import { STORAGE_RECIPE } from '@common/parts/recipes';
+import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 
 /**
  * The semantic-snapshot save round-trip (Phase 0). The localStorage layer no-ops headless, so these
@@ -72,5 +77,35 @@ describe('game snapshot round-trip', () => {
     // Unbanked scrap sitting in the mounted container survives the reload.
     const storageB = mountedPartsOn(b, getActiveRig(b)!).map((m) => b.get(m.part, Storage)).find(Boolean);
     expect(storageB!.amount).toBe(2);
+  });
+
+  it('restores a container staged on the workshop deck mid-drain (with its scrap)', () => {
+    const a = seedRealGame();
+    // Stage a half-full container on the workshop deck — the state the workshop drain banks from, and
+    // the one a refresh-then-Continue used to drop (it's mounted on the workshop, not an owned chassis).
+    const workshopA = workshopEntity(a)!;
+    const container = composeProduct(a, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
+    stageProduct(a, container, workshopA, 0, 0);
+    a.get(container, Storage)!.amount = 3;
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const staged = stagedProducts(b, workshopEntity(b)!);
+    expect(staged.length).toBe(1);
+    expect(b.get(staged[0]!, Storage)?.amount).toBe(3);
+  });
+
+  it('restores parts left mid-assembly in bench slots', () => {
+    const a = seedRealGame();
+    // A part dropped into a bench slot mid-build — owned, but in neither rig, deck, nor inventory.
+    const shell = spawnCatalogPart(a, partDef('container-shell')!);
+    loadRecipe(a, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+    placeOnBench(a, partDef('container-shell')!.slot, shell);
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const bench = getBench(b)!;
+    expect(bench.recipeId).toBe(STORAGE_RECIPE.id);
+    expect(bench.slots[partDef('container-shell')!.slot]).not.toBeNull();
   });
 });

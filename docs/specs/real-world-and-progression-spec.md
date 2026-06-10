@@ -94,8 +94,10 @@ After an architectural decision (snapshot vs delta-over-reseed vs generic compon
 the save describes durable state in the game's own vocabulary and rebuilds the world through the real
 constructors. Continue restores:
 
-- **banked + unbanked scrap** (wallet + scrap sitting in mounted containers),
-- the **inventory** and **every owned chassis with its mounted loadout** (each part's cell + facing yaw),
+- **banked + unbanked scrap** (wallet + scrap sitting in any container, mounted or staged),
+- the **inventory**, **every owned chassis with its mounted loadout** (each part's cell + facing yaw),
+  products **staged on the workshop deck** (a container mid-drain), and parts **on the bench** mid-build
+  — the full four-place conservation invariant, so an owned part is never dropped wherever it sat,
 - **world content** — piles still standing (how dug-down), camps still guarded, stumps already healed
   (how grown).
 

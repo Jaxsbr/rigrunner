@@ -52,9 +52,15 @@ rebuilt through the *same* construction code the bench and the world-seed use
 - **Cost — it is "manual":** each new durable mechanic must add its own describe/respawn pair. This is
   the accepted price; a small per-feature seam beats a fragile generic engine. Watch for a mechanic that
   ships durable state but forgets its describe/respawn (it silently won't persist).
+- **The four-place conservation invariant is fully captured.** A part lives in exactly one of four
+  places (`bench.ts`/`staging.ts`): mounted on a chassis, staged on the workshop deck, in a bench slot,
+  or in the inventory — the snapshot captures all four, so an owned part is never dropped on save
+  regardless of where the player parked it (e.g. a container mid-drain on the deck, parts mid-build on
+  the bench).
 - **Deliberately not durable (v1):** rig HP + boost heat (a reload repairs), loose ground scrap (a
-  one-time New-Game starter, not re-laid on Continue so a reload can't farm it), packed-kit crates left
-  loose in the world, and mid-combat/mid-clear progress (a save is never a half-fought fight).
+  one-time New-Game starter, not re-laid on Continue so a reload can't farm it), products/kits dropped
+  **loose on the ground** (not on a rig, deck, bench, or in inventory), and mid-combat/mid-clear
+  progress (a save is never a half-fought fight).
 
 ## Anti-pattern this prevents
 

@@ -15,6 +15,9 @@ import {
 import { mountedPartsOn, mountPart } from '@features/mounting/mounting';
 import { chassisToRig } from '@features/mounting/rig';
 import { placeProductInWorld } from '@features/workshop/assembly';
+import { workshopEntity } from '@features/workshop/staging';
+import { getBench, loadRecipe, placeOnBench } from '@features/workshop/bench';
+import { recipeById } from '@common/parts/recipes';
 import { ownedChassis, getActiveRig, markOwned, setActiveRig } from '@features/chassis/ownership';
 import { describeScrapPiles, spawnScrapPileFromSave, type PileSave } from '@features/scrap/scrap';
 import { describeCamps, spawnCampFromSave, type CampSave } from '@features/camps/camp-spawn';
@@ -23,25 +26,31 @@ import { describeStumps, spawnStumpFromSave, type StumpSave } from '@features/re
 /**
  * The game-state snapshot: capture the durable real-game world to a plain object, and rebuild it. This
  * is the orchestration layer of the **semantic snapshot** persistence model — it sits in the `app/`
- * composition-root tier because it reaches across features (economy · mounting · chassis · scrap ·
- * camps · restoration) to assemble one save, which a single feature must not do. Each feature owns the
- * description of its OWN durable state (`describeProduct`, `describeScrapPiles`, `describeCamps`,
- * `describeStumps`); this file only folds them together and replays them.
+ * composition-root tier because it reaches across features (economy · mounting · chassis · workshop ·
+ * scrap · camps · restoration) to assemble one save, which a single feature must not do. Each feature
+ * owns the description of its OWN durable state (`describeProduct`, `describeScrapPiles`,
+ * `describeCamps`, `describeStumps`); this file only folds them together and replays them.
+ *
+ * A part the player owns can be in exactly one of four places (the conservation invariant `bench.ts` and
+ * `staging.ts` spell out), and the save captures all four: mounted on an owned **chassis**, **staged on
+ * the workshop deck** (where a full container drains into the wallet — `Mount.rig === workshop`), in a
+ * **bench** slot (mid-assembly), or loose in the **inventory**.
  *
  * What's durable (the save) vs reset-on-load:
- *  - **Durable:** banked scrap (wallet), the inventory, every owned chassis + its mounted loadout
- *    (cell, facing, and any unbanked scrap sitting in a mounted container), and the world's content —
- *    piles still standing (how dug-down), camps still guarded, stumps already healed (how grown).
+ *  - **Durable:** banked scrap (wallet), the inventory, every owned chassis + its mounted loadout,
+ *    every product staged on the workshop deck, any unbanked scrap sitting in a container (mounted or
+ *    staged), and the world's content — piles still standing (how dug-down), camps still guarded,
+ *    stumps already healed (how grown).
  *  - **Reset on load (deliberately):** rig hit points + boost heat (a reload repairs you), loose
  *    ground scrap (a one-time New-Game starter, not re-laid on Continue so a reload can't farm it),
- *    and all transient/derived state (gate flags, in-flight projectiles, live enemy positions, work
- *    timers) — none of which is a *fact* worth persisting.
+ *    products dropped loose on the ground (not on a deck/rig), and all transient/derived state (gate
+ *    flags, in-flight projectiles, live enemy positions, work timers).
  *
  * Continue does NOT run this through the cold-open seed: the static world (workshop, bench) is laid
  * first by `seedStaticWorld`, then `restoreSnapshot` rebuilds the progress on top.
  */
 
-export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
 
 interface MountSave {
   col: number;
@@ -72,25 +81,63 @@ export interface GameSnapshot {
   rigs: RigSave[];
   /** Index into `rigs` of the chassis the player was controlling. */
   activeRigIndex: number;
+  /** Products sitting on the workshop deck (e.g. a container mid-drain) — `Mount.rig === workshop`. */
+  staged: MountSave[];
+  /** The assembly bench mid-build: the loaded recipe and the parts in its filled slots. */
+  bench: BenchSave;
   sites: SiteSave[];
+}
+
+interface BenchSave {
+  recipeId: string;
+  /** Slot role → the part filling it. Only filled slots are stored; empty ones are implied. */
+  slots: Record<string, ItemDescriptor>;
+}
+
+/** Describe every product mounted on a platform (a rig's deck, or the workshop deck) by cell + facing. */
+function describeMounts(world: World, platform: EntityId): MountSave[] {
+  return mountedPartsOn(world, platform).map((m): MountSave => {
+    const storage = world.get(m.part, Storage);
+    return {
+      col: m.col,
+      row: m.row,
+      yaw: m.yaw,
+      product: describeProduct(world, m.part),
+      ...(storage ? { storageAmount: storage.amount } : {}),
+    };
+  });
 }
 
 /** Capture the live real-game world to a serializable snapshot. */
 export function captureSnapshot(world: World): GameSnapshot {
   const owned = ownedChassis(world);
   const active = getActiveRig(world);
+  const workshop = workshopEntity(world);
   return {
     version: SNAPSHOT_VERSION,
     wallet: { scrap: getWallet(world)?.scrap ?? 0 },
     inventory: inventoryItems(world).map((e) => describeItem(world, e)),
     rigs: owned.map((c) => describeRig(world, c)),
     activeRigIndex: active ? Math.max(0, owned.indexOf(active)) : 0,
+    staged: workshop !== null ? describeMounts(world, workshop) : [],
+    bench: describeBench(world),
     sites: [
       ...describeScrapPiles(world).map((p): SiteSave => ({ type: 'pile', ...p })),
       ...describeCamps(world).map((c): SiteSave => ({ type: 'camp', ...c })),
       ...describeStumps(world).map((s): SiteSave => ({ type: 'stump', ...s })),
     ],
   };
+}
+
+/** Describe the assembly bench mid-build: its loaded recipe and the parts in its filled slots. */
+function describeBench(world: World): BenchSave {
+  const bench = getBench(world);
+  const slots: Record<string, ItemDescriptor> = {};
+  if (!bench) return { recipeId: '', slots };
+  for (const [slot, part] of Object.entries(bench.slots)) {
+    if (part !== null) slots[slot] = describeItem(world, part);
+  }
+  return { recipeId: bench.recipeId, slots };
 }
 
 function describeRig(world: World, chassis: EntityId): RigSave {
@@ -100,23 +147,25 @@ function describeRig(world: World, chassis: EntityId): RigSave {
     x: t?.x ?? 0,
     z: t?.z ?? 0,
     rotationY: t?.rotationY ?? 0,
-    mounts: mountedPartsOn(world, chassis).map((m): MountSave => {
-      const storage = world.get(m.part, Storage);
-      return {
-        col: m.col,
-        row: m.row,
-        yaw: m.yaw,
-        product: describeProduct(world, m.part),
-        ...(storage ? { storageAmount: storage.amount } : {}),
-      };
-    }),
+    mounts: describeMounts(world, chassis),
   };
+}
+
+/** Rebuild a saved product and mount it on a platform at its cell + facing, restoring any container scrap. */
+function mountSavedProduct(world: World, platform: EntityId, m: MountSave, x: number, z: number): void {
+  const product = rebuildProduct(world, m.product);
+  placeProductInWorld(world, product, x, z);
+  mountPart(world, product, platform, m.col, m.row, m.yaw);
+  if (m.storageAmount !== undefined) {
+    const storage = world.get(product, Storage);
+    if (storage) storage.amount = m.storageAmount;
+  }
 }
 
 /**
  * Rebuild the durable world from a snapshot onto an already-static-seeded world. Order matters: the
  * player store (wallet + inventory) comes first so `addToInventory` has its singleton; then each rig is
- * rebuilt as a chassis product made drivable and re-mounted; then world content is respawned.
+ * rebuilt as a chassis product made drivable and re-mounted; then the workshop deck and world content.
  */
 export function restoreSnapshot(world: World, snap: GameSnapshot): void {
   // Player store — created here (not by the static seed) so the saved totals land on it.
@@ -133,19 +182,28 @@ export function restoreSnapshot(world: World, snap: GameSnapshot): void {
     const t = world.get(chassis, Transform);
     if (t) t.rotationY = rig.rotationY;
     markOwned(world, chassis);
-    for (const m of rig.mounts) {
-      const product = rebuildProduct(world, m.product);
-      placeProductInWorld(world, product, rig.x, rig.z);
-      mountPart(world, product, chassis, m.col, m.row, m.yaw);
-      if (m.storageAmount !== undefined) {
-        const storage = world.get(product, Storage);
-        if (storage) storage.amount = m.storageAmount;
-      }
-    }
+    for (const m of rig.mounts) mountSavedProduct(world, chassis, m, rig.x, rig.z);
     builtChassis.push(chassis);
   }
   if (builtChassis.length > 0) {
     setActiveRig(world, builtChassis[Math.min(snap.activeRigIndex, builtChassis.length - 1)]!);
+  }
+
+  // Workshop deck — re-stage any product that was on it (a container mid-drain banks again from here).
+  const workshop = workshopEntity(world); // laid by seedStaticWorld before this runs
+  if (workshop !== null) {
+    const wt = world.get(workshop, Transform);
+    for (const m of snap.staged ?? []) mountSavedProduct(world, workshop, m, wt?.x ?? 0, wt?.z ?? 0);
+  }
+
+  // Bench — reload the recipe the player was building and put the parts back in their slots. The bench
+  // singleton was laid (empty, on the default recipe) by seedStaticWorld; here we reshape + refill it.
+  const recipe = snap.bench ? recipeById(snap.bench.recipeId) : undefined;
+  if (getBench(world) && recipe) {
+    loadRecipe(world, recipe.id, recipe.slots.map((s) => s.slot));
+    for (const [slot, item] of Object.entries(snap.bench.slots)) {
+      placeOnBench(world, slot, rebuildItem(world, item));
+    }
   }
 
   // World content — piles still standing, camps still guarded, stumps already healed/healing.
