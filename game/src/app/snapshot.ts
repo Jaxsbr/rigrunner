@@ -47,9 +47,10 @@ import { describeStumps, spawnStumpFromSave, type StumpSave } from '@features/re
  *  - **Durable:** banked scrap (wallet), the inventory, every owned chassis + its mounted loadout,
  *    every product staged on the workshop deck, any unbanked scrap sitting in a container (mounted or
  *    staged), the loose-scrap pieces lying in the world (the exact remaining set — not a re-scatter, so
- *    no reload-farm), and the world's content — piles still standing (how dug-down), camps still
- *    guarded, stumps already healed (how grown).
- *  - **Reset on load (deliberately):** rig hit points + boost heat (a reload repairs you), products
+ *    no reload-farm), and the world's content — piles still standing (how dug-down), camps with only
+ *    their SURVIVING guards (a killed guard stays dead), stumps already healed (how grown).
+ *  - **Reset on load (deliberately):** rig + surviving-guard hit points and boost heat (a reload
+ *    repairs/re-posts them — deaths are durable, a half-fought fight is not), products
  *    dropped loose on the ground (a part/kit not on a rig/deck/bench/in inventory), and all
  *    transient/derived state (gate flags, in-flight projectiles, live enemy positions, work timers).
  *
@@ -57,7 +58,7 @@ import { describeStumps, spawnStumpFromSave, type StumpSave } from '@features/re
  * first by `seedStaticWorld`, then `restoreSnapshot` rebuilds the progress on top.
  */
 
-export const SNAPSHOT_VERSION = 4;
+export const SNAPSHOT_VERSION = 5;
 
 interface MountSave {
   col: number;

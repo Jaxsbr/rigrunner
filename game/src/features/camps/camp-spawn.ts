@@ -34,7 +34,21 @@ const DEBRIS_MAX_R = 4.8;
  */
 export function spawnCamp(world: World, x: number, z: number, level = 1): EntityId {
   const lv = campLevel(level);
+  const camp = spawnCampStructure(world, x, z, level);
+  // The guard ring — distributed around the camp, each watching outward from its post.
+  for (let i = 0; i < lv.enemyCount; i++) {
+    const angle = (i / lv.enemyCount) * Math.PI * 2;
+    spawnGuardAt(world, camp, x + Math.cos(angle) * GUARD_RING_RADIUS, z + Math.sin(angle) * GUARD_RING_RADIUS, level);
+  }
+  return camp;
+}
 
+/**
+ * The camp without its guards: the `Camp` objective entity + its standing structure (cache, tent) and
+ * scattered debris. Split out from `spawnCamp` so a partially-cleared camp can be rebuilt from a save
+ * with only its SURVIVING guards (a killed guard stays dead across a reload — `spawnCampFromSave`).
+ */
+function spawnCampStructure(world: World, x: number, z: number, level: number): EntityId {
   const camp = world.createEntity();
   world.add(camp, Transform, { x, z, y: 0, rotationY: 0 });
   world.add(camp, Camp, { level, state: 'guarded', tornDown: 0 });
@@ -64,53 +78,61 @@ export function spawnCamp(world: World, x: number, z: number, level = 1): Entity
     world.add(piece, CampDecor, { camp });
   }
 
-  // The guard ring — distributed around the camp, each watching outward from its post.
-  for (let i = 0; i < lv.enemyCount; i++) {
-    const angle = (i / lv.enemyCount) * Math.PI * 2;
-    const ex = x + Math.cos(angle) * GUARD_RING_RADIUS;
-    const ez = z + Math.sin(angle) * GUARD_RING_RADIUS;
-    const e = world.createEntity();
-    // Face outward from the camp centre (front is local −Z): a guard watching the approach.
-    world.add(e, Transform, { x: ex, z: ez, y: 0, rotationY: Math.atan2(-(ex - x), -(ez - z)) });
-    world.add(e, Enemy, { camp });
-    world.add(e, EnemyAI, {
-      state: 'guard',
-      postX: ex,
-      postZ: ez,
-      detection: lv.detection,
-      fireRange: lv.fireRange,
-      standoff: lv.standoff,
-      leash: lv.leash,
-      moveSpeed: lv.enemyMoveSpeed,
-      damage: lv.enemyDamage,
-      fireInterval: lv.enemyFireInterval,
-      projectileSpeed: lv.enemyProjectileSpeed,
-      fireCooldownLeft: 0,
-    });
-    world.add(e, Health, { current: lv.enemyHealth, max: lv.enemyHealth });
-    world.add(e, Collider, { radius: 0.6 });
-    // A small tread gauge so a guard presses a narrow trail as it kites (features/tracks).
-    world.add(e, TrackEmitter, { width: 0.55 });
-    world.add(e, Renderable, { shape: 'model', assetId: 'enemy' });
-  }
-
   return camp;
+}
+
+/** Spawn one guard for `camp` at its post (x,z), watching outward from the camp centre, at full health. */
+function spawnGuardAt(world: World, camp: EntityId, x: number, z: number, level: number): EntityId {
+  const lv = campLevel(level);
+  const ct = world.get(camp, Transform)!;
+  const e = world.createEntity();
+  // Face outward from the camp centre (front is local −Z): a guard watching the approach.
+  world.add(e, Transform, { x, z, y: 0, rotationY: Math.atan2(-(x - ct.x), -(z - ct.z)) });
+  world.add(e, Enemy, { camp });
+  world.add(e, EnemyAI, {
+    state: 'guard',
+    postX: x,
+    postZ: z,
+    detection: lv.detection,
+    fireRange: lv.fireRange,
+    standoff: lv.standoff,
+    leash: lv.leash,
+    moveSpeed: lv.enemyMoveSpeed,
+    damage: lv.enemyDamage,
+    fireInterval: lv.enemyFireInterval,
+    projectileSpeed: lv.enemyProjectileSpeed,
+    fireCooldownLeft: 0,
+  });
+  world.add(e, Health, { current: lv.enemyHealth, max: lv.enemyHealth });
+  world.add(e, Collider, { radius: 0.6 });
+  // A small tread gauge so a guard presses a narrow trail as it kites (features/tracks).
+  world.add(e, TrackEmitter, { width: 0.55 });
+  world.add(e, Renderable, { shape: 'model', assetId: 'enemy' });
+  return e;
 }
 
 // ── Persistence (the durable half of a camp) ─────────────────────────────────────────────────────
 
-/** A standing camp's saved state — its position and level respawn it whole (guards, decor, cache). */
+/** A surviving guard's post — where it returns to and watches from. */
+interface GuardSave {
+  x: number;
+  z: number;
+}
+
+/** A standing camp's saved state: its position, level, and the guards STILL ALIVE (a kill is durable). */
 export interface CampSave {
   x: number;
   z: number;
   level: number;
+  guards: GuardSave[];
 }
 
 /**
- * Describe every camp still worth saving — those not yet cleared. A CLEARED camp is omitted here: it
- * is represented by the sprout it left (a `RestorableSite`, saved on the restoration side). A camp
- * caught mid-clear (`disarmable`) saves as a standing camp and respawns fully armed — combat progress
- * isn't checkpointed, by design, so a save is never a half-fought fight.
+ * Describe every camp still worth saving — those not yet cleared (a cleared camp is represented by the
+ * sprout it left, saved on the restoration side). Captures only the guards STILL ALIVE: a killed guard
+ * is `destroyEntity`'d, so it simply isn't in the world to capture — its death persists. In-progress
+ * guard HP/AI is not checkpointed (survivors come back at their post, full health), the same way the
+ * rig's HP resets on load — deaths are durable, a half-fought fight is not.
  */
 export function describeCamps(world: World): CampSave[] {
   const out: CampSave[] = [];
@@ -118,12 +140,25 @@ export function describeCamps(world: World): CampSave[] {
     const camp = world.get(c, Camp)!;
     if (camp.state === 'cleared') continue;
     const t = world.get(c, Transform)!;
-    out.push({ x: t.x, z: t.z, level: camp.level });
+    const guards: GuardSave[] = [];
+    for (const e of world.query(Enemy, EnemyAI)) {
+      if (world.get(e, Enemy)!.camp !== c) continue;
+      const ai = world.get(e, EnemyAI)!;
+      guards.push({ x: ai.postX, z: ai.postZ });
+    }
+    out.push({ x: t.x, z: t.z, level: camp.level, guards });
   }
   return out;
 }
 
-/** Respawn a standing camp from its save — the same builder a new game seeds with. */
+/**
+ * Respawn a camp from its save with ONLY its surviving guards. A camp whose guards were all killed
+ * comes back with none and is marked `disarmable` directly — so a fully-fought camp opens straight to
+ * its disarm instead of re-arming every guard you'd already cleared.
+ */
 export function spawnCampFromSave(world: World, d: CampSave): EntityId {
-  return spawnCamp(world, d.x, d.z, d.level);
+  const camp = spawnCampStructure(world, d.x, d.z, d.level);
+  for (const g of d.guards) spawnGuardAt(world, camp, g.x, g.z, d.level);
+  if (d.guards.length === 0) world.get(camp, Camp)!.state = 'disarmable';
+  return camp;
 }

@@ -12,6 +12,7 @@ import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Collectible } from '@features/scrap/collectible';
 import { Transform } from '@common/components/transform';
 import { Camp } from '@features/camps/camp';
+import { Enemy } from '@features/camps/enemy';
 import { Healable } from '@features/restoration/healable';
 import { RestorableSite } from '@common/components/restorable-site';
 import { Storage } from '@common/components/storage';
@@ -146,5 +147,26 @@ describe('game snapshot round-trip', () => {
 
     // Same count AND same positions — the actual pieces persist, not a fresh random field.
     expect(positions(b)).toEqual(before);
+  });
+
+  it('keeps killed camp guards dead across Continue', () => {
+    const a = seedRealGame(); // one level-1 camp with its guard ring
+    const guardsBefore = a.query(Enemy).length;
+    expect(guardsBefore).toBeGreaterThan(1);
+    a.destroyEntity(a.query(Enemy)[0]!); // kill one guard
+
+    const b = continueFrom(captureSnapshot(a));
+
+    expect(b.query(Enemy).length).toBe(guardsBefore - 1); // the kill persisted — not revived
+  });
+
+  it('restores a camp whose guards were all killed as disarmable, with none revived', () => {
+    const a = seedRealGame();
+    for (const e of [...a.query(Enemy)]) a.destroyEntity(e); // clear the whole guard ring
+
+    const b = continueFrom(captureSnapshot(a));
+
+    expect(b.query(Enemy).length).toBe(0);
+    expect(b.get(b.query(Camp)[0]!, Camp)!.state).toBe('disarmable');
   });
 });

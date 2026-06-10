@@ -98,9 +98,10 @@ constructors. Continue restores:
 - the **inventory**, **every owned chassis with its mounted loadout** (each part's cell + facing yaw),
   products **staged on the workshop deck** (a container mid-drain), and parts **on the bench** mid-build
   — the full four-place conservation invariant, so an owned part is never dropped wherever it sat,
-- **world content** — piles still standing (how dug-down), camps still guarded, stumps already healed
-  (how grown), and the **loose-scrap pieces** lying in the world (the exact remaining set, not a
-  re-scatter — the ground keeps what you left, and a reload can't farm a fresh field).
+- **world content** — piles still standing (how dug-down), camps with only their **surviving guards**
+  (a killed guard stays dead; a fully-cleared ring restores `disarmable`), stumps already healed (how
+  grown), and the **loose-scrap pieces** lying in the world (the exact remaining set, not a re-scatter —
+  the ground keeps what you left, and a reload can't farm a fresh field).
 
 The reusable describe/rebuild kernel is `@common/sim/serialize`; each feature owns its own durable-state
 description; `app/snapshot.ts` folds them into one `GameSnapshot` (versioned) and replays it. *Reset on

@@ -60,9 +60,14 @@ rebuilt through the *same* construction code the bench and the world-seed use
 - **Loose-scrap pieces persist as the EXACT remaining set** — the leftover field and any uncollected
   pile-burst scrap come back where they lay. This is captured (the real pieces), not re-scattered, so
   the world keeps what you left *and* a reload can't farm a fresh field.
-- **Deliberately not durable (v1):** rig HP + boost heat (a reload repairs), products/kits dropped
-  **loose on the ground** (a composed part/kit not on a rig, deck, bench, or in inventory), and
-  mid-combat/mid-clear progress (a save is never a half-fought fight).
+- **Deaths are durable; in-progress HP is not.** A camp restores with only its SURVIVING guards (a
+  killed guard is `destroyEntity`'d, so it's simply absent to capture); survivors come back at their
+  post at full health, and a fully-cleared guard ring restores the camp `disarmable`. The same rule on
+  both sides: your rig's HP and an enemy's HP reset on load (a reload "repairs"), but a death stands.
+- **Deliberately not durable (v1):** boost heat, products/kits dropped **loose on the ground** (a
+  composed part/kit not on a rig, deck, bench, or in inventory), and truly mid-action transient state —
+  in-flight projectiles, a guard's live chase position, a half-played disarm (a save is never a
+  half-*fought* fight, though it now remembers which guards you already felled).
 
 ## Anti-pattern this prevents
 
