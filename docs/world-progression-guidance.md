@@ -1,14 +1,19 @@
 # RIGRUNNER — World & Progression Guidance
 
-**What this is:** a *connective overview* of how four systems could fit together —
-**maps**, **progression**, **restoration of the world**, and **technology progression**. It is
-**guidance, not a spec and not a committed plan.** It exists to give the loose ideas a shared shape
-so we can later carve **skeleton milestones** out of it (stubs at the bottom).
+**What this is:** a *connective overview* of how four systems fit together —
+**maps**, **progression**, **restoration of the world**, and **technology progression**. It exists to
+give the loose ideas a shared shape so we can carve **skeleton milestones** out of it (stubs at the
+bottom) and so the per-feature specs have a vision to attach to.
 
-> ⚠️ **Not committed direction.** Same status as `ideas.md` — candidate, movable, low on
-> implementation detail and success criteria by design. Where a real decision exists it lives in
-> `CLAUDE.md`; nothing here has earned that yet. Read alongside `ideas.md` (raw threads) and
-> `milestones.md` (candidates already firming up). When a thread here hardens, promote it.
+> ⚠️ **Guidance, still movable — but firming.** This is not a line-by-line spec. As of the **2026-06-10**
+> session ([`ideas.md`](ideas.md)) several long-open threads here **hardened into a leaning direction** —
+> a **persistent world**, restoration living **in** that world (no separate Sanctuary), and a decided
+> **restoration purpose** (gate + territory). Those are written below as the current shape, not as
+> committed mechanics; `CLAUDE.md` remains the source of truth for anything fully committed, and the
+> phased plan they imply lives in
+> [`specs/real-world-and-progression-spec.md`](specs/real-world-and-progression-spec.md). Read alongside
+> `ideas.md` (the raw threads + the dated history of how this shifted) and `milestones.md` (candidates
+> already firming up).
 
 ---
 
@@ -34,37 +39,40 @@ These are not separate features — they're one loop seen from four angles. The 
 
 | System | Its job in the loop |
 |---|---|
-| **Maps / world** | The *stage* you drive out into. Hostile, varied, and (likely) freshly assembled per outing so each trip feels new. |
+| **Maps / world** | The *stage* you drive out into. Hostile and varied — and **persistent**: the changes you make to it stay made (see §1). |
 | **Technology progression** | The *tool*. The rig + workshop + recipes are how you reach farther, carry more, fight, and heal. |
-| **Restoration** | The *point*. Turning ruined places into living ones — the thing that visibly, permanently accretes. |
+| **Restoration** | The *point*. Turning ruined places into living ones — the thing that visibly, permanently accretes **in the world itself**. |
 | **Progression** | The *spine itself*. What carries you (and your gains) from one outing and one healed place to the next. |
 
 ---
 
 ## 1) Maps / world structure
 
-**Leaning (informed by this session's research):** a **hybrid** world — small **hand-authored chunks**
-(a resource node, an ambush, a hazard, a landmark, an ancient-tree site) carrying entrance/exit road
-"sockets," **procedurally assembled** into a fresh layout per outing. This is the proven approach for
-the genre: authored set-pieces keep places *memorable and tunable*; procedural assembly keeps outings
-*fresh*. The randomness is in **which** authored chunk appears where — not in generating raw geometry.
+**Decided-leaning (2026-06-10): the world is PERSISTENT.** The long-open "persistent vs regenerating
+roguelike field" fork resolves toward **persistent** — the place you drive in **remembers what you did
+to it**: cleared piles stay cleared, fallen camps stay fallen, healed ground stays healed. This is what
+lets restoration live in the world (§3) instead of needing a separate place to be safe from a reset. The
+roguelike loop was only ever a *means*; persistence serves the mission (bringing life back) more directly.
 
-**Two layers (sharpened 2026-06-02):**
+**A real-world vs test/sandbox split is the foundation this rides on.** Because the world is persistent
+and authored, we keep a **separate sandbox world** for free-for-all testing (grant any part, drop scrap,
+spawn a camp), so the real world's crafted state is never vandalized to make a new mechanic testable.
+That split — plus **save persistence** and a **front-door menu** (New Game / Continue / Sandbox) — is one
+foundation, specced in [`specs/real-world-and-progression-spec.md`](specs/real-world-and-progression-spec.md)
+(Phase 0).
 
-- **The world you drive in** — the hostile ground you operate in. Leans **persistent** (you green it
-  with earned, persistent life-trails — §3a) but could also be a regenerating roguelike field; the
-  roguelike loop is just a *means*, not the mission, so this can stay loose.
-- **The Restoration Sanctuary** — a **separate, persistent, menu-visited** place (NOT rendered inside
-  a run) where restoration accumulates and is displayed (§3b). This is where "what you've healed stays
-  healed," cleanly decoupled from whatever the world layer does.
+**Hybrid chunk-assembly, inside the persistent frame.** Small **hand-authored chunks** (a resource node,
+an ambush, a hazard, a landmark, an ancient-tree site) carry entrance/exit road "sockets" and are
+**assembled into a layout** — authored set-pieces keep places *memorable and tunable*; assembly keeps the
+world *varied*. The randomness is in **which** authored chunk appears where, not in generating raw
+geometry. In a persistent world this is layout-at-worldgen (or per-region reveal), not re-rolled every
+outing. The render work this needs is mapped in
+[`specs/render-scaling-spec.md`](specs/render-scaling-spec.md).
 
-Pulling restoration out into its own place is what lets the world layer regenerate (or not) **without
-ever threatening the healing** — see §3.
-
-**Difficulty lives in the map by region/gating** (à la the biome chain in the games we looked at):
-harder ground demands a specific capability to enter or survive (a tougher drivetrain, more defense,
-a heating/filter-type part) — and *acquiring that capability costs weight*, which is the central
-tradeoff. Distance/depth is one such gate, but probably **not the primary one** (see §4 on fuel).
+**Difficulty lives in the map by region/gating.** Harder ground demands a specific capability to enter or
+survive (a tougher drivetrain, more defense, a heating/filter-type part) — and *acquiring that capability
+costs weight*, the central tradeoff. The **primary** gate, though, is **restoration**, not distance/fuel
+(see §4).
 
 ---
 
@@ -84,120 +92,100 @@ should point at *exactly one obvious upgrade*. The player should be able to thin
 
 - **Workshop upgrades** — *hard* to acquire and unlock; a better workshop enables **advanced alloy
   processing** and **more complex part manufacturing**. The workshop is the gateway to the whole
-  upper tech tree, so upgrading it is a major, deliberate, rare achievement — and a prime thing to
-  carry across sessions.
+  upper tech tree, so upgrading it is a major, deliberate, rare achievement.
 - **Rare / unique recipes** — common/basic recipes arrive through **normal progression**; **rare
-  recipes are scavenged** across the progression phases and are kept. (Connects directly to the
-  recipe-rarity thread in `ideas.md` 2026-06-01: basic vs special recipes, where special is rare and
-  a *big* jump, not a marginal tweak.)
+  recipes are scavenged** across the progression phases and are kept. (Connects to the recipe-rarity
+  thread in `ideas.md` 2026-06-01: basic vs special recipes, where special is rare and a *big* jump.)
 
-The shape this implies: **moment-to-moment gains** (scrap, basic parts, fuel) may be cheap/consumable
-per outing, while **structural gains** (workshop tier, rare recipes, and likely restoration progress)
-are the durable spine that makes each new outing start from a higher floor.
+The shape this implies: **moment-to-moment gains** (scrap, basic parts, fuel) are cheap/consumable per
+outing, while **structural gains** (workshop tier, rare recipes, and the **restoration you've accreted into
+the world**) are the durable spine that makes each new outing start from a higher floor.
 
 ---
 
 ## 3) Restoration of the world
 
-This is the heart (M4/M5 in `milestones.md`, the "heal the world" vision in `ideas.md` 2026-05-30).
-**The shape that now feels right (2026-06-02): split restoration into two places.** The world you
-drive in *and* a **separate, persistent restoration place you visit from a menu.** Doing this resolves
-most of the regeneration-vs-restoration tension — because restoration no longer lives inside the part
-of the game that might regenerate.
+This is the heart (the "heal the world" vision in `ideas.md` 2026-05-30; M4/M5 in `milestones.md`).
+**The shape that now feels right (2026-06-10): restoration lives IN the persistent world.** Because the
+world remembers (§1), the place you heal *is* the place that stays healed — there is no separate area to
+protect from a reset, and no separate screen to go admire it on. **The world is the tracker.**
 
-> **The reframe that drives this:** *the roguelike loop is not the mission — it's a means to an end.*
-> The mission is bringing life back. So restoration should not be hostage to run structure. (It may
-> not even need to be a hard roguelike: an alternative is a **long-term persistent world** where being
-> "out in the field" carries some penalty that resolves back at the **workshop**, rather than a
-> restart-and-rebuild death. Undecided — but either way, restoration sits *outside* it.)
+> **Why this replaced the earlier "separate Sanctuary" idea:** that idea existed to keep restoration safe
+> from a regenerating world. Once the world is persistent, that job disappears — healed ground accretes
+> right where you earned it. A persistent **trophy screen with a tree on it** had no demonstrated *pull*
+> (you'd build something without knowing why a player wants to visit it); a healed, drivable world that
+> **gates your progress and gives you bases** has obvious pull. (The dated `ideas.md` 2026-06-02 and
+> 2026-06-10 sessions hold the full history of this shift.)
+
+### What restoration GIVES the player — (a) the gate, with (c) territory sprinkled in
+**Decided (2026-06-10):** restoration's purpose pays at **two timescales**, which is what makes the player
+*want* to do it rather than treat it as a chore:
+
+- **(a) Restoration is the gate — the long arc.** You restore enough of a region to **unlock the road to
+  the next, harder region.** This is the answer to "what's it all for," and the **world map is the
+  progression tracker** (§4).
+- **(c) Territory / forward-bases — the moment-to-moment.** A healed patch becomes **immediately useful**:
+  a safe haven to park and re-fit, a **forward base** that shortens the drive out to the frontier, a
+  renewable resource spot. Persistence is what makes a base **stay yours** between sessions.
+
+Pure-(a) alone risks feeling like a **chore tax** ("green X% before you may pass"); (c) makes each
+individual heal independently worthwhile, so the gate just **accumulates from acts already worth doing**.
+*(A third axis — **(b) restoration as a renewable economy**, healed ground yielding living rewards like
+fruit/animals as crafting inputs or income — is the natural later layer on top of a+c, not chosen now.)*
 
 ### (a) Life-trails in the world — earned, upgradeable, persistent
-Driving leaves **life** behind you (soil, grass, blooms). Important shifts from the earlier riff:
+Driving leaves **life** behind you (soil, grass, blooms). The shape:
 
 - **Not a default ability — earned.** Leaving life-trails is a **special mechanism gained through
-  progression**, not something the rig does from the start. It's a reward you unlock.
-- **Upgradeable, in tiers.** The trail the rig lays improves as you invest, e.g.:
-  - improve **soil quality** (darker, richer ground),
-  - leave **grass**,
-  - force **blooms and shrubs** to grow randomly.
-  The more you have, the **better the world looks** — coverage is its own satisfaction.
-- **Persistent — trails don't vanish.** The earlier "drive back over it and you ruin it unless you
-  have a gentle drivetrain" idea is **superseded-leaning**: the appeal is now *covering the world in
-  life that stays*, so the player can keep trying to green everything. (The destructible-trail /
-  gentle-drivetrain idea is parked, not deleted.)
+  progression**, a reward you unlock — not something the rig does from the start.
+- **Upgradeable, in tiers.** The trail improves as you invest: better **soil quality** (darker, richer
+  ground) → **grass** → **blooms and shrubs**. The more you have, the **better the world looks** —
+  coverage is its own satisfaction, and it visibly accretes toward the region gate.
+- **Persistent — trails don't vanish.** The appeal is *covering the world in life that stays*. (The earlier
+  destructible-trail / gentle-drivetrain idea is **parked, not deleted** — revisit only if a tension/upkeep
+  mechanic is ever wanted.)
 - **The world reacts.** Greenery **lures life, including hostile life**; restored ground around former
-  **enemy camps** (cleared once or repeatedly) can surround old **tree stumps** with rich soil; trails
-  can **grow** — trees that **drop fruit**, **flowers**, and **lure new animal types**.
+  **enemy camps** can surround old **tree stumps** with rich soil; trails can **grow** — trees that **drop
+  fruit**, **flowers**, and **lure new animal types**. (This luring is one engine of the scaling enemy, §4.)
 
-This makes the *playfield itself* visibly come back to life as a reward for effort — separate from,
-and feeding into, the sanctuary below.
+The stump-healer mechanic already shipped (`features/restoration/`) is the first concrete rung of this:
+clearing a pile or camp leaves a `RestorableSite`, and a stump-healer head grows it back into a young tree.
 
-### (b) The Restoration Sanctuary — a separate, persistent ecosystem *(the progress tracker)*
-A **dedicated restoration area, visited from a menu** — *not* rendered inside a run/session. This is
-where the **ancient tree** lives and where your restoration **accumulates and is displayed**.
-
-- **Separate & persistent.** It lives **outside the roguelike world**, so there's **no re-applying**
-  anything and nothing a regeneration can wipe. You go there to *see* what you've built.
-- **3D and beautiful, evolving over time.** Ideally rendered with real 3D art of life that
-  **gradually evolves and improves** — the long, slow, gorgeous payoff.
-- **You feed it with rewards earned in the main game.** Special parts, mechanisms, and **living
-  rewards** won out in the world are **brought into the sanctuary**. Example: enough world-restoration
-  earns **bunnies**, which you **move into the sanctuary** to bring a new form of life to the ancient
-  tree. (One small example of a much larger intended system.)
-- **It's almost a sub-game / mini-game.** The main game *generates* rewards; the sanctuary is where
-  you *spend* them — and **that is how progression is tracked.** Bring-from-main → apply-to-sanctuary
-  is the core meta-loop.
-
-### (b.1) Ecosystem-balancing — the sanctuary's depth *(high-intent, exploratory)*
-Jaco wants to **pour intent into this**: the sanctuary isn't a static trophy shelf, it's a **living
-ecosystem you solve.** Life invites **imbalance**, and rebalancing is the puzzle:
-
-- **Problems signal life-but-imbalance.** Moles, rats, etc. show the area is alive but **out of
-  balance** — and you must introduce things to restore balance.
-- **Interlocking systems, not single fixes.** e.g. the right **crops/plants** improve **soil / pH** →
-  richer soil grows **thicker plants** → thicker growth means **rats target the tree less**. A web of
-  cause-and-effect to untangle — *complex ecosystem solving.*
-- The earlier ancient-tree quest steps (**restore water → fertilizer → protection against invaders
-  drawn by the restoration**) fold in here as **ecosystem levers**, rather than as in-run quests.
-
-### Where this leaves the old forks
-- **Regeneration vs. restoration:** largely **resolved-leaning** by separation — the run world can
-  regenerate (or be a persistent long-term world) without touching the sanctuary.
-- **Greenery trail cosmetic vs. mechanic:** reframed — trails are **earned + upgradeable + persistent**
-  in the world (a real reward system), while the **sanctuary** is the deeper mechanical sub-game. The
-  destructible-trail variant is parked.
-- **One ancient tree vs. many:** still open, but the sanctuary framing makes **one grand focal tree**
-  (with a rich ecosystem) very natural; multiple sanctuaries remain possible.
+### (b) Depth, if in-world restoration ever wants it — *parked, high-intent*
+The earlier **ecosystem-balancing sub-game** — moles/rats signalling *life-but-imbalance*; introducing
+crops/water/soil-pH levers that interlock (right plants → better soil/pH → thicker growth → rats target the
+tree less); the ancient-tree quest steps (water → fertilizer → protection against invaders drawn by the
+restoration) as **ecosystem levers** — was conceived as the *Sanctuary's* depth. With the Sanctuary
+dissolved it currently **has no home**, so it is **parked, not deleted**: a reservoir of depth that
+in-world restoration could draw on later if "grow life back" wants to become "solve a living ecosystem."
+Jaco has high intent here; it is explicitly **not** the near plan (scope risk to watch).
 
 ---
 
 ## 4) Progression — what carries you forward
 
-**The progression gate (what unlocks the next chapter) is leaning toward AREA RECLAMATION, tracked in
-the Sanctuary — not far-travel/fuel.** The exciting gate is **growing the Restoration Sanctuary**
-(§3b): you earn rewards in the world and **bring them home to apply to the sanctuary**, and *that
-applied progress is the tracker* of how far you've come. "Drive far + manage fuel" is, on its own, an
-*unexciting* gate. (One grand focal tree, or X of several sanctuaries — still open.)
+**The progression gate is RESTORATION (area reclamation), tracked on the world map — decided-leaning
+(2026-06-10).** You earn the means in the world and **spend them healing it**, and *that healed, persistent
+ground is the tracker* of how far you've come (§3a). "Drive far + manage fuel" is, on its own, an
+*unexciting* gate; **reclaiming the world** is the exciting one, and it doubles as immediate **territory**
+(§3c). (One grand focal region, or X of several — still open; see forks.)
 
-**But fuel still matters — as a teacher, not the gate.** Repeatedly running out of fuel is a clear
-**diagnostic signal**: it tells the player to invest in their **energy system first**, before load
-capacity or offense or defense. So:
+**Fuel still matters — as a teacher, not the gate.** Repeatedly running out of fuel is a clear
+**diagnostic signal**: invest in the **energy system first**, before load/offense/defense. So:
 
-> **Fuel = a mechanical-progression *signal* (a great dial that teaches the player what to upgrade
-> next). Area reclamation = the *gate* (the exciting thing that unlocks the next chapter).**
-
-These don't conflict — they're different jobs. Fuel shapes *how you build*; reclamation shapes *what
-you're working toward*.
+> **Fuel = a mechanical-progression *signal* (a dial that teaches what to upgrade next). Area reclamation =
+> the *gate* (the thing that unlocks the next chapter).** Different jobs — fuel shapes *how you build*,
+> reclamation shapes *what you're working toward*.
 
 **Difficulty rises from three coexisting sources** (so progression always has counter-pressure):
 
 1. **Rig progression** — the player gets stronger (pushes difficulty *down*).
-2. **World / environment escalation** — later/harder ground is simply harsher (pushes *up*).
+2. **World / environment escalation** — later/harder regions are simply harsher (pushes *up*).
 3. **A scaling enemy** — escalates with you and specifically forces **defensive** upgrading, not just
-   offense (pushes *up*). Restoration *luring* hostiles (§3b) is one engine for this.
+   offense (pushes *up*). Restoration *luring* hostiles (§3a) is one engine for this.
 
-The felt result: getting stronger never trivializes the game, because the world and its enemies scale
-to meet you — and the answer is always a *specific* upgrade the player can name.
+The felt result: getting stronger never trivializes the game, because the world and its enemies scale to
+meet you — and the answer is always a *specific* upgrade the player can name.
 
 ---
 
@@ -211,109 +199,111 @@ type-lock** — electric = snappy/scout/combat, mechanical = heavy hauler). New 
 The two paths should **both heal the world**; the choice is identity/feel, **not** good-vs-evil.
 
 - **Electric** — clean and **environmentally safe**.
-- **Mechanical** — keeps **high torque / more power**, but must **avoid modern fossil-fuel / air-
-  pollution / exhaust connotations**. Lean **steam power** (water vapour, clean) rather than petrol or
-  exhaust. *(Aligns with the captured "fuel is an abstract reaction charge, **not** petrol" —
-  `ideas.md` 2026-06-01. Caveat to reconcile: the current **future-look** for mechanical leans
-  "grimy / fumes" in `workshop-interface-spec.md`; this reframe nudges that toward **steam, not
-  exhaust** — a thread to reconcile, not a decision.)*
-- Keep the felt tradeoff (electric snappy & clean vs. mechanical heavy & torquey) **without moral
-  stigma**.
+- **Mechanical** — keeps **high torque / more power**, but **avoids modern fossil-fuel / air-pollution /
+  exhaust connotations**. Lean **steam power** (water vapour, clean) rather than petrol or exhaust.
+  *(Aligns with "fuel is an abstract reaction charge, **not** petrol" — `ideas.md` 2026-06-01. Caveat to
+  reconcile: the current **future-look** for mechanical leans "grimy / fumes" in
+  `workshop-interface-spec.md`; this reframe nudges that toward **steam, not exhaust**.)*
+- Keep the felt tradeoff (electric snappy & clean vs. mechanical heavy & torquey) **without moral stigma**.
 
 ### Energy type as a build identity (a "class")
-The energy choice could define a whole playthrough's identity — like a **class / build type**. Two
-ways to express it, **and they're not mutually exclusive** *(open fork)*:
+The energy choice could define a whole playthrough's identity — like a **class / build type**. Two ways to
+express it, **not mutually exclusive** *(open fork)*:
 
-- **(A) Multiple rigs.** The player can own both and **swap rigs for different purposes** — a genuinely
-  good experience. **But a second rig should be *very hard* to acquire** vs. the first (a major, late,
-  expensive unlock), so for most of the game you're committed to one.
-- **(B) Start-of-game class choice.** Pick **mechanical (steam)** *or* **electric** up front; that
-  choice **gates everything after** — every unlock/progression *and* the rewards in the
-  restoration / "heart" system (the Sanctuary, §3b) are **specific to that energy type**. A true
-  build commitment.
+- **(A) Multiple rigs.** Own both and **swap rigs for different purposes**. But a second rig should be
+  *very hard* to acquire (a major, late, expensive unlock), so for most of the game you're committed to one.
+- **(B) Start-of-game class choice.** Pick **mechanical (steam)** *or* **electric** up front; that choice
+  **gates everything after** — unlocks/progression *and* the restorative rewards are **specific to that
+  energy type**. A true build commitment.
 
 ### Replayability
-- Under **(B)**: finishing a playthrough on one energy type lets you **retry with the other** — a clean
-  replayability engine (new unlocks, new energy-specific Sanctuary rewards).
+- Under **(B)**: finishing on one energy type lets you **retry with the other** — a clean replayability
+  engine (new unlocks, new energy-specific restorative texture).
 - Under **(A)**: replayability comes from **chasing the hard-won second rig** within a playthrough.
 
 ### How it threads restoration
-Energy-type-specific rewards in the Sanctuary mean the **restoration sub-game itself could look and
-feel different per path** — a distinct restorative flavour for electric vs. steam — reinforcing the
-class identity and giving each replay its own texture.
+Energy-type-specific rewards mean the **restoration could look and feel different per path** — a distinct
+restorative flavour for electric vs. steam — reinforcing the class identity and giving each replay its own
+texture.
 
 ---
 
 ## How it all fits (one paragraph)
 
-You drive a **rig** out into a **hostile world**, scavenging scrap, **rare recipes**, special
+You drive a **rig** out into a **hostile, persistent world**, scavenging scrap, **rare recipes**, special
 mechanisms, and **living rewards**. **Fuel** teaches you to keep your energy system ahead of your
-ambitions; **load, offense, and defense** each earn their own investment against a **scaling enemy**.
-As you progress you unlock **life-trails** — earned, upgradeable, *persistent* greening (richer soil →
-grass → blooms) — and the satisfaction of **covering the world in life that stays**, clearing camps
-into restored ground around old stumps that grow into fruiting, flowering, animal-luring life. You
-bring your haul home, **upgrade the workshop** (the hard-won gateway to advanced alloys and complex
-parts), and then step into the **Restoration Sanctuary** — a separate, persistent, beautifully 3D
-place you visit from a menu — to **apply your rewards** (move the **bunnies** in) and tend a **living
-ecosystem you solve**: water, fertilizer, soil/pH, predators and pests all in balance around the
-**ancient tree**. That applied, accumulating sanctuary *is* your progression — untouched by whatever
-the world layer does. The rig is always the tool; the world coming back to life is always the point.
+ambitions; **load, offense, and defense** each earn their own investment against a **scaling enemy**. You
+unlock **life-trails** — earned, upgradeable, *persistent* greening (richer soil → grass → blooms) — and
+heal the ground where you clear piles and camps, growing old stumps into fruiting, flowering, animal-luring
+life. Each heal **pays twice**: that patch becomes a **forward base / safe resource zone you use right
+away**, and it **accretes toward reclaiming the region** — and reclaiming a region **opens the road to the
+next, harder one**. That healed, persistent world *is* your progression tracker; there is no separate place
+to visit, because the place you healed is the place that stays. You bring your haul home, **upgrade the
+workshop** (the hard-won gateway to advanced alloys and complex parts), and head back out farther. The rig
+is always the tool; the world coming back to life is always the point.
 
 ---
 
 ## Candidate skeleton milestones this guidance implies
 
-> Stubs only — **title + one-line intent**, all `pending` and **movable**. Not ordered, not scoped,
-> no success criteria yet. Promote into `milestones.md` only when one firms up.
+> Stubs — **title + one-line intent**, `pending` and **movable** unless marked. Promote into `milestones.md`
+> when one firms up. The first few now have a home in
+> [`specs/real-world-and-progression-spec.md`](specs/real-world-and-progression-spec.md).
 
-- **Restoration Sanctuary (separate 3D area)** · `pending` — a persistent, menu-visited place,
-  outside the run, where restoration accumulates and is displayed; the progression tracker.
-- **Sanctuary ecosystem-balancing sub-game** · `pending` — moles/rats = imbalance; introduce
-  crops/water/soil-pH levers to rebalance; interlocking cause-and-effect around the ancient tree.
-- **Bring-from-world → apply-to-sanctuary loop** · `pending` — earn living rewards in the world (e.g.
-  bunnies) and move them into the sanctuary; the core meta-progression loop.
-- **Earned, upgradeable, persistent life-trails** · `pending` — driving lays life (soil → grass →
-  blooms); unlocked, tiered, and permanent; satisfaction of greening the whole world.
-- **Camp-to-restored-ground** · `pending` — cleared enemy camps leave restored soil around old stumps
-  that grow into fruiting/flowering/animal-luring life.
-- **Hybrid chunk-assembly world** · `pending` — author small socketed chunks; assemble the drivable
-  world from them (per-outing or persistent).
-- **World structure: persistent vs. roguelike field** · `pending` — decide whether the world layer is
-  a long-term persistent place (out-of-field penalty resolved at the workshop) or a regenerating run.
-- **Region/gating difficulty** · `pending` — harder ground demands a specific weight-costing
-  capability to enter or survive.
-- **Fuel as diagnostic signal** · `pending` — energy economy that teaches "upgrade your energy system
-  first" without being the primary gate.
-- **Scaling enemy + defensive progression** · `pending` — an enemy that escalates with the player and
-  forces defense as its own investment.
+- **Persistent real world + sandbox split + persistence + menu** · `pending` *(specced — Phase 0)* — a
+  game/save vs test-sandbox boundary, a front-door menu, and a save that remembers world-content state.
+- **Restoration-as-region-gate (+ healed ground as forward base)** · `pending` *(specced — Phase 2)* —
+  reclaiming a region unlocks the next; a healed patch is also an immediate base/resource zone.
+- **The progression spine** · `pending` *(specced — Phase 2)* — the capability ladder from loose scrap →
+  Reclaimer → piles → combat → camps → heal → region gate.
+- **Earned, upgradeable, persistent life-trails** · `pending` — driving lays life (soil → grass → blooms);
+  unlocked, tiered, permanent; greening the world *is* progress toward the gate.
+- **Camp-to-restored-ground** · `pending` — cleared camps leave restored soil around old stumps that grow
+  into fruiting/flowering/animal-luring life. *(First rung shipped: stump-healer.)*
+- **Hybrid chunk-assembly world** · `pending` — author small socketed chunks; assemble the (persistent)
+  drivable world from them.
+- **Region/gating difficulty** · `pending` — harder ground demands a specific weight-costing capability to
+  enter or survive.
+- **Fuel as diagnostic signal** · `pending` — energy economy that teaches "upgrade your energy system first"
+  without being the primary gate.
+- **Scaling enemy + defensive progression** · `pending` — an enemy that escalates with the player and forces
+  defense as its own investment.
 - **Workshop upgrade tier(s)** · `pending` — hard-won workshop advancement unlocking advanced alloy
   processing and complex part manufacturing; a prime carry-over.
-- **Rare recipe scavenging & carry-over** · `pending` — rare/unique recipes found across phases and
-  kept across sessions (extends the basic-vs-special recipe thread).
+- **Rare recipe scavenging & carry-over** · `pending` — rare/unique recipes found across phases and kept.
 - **Both energy types restorative (steam, not exhaust)** · `pending` — reframe mechanical away from
   fossil-fuel connotations while keeping high torque; both paths heal the world.
 - **Energy type as build identity / class** · `pending` — energy choice defines a playthrough; gates
-  unlocks + energy-specific Sanctuary rewards.
-- **Multiple rigs (hard-won)** · `pending` — own/swap both energy types; a second rig is a major, late
-  unlock.
-- **Energy class choice + retry replayability** · `pending` — commit to one energy path; retry with
-  the other for a fresh playthrough.
+  unlocks + energy-specific restorative rewards.
+- **Multiple rigs (hard-won)** · `pending` — own/swap both energy types; a second rig is a major, late unlock.
+- **Energy class choice + retry replayability** · `pending` — commit to one energy path; retry with the other.
+- **Onboarding / guidance / story** · `pending` *(specced — Phase 4)* — lead the player down the progression
+  spine; deliberately last, once the spine exists.
+
+**Superseded / parked** *(kept for the record; history in the dated `ideas.md` sessions):*
+
+- ~~**Restoration Sanctuary (separate 3D area)**~~ · **superseded** — dissolved into the persistent world;
+  the world map is the tracker, no separate menu-visited place.
+- ~~**Bring-from-world → apply-to-sanctuary loop**~~ · **superseded** — the apply-target is now the world
+  itself (healed ground / forward bases), not a separate sanctuary.
+- **Sanctuary ecosystem-balancing sub-game** · `parked` — high-intent depth (rats/soil-pH/crop levers) that
+  lost its home with the Sanctuary; a reservoir in-world restoration could draw on later, not the near plan.
 
 ---
 
 ## Open forks (explicitly undecided)
 
-- **World structure** — long-term *persistent* world (out-of-field penalty resolved at the workshop)
-  vs. a regenerating roguelike field. The roguelike loop is a *means, not the mission*, so this stays
-  loose. *(Was "regeneration vs. restoration" — largely defused by moving restoration into the
-  separate Sanctuary, §3.)*
-- **Fuel's role** — confirmed-leaning as *signal not gate*, but the exact economy is open.
-- **One ancient tree vs. many** — single grand focal sanctuary vs. several (reclaim-X-of-many).
-- **How deep the ecosystem sub-game goes** — from a few balance levers to genuinely "complex ecosystem
-  solving" (high intent here; scope risk to watch).
-- **Energy identity model** — multiple rigs (A) vs. start-of-game class choice (B); not mutually
-  exclusive (could start with a class choice *and* allow a hard-won second rig later).
+- **One focal region vs. many** — single grand reclaimable region vs. several (reclaim-X-of-many) as the
+  gate's shape.
+- **Fuel's role** — confirmed-leaning as *signal not gate*; the exact economy (capacity, burn, refuel) is open.
+- **How deep in-world restoration goes** — from "grow life back" (the shipped direction) to the genuinely
+  "complex ecosystem solving" parked in §3b (high intent; scope risk).
+- **Energy identity model** — multiple rigs (A) vs. start-of-game class choice (B); not mutually exclusive.
 - **Steam vs. exhaust aesthetic** for mechanical — reconcile the future "grimy / fumes" look with the
   "both restorative / steam-not-exhaust" reframe.
-- **Parked, not deleted** — the *destructible* life-trail + **gentle/preventive drivetrain** idea
-  (trails now lean persistent); revisit if a tension/upkeep mechanic is ever wanted.
+- **Parked, not deleted** — the *destructible* life-trail + **gentle/preventive drivetrain** idea (trails now
+  lean persistent); revisit if a tension/upkeep mechanic is ever wanted.
+
+**Resolved this rework (2026-06-10):** ~~world structure: persistent vs roguelike field~~ → **persistent**;
+~~regeneration vs. restoration~~ → defused (persistent world, restoration lives in it); ~~separate Sanctuary
+vs. in-world restoration~~ → **in-world** (Sanctuary dissolved).

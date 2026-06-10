@@ -29,3 +29,4 @@ Non-spec docs (ideas, observations, the world-progression vision, asset/setup co
 | [looter-camps-spec.md](looter-camps-spec.md) | Looter camps — enemies around a structure (Option D) | ✏️ Specced, not started |
 | [track-marks-spec.md](track-marks-spec.md) | Terrain track marks — fading tread trails under movers | Built (v1, cosmetic) |
 | [render-scaling-spec.md](render-scaling-spec.md) | Render scaling for a larger map (spatial index + chunked terrain) | ✏️ Specced, not started |
+| [real-world-and-progression-spec.md](real-world-and-progression-spec.md) | Real world vs sandbox · persistence + menu · the progression spine | ✏️ Skeleton, not started |
