@@ -64,10 +64,14 @@ rebuilt through the *same* construction code the bench and the world-seed use
   killed guard is `destroyEntity`'d, so it's simply absent to capture); survivors come back at their
   post at full health, and a fully-cleared guard ring restores the camp `disarmable`. The same rule on
   both sides: your rig's HP and an enemy's HP reset on load (a reload "repairs"), but a death stands.
+- **Pending loot drops persist** — a `LootDrop` is pure data (catalog refs), so an uncollected find
+  survives a refresh and the loot popup re-opens on the first frame after Continue.
 - **Deliberately not durable (v1):** boost heat, products/kits dropped **loose on the ground** (a
   composed part/kit not on a rig, deck, bench, or in inventory), and truly mid-action transient state —
   in-flight projectiles, a guard's live chase position, a half-played disarm (a save is never a
-  half-*fought* fight, though it now remembers which guards you already felled).
+  half-*fought* fight, though it now remembers which guards you already felled). One cosmetic edge: a
+  restored pile's `scrapScattered` counter resets, so a dig spanning a save under-reports its total
+  scrap yield in the final loot popup.
 
 ## Anti-pattern this prevents
 

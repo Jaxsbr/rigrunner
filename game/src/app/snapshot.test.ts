@@ -13,6 +13,8 @@ import { Collectible } from '@features/scrap/collectible';
 import { Transform } from '@common/components/transform';
 import { Camp } from '@features/camps/camp';
 import { Enemy } from '@features/camps/enemy';
+import { Dissolving } from '@features/scrap/dissolving';
+import { LootDrop } from '@common/components/loot-drop';
 import { Healable } from '@features/restoration/healable';
 import { RestorableSite } from '@common/components/restorable-site';
 import { Storage } from '@common/components/storage';
@@ -168,5 +170,34 @@ describe('game snapshot round-trip', () => {
 
     expect(b.query(Enemy).length).toBe(0);
     expect(b.get(b.query(Camp)[0]!, Camp)!.state).toBe('disarmable');
+  });
+
+  it('omits a fully-rummaged pile but keeps the stump it left', () => {
+    const a = seedRealGame(); // 3 piles
+    // Empty one pile (the post-rummage state: depleted, mid-dissolve) — its stump already stands.
+    const spent = a.query(ScrapPile)[0]!;
+    const st = a.get(spent, Transform)!;
+    a.get(spent, ScrapPile)!.remaining = 0;
+    a.add(spent, Dissolving, { elapsed: 0 });
+    spawnStumpFromSave(a, { x: st.x, z: st.z, rotationY: 0, kind: 'scrap', sourceLevel: 0, growth: 0 });
+
+    const b = continueFrom(captureSnapshot(a));
+
+    expect(b.query(ScrapPile).length).toBe(2);     // the spent heap is gone for good
+    expect(b.query(RestorableSite).length).toBe(1); // its stump survives, healable
+  });
+
+  it('keeps an uncollected loot drop pending across Continue', () => {
+    const a = seedRealGame();
+    const drop = a.createEntity();
+    a.add(drop, LootDrop, { scrap: 7, finds: [{ tierId: 'common', rarity: 'common', itemId: 'container-rim' }] });
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const drops = b.query(LootDrop);
+    expect(drops.length).toBe(1);
+    const d = b.get(drops[0]!, LootDrop)!;
+    expect(d.scrap).toBe(7);
+    expect(d.finds).toEqual([{ tierId: 'common', rarity: 'common', itemId: 'container-rim' }]);
   });
 });

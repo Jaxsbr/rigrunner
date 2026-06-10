@@ -2,6 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Storage } from '@common/components/storage';
+import { LootDrop } from '@common/components/loot-drop';
 import { Wallet, getWallet } from '@features/economy/wallet';
 import { Inventory, addToInventory, inventoryItems } from '@features/economy/inventory';
 import {
@@ -58,7 +59,7 @@ import { describeStumps, spawnStumpFromSave, type StumpSave } from '@features/re
  * first by `seedStaticWorld`, then `restoreSnapshot` rebuilds the progress on top.
  */
 
-export const SNAPSHOT_VERSION = 5;
+export const SNAPSHOT_VERSION = 6;
 
 interface MountSave {
   col: number;
@@ -95,6 +96,12 @@ export interface GameSnapshot {
   bench: BenchSave;
   /** Loose-scrap pieces lying in the world — the exact remaining set (not a re-scatter). */
   looseScrap: LooseScrapSave[];
+  /**
+   * Loot drops queued but not yet collected (the loot popup was open / pending at save). `LootDrop` is
+   * pure data (`finds` are catalog refs, not entities), so it stores verbatim; on restore the loot
+   * overlay re-opens it the first frame — a refresh mid-popup never eats the find.
+   */
+  pendingLoot: LootDrop[];
   sites: SiteSave[];
 }
 
@@ -132,6 +139,10 @@ export function captureSnapshot(world: World): GameSnapshot {
     staged: workshop !== null ? describeMounts(world, workshop) : [],
     bench: describeBench(world),
     looseScrap: describeLooseScrap(world),
+    pendingLoot: world.query(LootDrop).map((e) => {
+      const d = world.get(e, LootDrop)!;
+      return { scrap: d.scrap, finds: [...d.finds], ...(d.walletScrap !== undefined ? { walletScrap: d.walletScrap } : {}) };
+    }),
     sites: [
       ...describeScrapPiles(world).map((p): SiteSave => ({ type: 'pile', ...p })),
       ...describeCamps(world).map((c): SiteSave => ({ type: 'camp', ...c })),
@@ -226,4 +237,10 @@ export function restoreSnapshot(world: World, snap: GameSnapshot): void {
 
   // Loose-scrap pieces — restored at their exact spots, so the ground keeps whatever you left lying.
   for (const d of snap.looseScrap ?? []) spawnLooseScrapFromSave(world, d);
+
+  // Pending loot drops — the loot overlay re-opens them the first frame, so an uncollected find survives.
+  for (const d of snap.pendingLoot ?? []) {
+    const e = world.createEntity();
+    world.add(e, LootDrop, { scrap: d.scrap, finds: [...d.finds], ...(d.walletScrap !== undefined ? { walletScrap: d.walletScrap } : {}) });
+  }
 }
