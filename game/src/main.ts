@@ -29,6 +29,7 @@ if (import.meta.env.MODE === 'sandbox') {
     canContinue: hasSave(),
     onChoose: (choice) => {
       const world = new World();
+      let camera; // the saved camera pose, if continuing — view state rides outside the World
       if (choice.kind === 'continue') {
         const snapshot = loadGame();
         // A save can vanish between the menu rendering and the click (another tab clearing it); fall
@@ -36,13 +37,19 @@ if (import.meta.env.MODE === 'sandbox') {
         if (snapshot) {
           seedStaticWorld(world);
           restoreSnapshot(world, snapshot);
+          camera = snapshot.camera;
         } else {
           realGameScenario.seed(world);
         }
       } else {
         realGameScenario.seed(world);
       }
-      bootstrap(world, { dev: false, onPersist: () => saveGame(captureSnapshot(world)) });
+      bootstrap(world, {
+        dev: false,
+        camera,
+        // World state via captureSnapshot; the camera pose (view state) rides along off the view.
+        onPersist: (view) => saveGame({ ...captureSnapshot(world), camera: view.cameraPose() }),
+      });
     },
   });
 }

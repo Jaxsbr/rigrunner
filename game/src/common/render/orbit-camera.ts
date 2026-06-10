@@ -2,6 +2,13 @@ import * as THREE from 'three';
 import type { Transform } from '@common/components/transform';
 import type { CameraIntent } from '@common/input/camera-input';
 
+/** The player-adjustable half of the camera: orbit yaw (radians) + zoom radius. Plain data, so the
+ *  save can carry it — how the player had the view set is part of picking up where they left off. */
+export interface CameraPose {
+  yaw: number;
+  radius: number;
+}
+
 /**
  * The orbit camera: a perspective camera that stays trained on a followed transform (the rig),
  * orbiting it at an eased radius/yaw with a fixed near-overhead pitch. It owns only camera state —
@@ -54,6 +61,19 @@ export class OrbitCamera {
    *  decides what it means (the boost speed-kick passes a few degrees while boosting). */
   setFovExtra(deg: number): void {
     this.fovExtraTarget = deg;
+  }
+
+  /** The player-adjustable camera pose — orbit yaw + zoom radius (their settled targets). */
+  pose(): CameraPose {
+    return { yaw: this.camYawTarget, radius: this.camRadiusTarget };
+  }
+
+  /** Restore a saved pose: set yaw + radius directly (current AND target, so there's no ease-in from
+   *  the default on load). Radius re-clamps to the zoom range, so a stale save can't strand the
+   *  camera inside the rig or out past the cap. */
+  setPose(p: CameraPose): void {
+    this.camYaw = this.camYawTarget = p.yaw;
+    this.camRadius = this.camRadiusTarget = clamp(p.radius, this.camRadiusMin, this.camRadiusMax);
   }
 
   /**

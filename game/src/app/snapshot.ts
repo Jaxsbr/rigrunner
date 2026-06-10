@@ -3,6 +3,7 @@ import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Storage } from '@common/components/storage';
 import { LootDrop } from '@common/components/loot-drop';
+import type { CameraPose } from '@common/render/orbit-camera';
 import { Wallet, getWallet } from '@features/economy/wallet';
 import { Inventory, addToInventory, inventoryItems } from '@features/economy/inventory';
 import {
@@ -103,6 +104,13 @@ export interface GameSnapshot {
    */
   pendingLoot: LootDrop[];
   sites: SiteSave[];
+  /**
+   * The player's camera pose (orbit yaw + zoom) — VIEW state, not world state, so it bypasses
+   * capture/restoreSnapshot (which are pure over the World): `main.ts` reads it off the view into the
+   * save at persist time and hands it back to `bootstrap` on Continue. Optional + additive, so saves
+   * without it (or a sandbox-style default) simply open at the default pose.
+   */
+  camera?: CameraPose;
 }
 
 interface BenchSave {

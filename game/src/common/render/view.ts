@@ -3,7 +3,7 @@ import type { EntityId } from '@core/types';
 import type { Transform } from '@common/components/transform';
 import type { CameraIntent } from '@common/input/camera-input';
 import { Stage } from './stage';
-import { OrbitCamera } from './orbit-camera';
+import { OrbitCamera, type CameraPose } from './orbit-camera';
 import { EntityViews } from './entity-views';
 import { Picker } from './picker';
 import { BuildAffordances } from './build-affordances';
@@ -53,6 +53,10 @@ export class RenderView {
   }
   /** Extra camera FOV (degrees), eased — the composition root drives it (e.g. a boost speed-kick). */
   setFovExtra(deg: number): void { this.orbit.setFovExtra(deg); }
+  /** The player-adjusted camera pose (orbit yaw + zoom) — the save carries it across sessions. */
+  cameraPose(): CameraPose { return this.orbit.pose(); }
+  /** Restore a saved camera pose (applied at boot, before the first frame). */
+  setCameraPose(p: CameraPose): void { this.orbit.setPose(p); }
   render(): void { this.stage.render(this.orbit.camera); }
 
   // ── build interaction (queried/toggled by the build controller) ─────────────────────────────

@@ -23,6 +23,7 @@ import { ChassisBar } from '@features/chassis/chassis-bar';
 import { PackPrompt } from '@features/chassis/pack-prompt';
 import { activeStagingTargets } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
+import type { CameraPose } from '@common/render/orbit-camera';
 import { ZoneOverlays } from '@common/render/zone-overlays';
 import { ScrapStains } from '@features/scrap/scrap-stains';
 import { workshopZoneDiscs } from '@features/workshop/overlays';
@@ -70,11 +71,14 @@ export interface BootCfg {
    * run-reset key — a testing convenience that has no place in the game a player runs.
    */
   dev?: boolean;
+  /** A saved camera pose (orbit yaw + zoom) to start from — Continue passes the one the save carries. */
+  camera?: CameraPose;
   /**
    * Called when the page is about to unload, if this launch persists. The real game wires the save
-   * here (capture → write the slot); the sandbox leaves it unset, so it never persists.
+   * here (capture → write the slot); the sandbox leaves it unset, so it never persists. Receives the
+   * view so session view-state (the camera pose) can ride along in the save next to the world state.
    */
-  onPersist?: () => void;
+  onPersist?: (view: RenderView) => void;
 }
 
 /**
@@ -89,15 +93,17 @@ export interface BootCfg {
 export function bootstrap(world: World, cfg: BootCfg = {}): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
-  // Persist on the way out, if this launch saves (the real game). Capturing at unload keeps the slot
-  // current without threading a save call through every mutation; a page reload triggers it too.
-  if (cfg.onPersist) {
-    window.addEventListener('beforeunload', cfg.onPersist);
-  }
-
   const input = createDriveInput();
   const cameraInput = createCameraInput(canvas);
   const view = new RenderView(canvas);
+  // Resume the saved camera pose before the first frame, so the view opens exactly as it was left.
+  if (cfg.camera) view.setCameraPose(cfg.camera);
+
+  // Persist on the way out, if this launch saves (the real game). Capturing at unload keeps the slot
+  // current without threading a save call through every mutation; a page reload triggers it too.
+  if (cfg.onPersist) {
+    window.addEventListener('beforeunload', () => cfg.onPersist!(view));
+  }
   // The transient cap-refusal toast (top-centre): when the player hauls out a chassis kit they can't
   // field — already at MAX_OWNED — the build controller calls back here so the refusal is spoken, not
   // silent (the kit still glides home to the deck). The composition root owns the copy; the toast itself
