@@ -75,16 +75,27 @@ only if a real need appears that the world map can't serve.
 
 All `pending` / candidate / movable. Cut each into a deliberately-minimum first slice when picked up.
 
-### Phase 0 — Game-state boundary + front-door menu + persistence · `pending`
+### Phase 0 — Game-state boundary + front-door menu + persistence · `in progress` (first slice landed)
 The **enabler** — unblocks everything by giving testing its own room.
-- A **game/save** vs **sandbox** distinction; a menu: **New Game · Continue · Sandbox**.
-- **Persistence:** serialize/restore the real game's state — wallet, inventory, rig config, **and
-  world-content state** (which piles are cleared, which camps fell, which stumps are healed + their growth).
-- The **sandbox keeps** every grant-myself-anything testing affordance used today; the **real game gets none**.
-- **Technical seam:** deciding what "game state" *is* (which ECS components serialize). The restoration slice
-  already stores `growth` in `Healable` and emits `RestorableSite`, so the world-state half is "serialize the
-  relevant components" — the seam exists, the scope is defining its boundary.
-- **The win:** stop vandalizing the starting experience to test.
+
+**Shipped (the seam + the win):** the game/sandbox split is **launch-time**, not a menu button — `npm run
+dev:sandbox` boots straight into the grant-everything test world; `npm run dev:game` opens a **New Game /
+Continue** menu, then the real game. One Vite app, the command differs only by `--mode sandbox`. The old
+welded composition root is split into an `app/` tier — `bootstrap` (the invariant engine + frame loop),
+`scenarios/` (`sandbox` keeps every dev affordance; `real-game` is a clean, dev-grant-free cold-open), a
+`menu`, and `persistence`. The **win is delivered**: the real opening is no longer vandalised to test.
+
+> **Note — the split presents as two npm commands, refining the original "New Game · Continue · Sandbox"
+> menu** (2026-06-10 build session). The npm command picks game-vs-sandbox; the menu (inside `dev:game`) picks
+> New-vs-Continue. So the menu shrank to two entries and `Sandbox` became its own command.
+
+- **Persistence (started):** the New Game → play → Continue pipeline round-trips through `localStorage`
+  (saved on `beforeunload`), carrying the **wallet** today. `GameState.version` gates shape growth.
+- **Remaining (the next slice):** serialize **world-content** (which piles cleared, which camps fell, stump
+  growth) and the **rig config + inventory**. Both are the harder half — the rig/inventory are composed-entity
+  graphs and a healed site is a re-spawned `RestorableSite` stump — so they were deliberately split out of the
+  first cut rather than rushed. The `GameState` boundary is laid out for them to slot in.
+- **The win:** stop vandalizing the starting experience to test. ✅
 
 ### Phase 1 — The designed cold-open · `pending`
 Now that testing lives in the sandbox, craft the canonical **New Game** in peace.

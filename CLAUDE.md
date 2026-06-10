@@ -91,16 +91,19 @@ rigrunner/
     architecture/         # ADRs — structural decisions (+ the system-review evidence trail)
     specs/                # individual feature SPECS & work-tracking (one *-spec.md per feature)
   tools/blender/          # asset pipeline: rr_style.py kit + build_asset.py + assets/ generators
-  game/                   # the game (the active build)                          -> npm run dev:game
+  game/                   # the game (the active build)         -> npm run dev:game (real) · dev:sandbox (test world)
     public/assets/        # committed runtime GLBs (served at /assets/*.glb, by game AND viewer)
     vite.config.ts        # path aliases (@core/@common/@features/@shared) — shared by dev/build/test
-    src/                  # FEATURE-FIRST (ADR-003): three tiers + features; main.ts the comp root
+    src/                  # FEATURE-FIRST (ADR-003): three tiers + features; the app/ tier composes them
       core/               #   ECS engine, ZERO game knowledge — world · types · component · geometry
       common/             #   strict domain kernel (shared by ≥2 features): components/ parts/ sim/
                           #     render/ input/ — see the admission rule below
       features/           #   vertical slices, ONE folder per mechanic — open one, see the whole thing:
                           #     drive engine mounting scrap storage workshop economy hud camps (tests co-located)
-      main.ts             #   composition root — the ONLY file that imports across features
+      app/                #   COMPOSITION-ROOT tier — the cross-feature importers (ADR-003): bootstrap
+                          #     (engine + frame loop) · scenarios/ (sandbox | real-game world seeds) · menu · persistence
+      main.ts             #   front door — picks the world by launch mode (dev:sandbox→test, else menu→real),
+                          #     then hands a seeded world to bootstrap
   viewer/                 # asset viewer — inspect any GLB in isolation           -> npm run dev:viewer
   shared/                 # modules promoted for use by both apps (explicit, never implicit)
     palette.json          # SINGLE source of the colour palette (read by rr_style.py + TS)
@@ -135,8 +138,8 @@ by the mechanic it serves, not by what kind of file it is:
   (generic sim primitives), `common/render` (render infrastructure), `common/input`.
 - **`core/` is the ECS engine with ZERO game knowledge** (`world`/`types`/`component`/`geometry`).
 - **Inward-only invariant (load-bearing):** `core/` and `common/` must **never** import from
-  `features/`. Per-frame feature work (animators, overlays) is dispatched from **`main.ts`**, the only
-  cross-feature importer — never from a `common/` façade.
+  `features/`. Per-frame feature work (animators, overlays) is dispatched from the **`app/`**
+  composition-root tier (`bootstrap`) — the only cross-feature importers — never from a `common/` façade.
 - **Imports use path aliases:** `@core` · `@common` · `@features` · `@shared`. Cross-tier/cross-feature
   imports use an alias; same-feature siblings use `./`. **`@common` (in-game kernel) ≠ `@shared`
   (repo-root code shared by the game AND the viewer)** — don't confuse the two.

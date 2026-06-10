@@ -6,7 +6,9 @@
   "description": "A vehicle-building scavenger game. Build a modular rig, run it across a hostile landscape, re-fit, repeat.",
   "scripts": {
     "dev:game": "vite game",
+    "dev:sandbox": "vite game --mode sandbox",
     "build:game": "vite build game",
+    "build:sandbox": "vite build game --mode sandbox",
     "typecheck:game": "tsc --noEmit -p game/tsconfig.json",
     "test:game": "vitest run --root game",
     "test:game:watch": "vitest --root game",

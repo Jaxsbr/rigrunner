@@ -30,7 +30,12 @@ Adopt **feature-first** as the organizing axis for `game/src/`: three tiers + fe
   primitives, render infrastructure, input.
 - **`features/`** — vertical slices, one folder per mechanic (`drive`, `engine`, `mounting`, `scrap`,
   `storage`, `workshop`, `economy`, `hud`), **tests co-located**.
-- **`main.ts`** — the composition root and the **only** cross-feature importer.
+- **`app/` + `main.ts`** — the composition-root tier and the **only** cross-feature importers:
+  `bootstrap` (engine + frame loop), the `scenarios/` world seeds (sandbox | real game), the front-door
+  `menu`, and `persistence`. `main.ts` is the thin entry that routes by launch mode and hands a seeded
+  world to `bootstrap`. *(Amended 2026-06-10: the original single `main.ts` was split into this tier when
+  the real-game / sandbox split landed — `real-world-and-progression-spec.md` Phase 0 — so the seam stays
+  one privilege level, not one file.)*
 
 The load-bearing rules (the things to stay consistent on):
 
@@ -40,9 +45,9 @@ The load-bearing rules (the things to stay consistent on):
    this is the standing rule.
 2. **Inward-only invariant.** `core/` and `common/` must **never** import from `features/`. (To be
    backed by ESLint `import/no-restricted-paths` as a fast-follow.)
-3. **Per-frame feature dispatch lives in `main.ts`, not in a `common/` façade.** The render façade
-   (`view.ts`) stays a pure projection; the feature animators — and the per-feature halves of
-   `zone-overlays`/`interaction-hints` — are called from `main.ts`. This resolves the one tier
+3. **Per-frame feature dispatch lives in the `app/` composition-root tier (`bootstrap`), not in a
+   `common/` façade.** The render façade (`view.ts`) stays a pure projection; the feature animators — and
+   the per-feature halves of `zone-overlays`/`interaction-hints` — are called from `bootstrap`. This resolves the one tier
    inversion the proposal's original wording ("`common/render/view.ts` calls them") would otherwise
    have planted on day one.
 4. **Path aliases** (`@core` / `@common` / `@features` / `@shared`) are the import convention — they
