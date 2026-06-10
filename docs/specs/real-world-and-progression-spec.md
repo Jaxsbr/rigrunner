@@ -99,12 +99,13 @@ constructors. Continue restores:
   products **staged on the workshop deck** (a container mid-drain), and parts **on the bench** mid-build
   — the full four-place conservation invariant, so an owned part is never dropped wherever it sat,
 - **world content** — piles still standing (how dug-down), camps still guarded, stumps already healed
-  (how grown).
+  (how grown), and the **loose-scrap pieces** lying in the world (the exact remaining set, not a
+  re-scatter — the ground keeps what you left, and a reload can't farm a fresh field).
 
 The reusable describe/rebuild kernel is `@common/sim/serialize`; each feature owns its own durable-state
 description; `app/snapshot.ts` folds them into one `GameSnapshot` (versioned) and replays it. *Reset on
-load by design:* rig HP/boost heat (a reload repairs), loose ground scrap (a New-Game starter, not re-laid
-so a reload can't farm it), and all transient/derived state.
+load by design:* rig HP/boost heat (a reload repairs), composed parts/kits dropped loose on the ground
+(not on a rig/deck/bench/in inventory), and all transient/derived state.
 
 - **The win:** stop vandalizing the starting experience to test. ✅
 - **Carried forward (small, deliberate):** packed-kit crates left loose in the world and mid-combat

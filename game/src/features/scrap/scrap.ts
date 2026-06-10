@@ -138,6 +138,36 @@ export function describeScrapPiles(world: World): PileSave[] {
   return out;
 }
 
+/** A single loose-scrap piece's saved state — its exact spot and worth. */
+export interface LooseScrapSave {
+  x: number;
+  z: number;
+  rotationY: number;
+  value: number;
+}
+
+/**
+ * Describe every loose-scrap piece lying in the world right now — the actual remaining pieces, so a
+ * reload restores exactly what was on the ground (no more, no less). This is NOT a re-scatter: the
+ * initial field and any pile-burst scrap you didn't sweep up persist as themselves, so the world keeps
+ * what you left — and because it's the real remaining set, a reload can't farm a fresh field.
+ */
+export function describeLooseScrap(world: World): LooseScrapSave[] {
+  const out: LooseScrapSave[] = [];
+  for (const e of world.query(Collectible, Transform)) {
+    const t = world.get(e, Transform)!;
+    out.push({ x: t.x, z: t.z, rotationY: t.rotationY ?? 0, value: world.get(e, Collectible)!.value });
+  }
+  return out;
+}
+
+/** Respawn one loose-scrap piece from its save at its exact spot. */
+export function spawnLooseScrapFromSave(world: World, d: LooseScrapSave): EntityId {
+  const e = spawnScrap(world, d.x, d.z, d.rotationY);
+  world.get(e, Collectible)!.value = d.value;
+  return e;
+}
+
 /** Respawn a pile from its save — deterministic (the saved variant + dig-down), unlike the random spawn. */
 export function spawnScrapPileFromSave(world: World, d: PileSave): EntityId {
   const e = world.createEntity();

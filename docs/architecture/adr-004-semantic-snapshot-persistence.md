@@ -57,10 +57,12 @@ rebuilt through the *same* construction code the bench and the world-seed use
   or in the inventory — the snapshot captures all four, so an owned part is never dropped on save
   regardless of where the player parked it (e.g. a container mid-drain on the deck, parts mid-build on
   the bench).
-- **Deliberately not durable (v1):** rig HP + boost heat (a reload repairs), loose ground scrap (a
-  one-time New-Game starter, not re-laid on Continue so a reload can't farm it), products/kits dropped
-  **loose on the ground** (not on a rig, deck, bench, or in inventory), and mid-combat/mid-clear
-  progress (a save is never a half-fought fight).
+- **Loose-scrap pieces persist as the EXACT remaining set** — the leftover field and any uncollected
+  pile-burst scrap come back where they lay. This is captured (the real pieces), not re-scattered, so
+  the world keeps what you left *and* a reload can't farm a fresh field.
+- **Deliberately not durable (v1):** rig HP + boost heat (a reload repairs), products/kits dropped
+  **loose on the ground** (a composed part/kit not on a rig, deck, bench, or in inventory), and
+  mid-combat/mid-clear progress (a save is never a half-fought fight).
 
 ## Anti-pattern this prevents
 

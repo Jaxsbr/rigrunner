@@ -9,6 +9,8 @@ import { deployChassis } from '@features/mounting/rig';
 import { chassisParts } from '@features/chassis/chassis';
 import { spawnStumpFromSave } from '@features/restoration/restoration-persistence';
 import { ScrapPile } from '@features/scrap/scrap-pile';
+import { Collectible } from '@features/scrap/collectible';
+import { Transform } from '@common/components/transform';
 import { Camp } from '@features/camps/camp';
 import { Healable } from '@features/restoration/healable';
 import { RestorableSite } from '@common/components/restorable-site';
@@ -126,5 +128,23 @@ describe('game snapshot round-trip', () => {
     // Loadouts are per-rig: the starter keeps its engine + storage, the deployed one stays bare.
     expect(mountedPartsOn(b, owned[0]).length).toBe(2);
     expect(mountedPartsOn(b, owned[1]).length).toBe(0);
+  });
+
+  it('restores leftover loose-scrap pieces at their exact spots (not a re-scatter)', () => {
+    const a = seedRealGame(); // the New-Game field of loose scrap is scattered
+
+    const positions = (w: World): string[] =>
+      w.query(Collectible).map((e) => {
+        const t = w.get(e, Transform)!;
+        return `${t.x.toFixed(4)},${t.z.toFixed(4)}`;
+      }).sort();
+
+    const before = positions(a);
+    expect(before.length).toBeGreaterThan(0);
+
+    const b = continueFrom(captureSnapshot(a));
+
+    // Same count AND same positions — the actual pieces persist, not a fresh random field.
+    expect(positions(b)).toEqual(before);
   });
 });

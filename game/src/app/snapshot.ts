@@ -19,7 +19,14 @@ import { workshopEntity } from '@features/workshop/staging';
 import { getBench, loadRecipe, placeOnBench } from '@features/workshop/bench';
 import { recipeById } from '@common/parts/recipes';
 import { ownedChassis, getActiveRig, markOwned, setActiveRig } from '@features/chassis/ownership';
-import { describeScrapPiles, spawnScrapPileFromSave, type PileSave } from '@features/scrap/scrap';
+import {
+  describeScrapPiles,
+  spawnScrapPileFromSave,
+  describeLooseScrap,
+  spawnLooseScrapFromSave,
+  type PileSave,
+  type LooseScrapSave,
+} from '@features/scrap/scrap';
 import { describeCamps, spawnCampFromSave, type CampSave } from '@features/camps/camp-spawn';
 import { describeStumps, spawnStumpFromSave, type StumpSave } from '@features/restoration/restoration-persistence';
 
@@ -39,18 +46,18 @@ import { describeStumps, spawnStumpFromSave, type StumpSave } from '@features/re
  * What's durable (the save) vs reset-on-load:
  *  - **Durable:** banked scrap (wallet), the inventory, every owned chassis + its mounted loadout,
  *    every product staged on the workshop deck, any unbanked scrap sitting in a container (mounted or
- *    staged), and the world's content — piles still standing (how dug-down), camps still guarded,
- *    stumps already healed (how grown).
- *  - **Reset on load (deliberately):** rig hit points + boost heat (a reload repairs you), loose
- *    ground scrap (a one-time New-Game starter, not re-laid on Continue so a reload can't farm it),
- *    products dropped loose on the ground (not on a deck/rig), and all transient/derived state (gate
- *    flags, in-flight projectiles, live enemy positions, work timers).
+ *    staged), the loose-scrap pieces lying in the world (the exact remaining set — not a re-scatter, so
+ *    no reload-farm), and the world's content — piles still standing (how dug-down), camps still
+ *    guarded, stumps already healed (how grown).
+ *  - **Reset on load (deliberately):** rig hit points + boost heat (a reload repairs you), products
+ *    dropped loose on the ground (a part/kit not on a rig/deck/bench/in inventory), and all
+ *    transient/derived state (gate flags, in-flight projectiles, live enemy positions, work timers).
  *
  * Continue does NOT run this through the cold-open seed: the static world (workshop, bench) is laid
  * first by `seedStaticWorld`, then `restoreSnapshot` rebuilds the progress on top.
  */
 
-export const SNAPSHOT_VERSION = 3;
+export const SNAPSHOT_VERSION = 4;
 
 interface MountSave {
   col: number;
@@ -85,6 +92,8 @@ export interface GameSnapshot {
   staged: MountSave[];
   /** The assembly bench mid-build: the loaded recipe and the parts in its filled slots. */
   bench: BenchSave;
+  /** Loose-scrap pieces lying in the world — the exact remaining set (not a re-scatter). */
+  looseScrap: LooseScrapSave[];
   sites: SiteSave[];
 }
 
@@ -121,6 +130,7 @@ export function captureSnapshot(world: World): GameSnapshot {
     activeRigIndex: active ? Math.max(0, owned.indexOf(active)) : 0,
     staged: workshop !== null ? describeMounts(world, workshop) : [],
     bench: describeBench(world),
+    looseScrap: describeLooseScrap(world),
     sites: [
       ...describeScrapPiles(world).map((p): SiteSave => ({ type: 'pile', ...p })),
       ...describeCamps(world).map((c): SiteSave => ({ type: 'camp', ...c })),
@@ -212,4 +222,7 @@ export function restoreSnapshot(world: World, snap: GameSnapshot): void {
     else if (s.type === 'camp') spawnCampFromSave(world, s);
     else spawnStumpFromSave(world, s);
   }
+
+  // Loose-scrap pieces — restored at their exact spots, so the ground keeps whatever you left lying.
+  for (const d of snap.looseScrap ?? []) spawnLooseScrapFromSave(world, d);
 }
