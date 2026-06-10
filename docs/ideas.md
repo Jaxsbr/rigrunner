@@ -11,6 +11,91 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-10 — From a sandbox-I-test-in to a game-someone-plays (real world · persistence · the progression spine)
+
+**Mode:** a status-check that turned into design. Status: a lot of these firmed up in the session — the
+restoration-purpose call especially — but I want it kept as **candidate direction, not enshrined in
+`CLAUDE.md`.** The structured phased version lives in
+[`specs/real-world-and-progression-spec.md`](specs/real-world-and-progression-spec.md); this is the voice/why.
+
+### What sparked it
+Every time I build a new part so the player can interact with a new thing in the world (a Reclaimer with
+a bucket to work a scrap pile, a stump-healer to heal a stump), I *also* have to test it — so I shove the
+part into the player's inventory, or onto the workshop, or straight onto the starting rig. The upshot:
+**the game you start in is permanently in flux**, because I keep vandalizing the opening to make the new
+thing testable. I've never been able to actually *craft* the real starting experience — it's always in a
+weird half-state "I'll get to later."
+
+### The insight: these aren't separate jobs, they're one foundation
+I was listing what I need — a test world vs a real world, save persistence, designed starting state, a
+menu — and they're really **one thing seen from different sides**. A "real world that tracks persistent
+changes" *is* a save. A menu is just the front door that asks *which world do you want — a saved game, a
+new game, or the sandbox?* So I build that once: a **game/save vs sandbox** boundary, with a front door.
+The sandbox keeps every grant-myself-anything affordance I test with; the real game gets none of them. That
+single split is the thing I've actually been missing — it's what lets me stop wrecking the opening to test.
+
+### The bonus: persistence quietly settles the biggest open fork — and kills my Sanctuary doubt
+`world-progression-guidance.md` has had an unresolved fork forever: is the world a **regenerating roguelike
+field** or a **persistent place**? The whole reason that doc invented a *separate* Restoration Sanctuary was
+to protect restoration from a world that regenerates. But if I build a **persistent real world** (which is
+exactly what I'm now proposing), restoration just **lives in the world** — healed ground stays healed because
+the world is saved. **So I don't need a separate sanctuary screen at all. The world IS the tracker.**
+
+That matters because I've been deferring the Sanctuary precisely *because I can't picture why it's fun* — a
+persistent screen with a tree on it that you go look at. I couldn't see the value, and I don't want to build
+something I don't know why anyone would want. Turns out the answer is: I probably *don't* build it — the
+persistent world absorbs its job. Sanctuary stays deferred indefinitely (and might be dissolved outright).
+
+### The keystone: what does restoration actually *give* you? → **(a) the gate, with (c) territory sprinkled in**
+This was the real hole — I'd built the stump-healer but never answered *why* you'd heal, or *when* in the
+progression it happens. The decision this session:
+
+- **(a) Restoration is the gate — the long arc, "what's it all for."** You restore enough of a region to
+  **unlock the road to the next, harder region.** Restoration is the literal key to progression, and the
+  **world map is the tracker** (no trophy screen).
+- **(c) Territory / forward-bases — sprinkled in, the moment-to-moment "why heal THIS stump now."** A healed
+  patch becomes **immediately useful**: a safe haven to park and re-fit, a **forward base** that shortens the
+  drive out to the frontier, a renewable resource spot. The persistent world is what makes a base **stay
+  yours** between sessions.
+
+Why both, not just (a): pure-(a) risks feeling like a **chore tax** ("green 60% before you're allowed
+through"). Sprinkling (c) in means **each individual heal already pays off locally**, so the gate just
+*accumulates* from acts that were worth doing anyway. **Restoration pays at two timescales** — that's the
+engine that makes you *want* to keep doing it.
+
+### The progression spine this gives me (the thing I hadn't figured out)
+> loose scrap → afford the **Reclaimer** → scrap piles (loot + cleared ground) → afford **combat** parts →
+> **looter camps** (best loot + restorable sites) → **heal** a site → **(c)** that patch becomes a forward
+> base / safe resource zone I use right away → enough healed ground in a region → **(a)** the gate to the
+> next region opens.
+
+Every heal pays twice (local base now, region unlock later). That's the answer to "when can they clear a
+pile, when heal a stump, and why."
+
+### The phases (large; detail in the spec)
+0. **Game-state boundary + front-door menu + persistence** — the enabler. New Game / Continue / Sandbox;
+   serialize the real game *including world-content state* (cleared piles, fallen camps, healed stumps +
+   their growth). Stop vandalizing the opening to test.
+1. **The designed cold-open** — now that testing lives in the sandbox, craft the canonical New Game in peace
+   (starting rig, resources, the small curated map, scrap layout, first reachable camp). A legible opening,
+   one obvious first action — not a tutorial yet.
+2. **The progression spine + restoration's purpose** — commit the ladder above; restoration = a-primary +
+   c-sprinkled. *Design it before building Phase 1's opening* (the cold-open teaches the spine's first rung),
+   even though the region-gate *code* lands later with Phase 3.
+3. **The discovery surface** — a **map** (doubles as the restoration tracker), multiple regions gated by
+   restoration, scaling/harder enemies as the difficulty source. Cashes in
+   [`render-scaling-spec.md`](render-scaling-spec.md) (infra that was waiting for exactly this).
+4. **Onboarding / guidance / story** — *deliberately last.* Speech bubbles, arrows, objective prompts, the
+   story thread. It's a separate concern from building mechanisms, and you can't guide a player down a spine
+   that doesn't exist yet. It rides on top of everything.
+
+### Threads to reconcile (not rewriting those docs unilaterally)
+- `world-progression-guidance.md` → the "**persistent vs roguelike**" fork now **leans persistent**, and the
+  **separate Restoration Sanctuary** is **superseded-leaning** (the persistent world absorbs its job). Flagging
+  here; reconcile that doc deliberately later, don't silently rewrite it.
+
+---
+
 ## 2026-06-09 — Deferred thread from the boost & drive-balance spec
 
 **Mode:** a side-idea that surfaced while designing the boost mechanic. The full feature firmed into a
