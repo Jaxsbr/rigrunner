@@ -113,10 +113,101 @@ load by design:* rig HP/boost heat (a reload repairs), composed parts/kits dropp
   progress aren't checkpointed — a save is never a half-fought fight.
 
 ### Phase 1 — The designed cold-open · `pending`
-Now that testing lives in the sandbox, craft the canonical **New Game** in peace.
-- Starting rig, starting resources, the small **curated opening map**, scrap layout, first reachable camp.
-- **Deliverable:** a deliberately **legible opening situation** — when the player spawns, one obvious first
-  action, and the world pulls them toward it. *Not a tutorial yet* (that's Phase 4).
+Now that testing lives in the sandbox, craft the canonical **New Game** in peace. Fleshed out **2026-06-11**
+([`../ideas.md`](../ideas.md) for the voice/why); the calls below are **candidate direction, still movable.**
+
+**The reframe (why this was blocked).** The worry was *"do we even have enough mechanics for a player to get
+going on a cold world?"* — a new player can't tell that driving collects loose scrap, that a pile needs a
+Reclaimer + facing + E, or that a camp can be fought/rammed/disarmed. The resolution: it isn't a **mechanics**
+gap (every verb — collect, rummage, fight/ram, disarm, heal — is built and working; the starter rig already
+mounts storage, and proximity prompts + a `Toast` exist). It's a **legibility** gap, and specifically
+**capability-discovery**: today a prompt only fires *after* you own the tool and are aimed right, so an inert
+object can never teach you what it needs. Phase 1 closes that hole.
+
+**The three legible states (the core model).** Every interactive object (pile, camp, stump) should read
+*without words* in three states. The middle one is the keystone new primitive:
+
+| State | The player reads | Today |
+|---|---|---|
+| **INERT-but-interesting** | "something's here" — a silhouette/heap that pulls the eye | ✅ have it |
+| **LOCKED** | in range, but *"you need X"* — the greyed-out-door cue | ❌ **the one new primitive** |
+| **LIVE** | "do it now" — the existing Hold-E / disarm / heal prompt | ✅ have it |
+
+The **LOCKED cue is a small, well-defined deliverable**: today, missing the tool → *nothing*; capable → a
+**green circle + bottom-UI key hint**. LOCKED is the obvious sibling — intersecting but unable to act shows a
+**faint dim-grey circle + the same bottom hint, reading "Needs Reclaimer…".** Same UI shape, three states.
+The piece that turns every LOCKED into a *goal* is **the shop as catalog**: self-describing entries
+("Reclaimer — digs scrap piles") let *browsing the shop* teach the whole possibility space.
+
+**Teaching = arrangement, with one sanctioned popup.** Phase 1 teaches **silently, by arrangement** (spawn
+placement, the LOCKED cue, the self-describing shop) — **not** by narration. The single exception: the
+workshop is the player's **home base**, and the first time its shop opens it gets a **text popup** explaining
+it (the base introducing itself once). This redraws the **Phase 1 ↔ Phase 4 boundary**: *Phase 1 = teach by
+**arrangement** (silent, world + shop); Phase 4 = teach by **narration** (text/arrows/story), an enhancement
+layer on top of an opening that already works.* Phase 1 is allowed to teach — just not with words.
+
+**The world — a safe bowl, contained by danger, with an outpost as the carrot.** The opening map is a small
+**hub-centric bowl** — a *safe zone* with the workshop near the middle. Outside, enemy presence is
+significant; the player is **free to drive out** with a weak rig (dodge if you can), the world just makes it
+cost. Two deliberate scope calls (2026-06-11) shape its edges:
+
+- **No fuel in Phase 1.** The bowl is contained by **danger alone** — no range-limit, no rescue-on-empty.
+  (The fuel/rescue idea — run dry → auto-rescued to the workshop, forfeiting X scrap, which doubles as the
+  "upgrade energy first" teacher — is **parked as the bowl's later, kinder second edge**, *not* Phase 1.)
+- **The bowl wall is visual only.** A wreckage wall is great for *directing the eye*, but we have **no
+  physical collision yet**, so it can't block. Real physical blockers are their own future job, not Phase 1.
+- **The outpost IS a Phase 1 deliverable.** The bowl needs a *destination*. An **outpost** out in the danger —
+  a **forward base** that expands what you can buy/do — is the carrot: the safe zone teaches the basics and
+  funds upgrades → the outpost is the goal → reaching it safely needs the armour/weapons that funded it. This
+  is the spine's **(c) territory / forward-base** payoff as the cold-open's pull. *Proposed minimum shape (so
+  it isn't a new system):* the outpost = **the first cleared camp flipped into a forward base** — clearing it
+  *establishes* a safe re-fit point near the frontier, reusing camps + the `cleared` signal + `RestorableSite`
+  already shipped.
+- **The outpost's core role: it unlocks new parts to *buy*.** Finding an outpost **expands the shop's stock**,
+  and new parts are what drive progression. Phase 1's initial (home) shop is there to **teach that concept** —
+  the player learns that *finding outposts unlocks the ability to purchase new parts.* More broadly,
+  **progressively unlocking shop stock is a deliberate progression lever**: across the game, what the shop
+  offers is enriched via these **outpost mechanisms** *or* via **other trigger mechanisms (TBD — captured, not
+  chosen)**. Outposts are the first known trigger; "unlock more of the shop" is the lever.
+
+**What Phase 1 quietly contains: the spine's first traversal.** Because the outpost is the climax, the
+cold-open is the opening *and* the spine's first arc: collect scrap → buy **Reclaimer** (rung 1) → work piles
+→ buy **weapon/armour** (rung 2) → survive the danger gradient → **claim the outpost** (rung 3, the territory
+payoff). This is more than "one obvious first action."
+
+**Cold-open choreography (the first ~90 seconds).**
+1. **Spawn inside a dense ring of loose scrap**, workshop visible a short drive away. First movement sweeps a
+   piece → HUD ticks → *"I collect by driving."* (Rung 0 self-teaches; storage is already mounted.)
+2. **One scrap pile sits on the path to the workshop**, showing the **LOCKED "Needs Reclaimer"** cue as you
+   pass. The question is planted.
+3. **The path leads to the workshop**; parking opens the shop (with its first-open popup), where the Reclaimer
+   entry *answers* the question. Buy → mount → return → work the pile (rung 1).
+4. **A camp/outpost sits visible but farther out** — INERT silhouette = "later." Its threat teaches the
+   stakes; the shop teaches the solution (a weapon). Clearing it establishes the outpost (rung 2 → 3).
+
+**Deliverables (the firmed list).**
+- **The LOCKED-state cue** — dim-grey circle on intersection + "Needs X…" bottom hint (mirrors the green/LIVE
+  state). *The one genuinely-new bit of code.*
+- **Self-describing shop entries** + the **first-open workshop/shop popup** (which also teaches that *finding
+  outposts unlocks new parts to buy*).
+- **The designed cold-open seed** — starting rig/resources, the small bowl, scrap-ring spawn, the on-path
+  pile, the danger gradient, the camp-that-becomes-the-outpost. (Replaces `real-game.ts`'s provisional seed.)
+- **Starting-stake tuning** — lower it so loose-scrap collection is a *required* first step (see catch below).
+- **The outpost** — the first cleared camp flips into a forward base that **unlocks new purchasable parts** (the
+  first instance of shop-unlock-as-progression).
+
+**Tuning risks / catches to carry into the build.**
+- **The danger gradient is the sole pacer.** With no fuel, "enemies between the bowl and the outpost are
+  lethal to a starter rig" must do the gating work fuel-range would have shared — punchy enough to teach "gear
+  up first," not so punishing it's just frustrating.
+- **The starting stake over-funds rung 1.** `createPlayerStore(world, 100)` vs a **36**-scrap Reclaimer (arm
+  24 + bucket 12) lets a new player skip the rung-0 collect lesson. Lower it to make collecting required.
+
+**Open questions (resolve at build time).** The **other** shop-unlock *trigger mechanisms* beyond outposts
+(TBD — the outpost answers "what does it expand?" = it unlocks new purchasable parts; what *else* triggers an
+unlock is open); how unlocked stock is represented/gated, and whether an outpost also grants a closer re-fit
+point on top of the shop-unlock; the bowl's size + danger-gradient numbers; whether ramming is left as a pure
+emergent discovery (lean: yes — the intended path, a bought weapon, is shop-taught).
 
 ### Phase 2 — The progression spine + restoration's purpose · `pending` *(the keystone)*
 Commit the §1 ladder; restoration purpose = §2 (a-primary + c-sprinkled).
@@ -132,7 +223,9 @@ Give the player somewhere to progress *to*.
 - **Cashes in** [`render-scaling-spec.md`](render-scaling-spec.md) — infrastructure written for exactly this.
 
 ### Phase 4 — Onboarding / guidance / story · `pending` *(deliberately last)*
-Lead the player down the now-defined spine.
+Lead the player down the now-defined spine. **This is the *narration* layer** — the silent, teach-by-
+*arrangement* legibility (the three-state cue, the self-describing shop, the cold-open choreography) lives in
+**Phase 1**; Phase 4 adds words on top of an opening that already works for an attentive player.
 - Speech bubbles, arrows, objective prompts, the story thread.
 - **Last on purpose:** a separate concern from building mechanisms; you can't guide a player down a spine
   that doesn't exist yet. It rides on top of Phases 1–3.
