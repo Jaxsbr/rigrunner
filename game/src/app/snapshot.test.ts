@@ -3,8 +3,10 @@ import { World } from '@core/world';
 import { seedStaticWorld, seedNewGameContent } from './scenarios/real-game';
 import { captureSnapshot, restoreSnapshot, SNAPSHOT_VERSION } from './snapshot';
 import { getWallet } from '@features/economy/wallet';
-import { getActiveRig, ownedChassis } from '@features/chassis/ownership';
+import { getActiveRig, ownedChassis, setActiveRig } from '@features/chassis/ownership';
 import { mountedPartsOn } from '@features/mounting/mounting';
+import { deployChassis } from '@features/mounting/rig';
+import { chassisParts } from '@features/chassis/chassis';
 import { spawnStumpFromSave } from '@features/restoration/restoration-persistence';
 import { ScrapPile } from '@features/scrap/scrap-pile';
 import { Camp } from '@features/camps/camp';
@@ -14,7 +16,7 @@ import { Storage } from '@common/components/storage';
 import { workshopEntity, stagedProducts, stageProduct } from '@features/workshop/staging';
 import { getBench, loadRecipe, placeOnBench } from '@features/workshop/bench';
 import { composeProduct } from '@common/sim/assembly';
-import { STORAGE_RECIPE } from '@common/parts/recipes';
+import { STORAGE_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 
 /**
@@ -107,5 +109,22 @@ describe('game snapshot round-trip', () => {
     const bench = getBench(b)!;
     expect(bench.recipeId).toBe(STORAGE_RECIPE.id);
     expect(bench.slots[partDef('container-shell')!.slot]).not.toBeNull();
+  });
+
+  it('restores multiple owned rigs, each loadout, and which one was active', () => {
+    const a = seedRealGame(); // 1 owned rig (the starter, engine + storage), active
+    // Deploy a second, bare chassis and switch control to it.
+    const kit = composeProduct(a, chassisRecipeForSize('1x3'), chassisParts('1x3'));
+    deployChassis(a, kit, 20, 5);
+    setActiveRig(a, ownedChassis(a)[1]!);
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const owned = ownedChassis(b);
+    expect(owned.length).toBe(2);
+    expect(getActiveRig(b)).toBe(owned[1]); // the active selection round-trips
+    // Loadouts are per-rig: the starter keeps its engine + storage, the deployed one stays bare.
+    expect(mountedPartsOn(b, owned[0]).length).toBe(2);
+    expect(mountedPartsOn(b, owned[1]).length).toBe(0);
   });
 });
