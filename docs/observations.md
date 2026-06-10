@@ -470,3 +470,73 @@ world the hard way.
 chunked/streamable terrain sharing the chunk grain, then bounding decals; LOD/occlusion deferred) lives in
 [`specs/render-scaling-spec.md`](specs/render-scaling-spec.md). It's infrastructure that **serves** the
 **Hybrid chunk-assembly world** milestone (guidance §1), not a player-facing feature.
+
+---
+
+## 16. Looter camps land — the flee-or-fight content feels done
+
+**Context:** A play session after the looter-camps Phases 1–3 shipped (PRs #55–#57) — driving out,
+engaging/evading a camp, clearing it, and arming/disarming the trap. *(Captured 2026-06-08; landed late —
+its branch was parked.)*
+
+**Observation:** Camps **feel done** as a system. They're functional, they **look decent**, they're
+**properly clearable**, and the **trap is genuinely designable** (arm/disarm reads as a real puzzle, not
+a flag flip). As a content + **flee-or-fight** pillar this is the first thing in the game that gives the
+rig a real reason to fight or run, and it delivers.
+
+**Why it matters:** It's a positive baseline to build on rather than a problem to fix — worth recording
+so we don't accidentally re-open what already works. The *remaining* camp work is additive (Phase 4 more
+camp levels + the scaling-enemy hook, and the restoration investment that consumes the `RestorableSite`),
+not corrective.
+
+**Status:** GOOD — no action. The shipped camp loop is a keeper. *(Since capture, the restoration
+investment has begun consuming the `RestorableSite` — the stump-healer, `features/restoration/`.)*
+
+---
+
+## 17. The build has no balance and nothing is gated behind progression yet
+
+**Context:** Reflecting on the workshop / parts economy across build sessions. *(Captured 2026-06-08;
+landed late — its branch was parked.)*
+
+**Observation:** Rig and part building **isn't balanced in any way**. Parts are simply *available*, and a
+handful have enough scrap behind them to buy — but there's no real cost curve, no power balance between
+options, and **nothing is gated behind progression**. You're not earning your way *up* anything; the
+catalog is just open. This is fine for proving the loop (and was the right shortcut to get here), but it's
+clearly a placeholder, not a designed economy.
+
+**Why it matters:** The "I know exactly what to change" loop only has teeth if upgrades are *meaningfully*
+ranked and *earned*. Without balance, choices don't trade off against each other; without gating, there's
+no progression spine for them to climb. This is a load-bearing system that's still entirely stubbed.
+
+**Status:** NOTED — a known gap, not yet a committed work item. *(Since capture, the answer's shape has
+firmed considerably: the 2026-06-10 session produced the **progression spine** and the phased plan in
+[`specs/real-world-and-progression-spec.md`](specs/real-world-and-progression-spec.md) — Phase 0, the
+game/sandbox split + persistence, has shipped; Phase 2 is where this balance/gating gap gets closed.)*
+
+---
+
+## 18. Nothing happens under the wheels — a cheap, absent feel-win (terrain track marks)
+
+**Context:** Driving the rig around the field, watching what the ground does in response. (Nothing.)
+*(Captured 2026-06-08; landed late — its branch was parked.)*
+
+**Observation:** Anything that moves on wheels or tracks **leaves no mark on the terrain.** There's no
+trace that you drove somewhere — the ground is inert under the rig. This is a **small** thing that would
+add a **lot** to the feel (driving should *write* on the world, even faintly), and it's **completely
+missing**. The fix is cheap: we already lay **fading radial ground decals** for scrap seepage and camp
+mess (`features/scrap/scrap-stains.ts`, `features/camps/camp-stains.ts`) as zero-coupling render-layer
+collaborators — a track-layer is the same pattern, a trail of fading decals dropped behind the rig off
+the drive movement seam.
+
+**Why it matters:** Driving is half the loop, and a moving machine that leaves no impression reads cheap
+— the world doesn't acknowledge you're there. It's also the **concrete visual seed of world restoration**:
+per `world-progression-guidance.md` §3a, the mark eventually becomes an earned, part-/resource-fed
+**life-trail** that *greens* the ground. So the same surface buys near-term feel *and* opens the door to
+the restoration through-line.
+
+**Status:** DONE — shipped since capture, exactly as sketched: tread trails landed via
+[`specs/track-marks-spec.md`](specs/track-marks-spec.md) (`features/tracks/`, the `TrackEmitter` seam a
+future life-trail part plugs into). The mechanism design lives in `ideas.md` **2026-06-08**; the
+restoration-attributing trail remains captured in guidance §3a. Continues the captured "residual scorch"
+extension in [`specs/scrap-stain-decals-spec.md`](specs/scrap-stain-decals-spec.md) §7.
