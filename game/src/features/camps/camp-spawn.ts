@@ -96,3 +96,34 @@ export function spawnCamp(world: World, x: number, z: number, level = 1): Entity
 
   return camp;
 }
+
+// ── Persistence (the durable half of a camp) ─────────────────────────────────────────────────────
+
+/** A standing camp's saved state — its position and level respawn it whole (guards, decor, cache). */
+export interface CampSave {
+  x: number;
+  z: number;
+  level: number;
+}
+
+/**
+ * Describe every camp still worth saving — those not yet cleared. A CLEARED camp is omitted here: it
+ * is represented by the sprout it left (a `RestorableSite`, saved on the restoration side). A camp
+ * caught mid-clear (`disarmable`) saves as a standing camp and respawns fully armed — combat progress
+ * isn't checkpointed, by design, so a save is never a half-fought fight.
+ */
+export function describeCamps(world: World): CampSave[] {
+  const out: CampSave[] = [];
+  for (const c of world.query(Camp, Transform)) {
+    const camp = world.get(c, Camp)!;
+    if (camp.state === 'cleared') continue;
+    const t = world.get(c, Transform)!;
+    out.push({ x: t.x, z: t.z, level: camp.level });
+  }
+  return out;
+}
+
+/** Respawn a standing camp from its save — the same builder a new game seeds with. */
+export function spawnCampFromSave(world: World, d: CampSave): EntityId {
+  return spawnCamp(world, d.x, d.z, d.level);
+}

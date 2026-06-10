@@ -100,8 +100,8 @@ rigrunner/
                           #     render/ input/ — see the admission rule below
       features/           #   vertical slices, ONE folder per mechanic — open one, see the whole thing:
                           #     drive engine mounting scrap storage workshop economy hud camps (tests co-located)
-      app/                #   COMPOSITION-ROOT tier — the cross-feature importers (ADR-003): bootstrap
-                          #     (engine + frame loop) · scenarios/ (sandbox | real-game world seeds) · menu · persistence
+      app/                #   COMPOSITION-ROOT tier — the cross-feature importers (ADR-003): bootstrap (engine +
+                          #     frame loop) · scenarios/ (sandbox | real-game seeds) · menu · snapshot+persistence (ADR-004)
       main.ts             #   front door — picks the world by launch mode (dev:sandbox→test, else menu→real),
                           #     then hands a seeded world to bootstrap
   viewer/                 # asset viewer — inspect any GLB in isolation           -> npm run dev:viewer
