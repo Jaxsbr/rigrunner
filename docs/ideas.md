@@ -11,6 +11,115 @@ Each session: dated, in Jaco's voice as faithfully as possible, organized into t
 
 ---
 
+## 2026-06-11 — Can a cold world even *start*? (legibility, the safe bowl, the outpost)
+
+**Mode:** I sat down to start Phase 1 (the designed cold-open) and got cold feet — so this turned into
+design. Status: several calls firmed up here, but keep them as **candidate direction**, not enshrined in
+`CLAUDE.md`. The structured version is folded into Phase 1 of
+[`specs/real-world-and-progression-spec.md`](specs/real-world-and-progression-spec.md); this is the voice/why.
+
+### What sparked it — do we even have enough to start a player on a cold world?
+I wanted to build Phase 1, but I kept snagging on a worry: when a *new* player spawns in the desert with a
+rig, do they actually have what they need to *get going*? Walking through what's in the world:
+
+1. **Loose scrap** — you collect it by driving over it. But the player doesn't *know* that unless they
+   already have a storage container and somehow know driving over scrap collects it.
+2. **Scrap piles** — they'll notice them but have no idea how to interact. You need a Reclaimer (bought in
+   the shop), and then either a tutorial telling you to face the pile and press E, or you drive over it by
+   chance with the reclaimer aimed right — which is unlikely and annoying.
+3. **Enemy camps** — with a weapon you can kill the guards; if you know you can ram or drive over them you
+   don't even need a weapon. But without a reclaimer you wouldn't know you can disarm the camp either.
+
+So there's a stack of things you must *know* before you can progress, and the player might never figure them
+out — they could drive miles from spawn, find nothing, and quit asking "what's the point?" I wasn't sure
+what mechanisms we actually need before I can even design the new world.
+
+### The reframe that unstuck me: it's not a *mechanics* gap, it's a *legibility* gap
+Every world-interaction verb is already built and working — drive-over-collect, hold-E rummage,
+flee/fight/ram, disarm, heal. And we already have more teaching primitives than I'd remembered: the starter
+rig **already has storage mounted** (so "drive over scrap → it sweeps in" works from frame one), there's a
+**Toast** for one-off events, and a whole family of proximity prompts (scrap "Hold E", disarm, heal, pack).
+
+What we're *actually* short on is **one specific thing: capability-discovery** — telling the player what an
+inert object *needs* **before they own the tool**. Today a prompt only ever fires *after* you have the
+capability and are aimed right. The scrap pile is dead silent until you own a Reclaimer — so the pile can
+never teach you that a Reclaimer is the answer. That one hole is the source of all three worries above.
+
+### The frame I want to build Phase 1 around: every object reads in three states
+Without any words, every interactive object (pile, camp, stump) should be readable in three states:
+
+- **INERT-but-interesting** — "something's here" (a silhouette/heap that pulls the eye). ✅ have it.
+- **LOCKED** — in range, but *"you need X."* The greyed-out-door cue. ❌ **this is the missing primitive.**
+- **LIVE** — "do it now" (the existing Hold-E / disarm / heal prompt). ✅ have it.
+
+Right now we jump straight from INERT → LIVE. The **LOCKED state is the keystone Phase-1 deliverable.** And
+concretely: today when you're missing the parts/conditions, *nothing happens*; when you *can* interact you
+get a nice **green circle + a bottom-UI hint** for the key to press. So LOCKED is just the obvious sibling —
+when you intersect but can't act, show a **faint dim-grey circle** + the same bottom hint, now reading
+**"Needs Reclaimer…".** Same UI shape, three states, no tutorial.
+
+The piece that turns every LOCKED into a *goal* is the shop: **the shop is the catalog.** If shop entries
+describe themselves ("Reclaimer — digs scrap piles"), browsing the shop teaches the whole possibility space.
+See a LOCKED pile → "needs Reclaimer" → go to the shop → there it is, that's what it's for → buy → return.
+
+### Teach by *arrangement*, with one sanctioned popup
+I want Phase 1 to teach **silently, by arrangement** — spawn placement, the LOCKED cue, the self-describing
+shop — *not* by narration (text/arrows/story stay Phase 4). The **one** exception I'll allow: the workshop
+is the player's **home base**, and the first time its shop opens it gets a **text popup** explaining it.
+That's the home base introducing itself once — defensible, not a tutorial creeping across the whole opening.
+
+This also lets me redraw the Phase 1 ↔ Phase 4 line that was tripping me. **Phase 1 = teach by arrangement
+(silent, world + shop).** **Phase 4 = teach by narration (text/arrows/story), an enhancement layer on top of
+an opening that already works.** Phase 1 *is* allowed to teach — just not with words.
+
+### The world: a safe **bowl**, contained by **danger**, with an **outpost** as the carrot
+The opening map is a small **hub-centric bowl** — a *safe zone* with the workshop near the middle. Outside
+the bowl, enemy presence is significant; going out there needs armour and weapons to survive. I like that
+the player is **free to drive out anyway** — dodge enemies with a weak rig if you want, that's fine — the
+world just makes it cost.
+
+- **No fuel in Phase 1 (decided this session).** I *was* picturing fuel/energy as the thing that limits how
+  far a rig can go — run dry and you get **auto-rescued back to the workshop, forfeiting X scrap** for the
+  recovery. I still love that (it doubles as the "upgrade your energy system first" teacher — a felt sting,
+  not a tooltip). But I don't want to build fuel into Phase 1. So for now the bowl is contained by **danger
+  alone**, and the **fuel/rescue idea is parked as the *second, kinder edge* the bowl gets later.**
+- **The wall is visual only.** A wall of wreckage round the bowl is great for *directing the eye*, but **we
+  have no physical collision yet** — so it can't actually block anything. Real physical blockers need a
+  collision system; that's its own future job, not Phase 1's containment.
+- **The outpost is a Phase 1 deliverable (decided this session).** The bowl needs a *destination*, not just
+  an edge. An **outpost** out in the danger — a **forward base** that expands what you can buy/do — is the
+  carrot that pulls you out: the safe zone teaches the basics and funds upgrades → the outpost is the goal →
+  reaching it safely needs the armour/weapons the safe zone funded. That's the spine's **(c) territory /
+  forward-base** payoff showing up as the cold-open's pull. (Proposed *minimum* shape so it isn't a whole new
+  system: the outpost = **the first cleared camp, flipped into a forward base** — clearing it doesn't just
+  drop loot, it *establishes* a safe re-fit point near the frontier and **expands the shop**. Reuses camps +
+  the `cleared` signal + `RestorableSite` we already ship. Open question: what exactly "expands what you can
+  buy/do" means.)
+
+### What this all means for Phase 1's edges (the honest scope)
+Putting the calls together, Phase 1 quietly contains **the first traversal of the spine**, not just "one
+obvious first action": collect scrap → buy Reclaimer (rung 1) → work piles → buy weapon/armour (rung 2) →
+survive the danger gradient → **claim the outpost** (rung 3, the forward base). The cold-open *is* the
+opening **and** the spine's first arc, ending on the territory payoff.
+
+- **The tuning risk to watch:** with **no fuel** and the **outpost as the carrot**, the *danger gradient is
+  the only thing pacing the player.* So "enemies between the bowl and the outpost are lethal to a starter
+  rig" has to do the gating work fuel-range would otherwise have shared — punchy enough that a weak rig
+  learns "gear up first," not so punishing it's just frustrating.
+- **A catch I found reading the seed:** the starting stake **over-funds rung 1.** `createPlayerStore(world,
+  100)` but the Reclaimer is only **36** (arm 24 + bucket 12). A new player can buy it without collecting a
+  single loose scrap — which **skips the rung-0 lesson.** If the spine should teach in order, lower the stake
+  so collecting loose scrap is a *required* first step.
+
+### So — is Phase 1 ready to start?
+Yes. The mechanics are all there; Phase 1's real work is **the legibility layer + the choreography** (plus
+the outpost as its climax). The only genuinely-new code is small: the **LOCKED-state cue** (dim-grey circle +
+"Needs X") and the **self-describing shop / first-open popup.** Everything else is arrangement, copy, and
+tuning. Fuel, rescue-on-empty, and physical collision are real future mechanisms — captured here, deliberately
+*not* in Phase 1.
+
+---
+
 ## 2026-06-10 — From a sandbox-I-test-in to a game-someone-plays (real world · persistence · the progression spine)
 
 **Mode:** a status-check that turned into design. Status: a lot of these firmed up in the session — the
