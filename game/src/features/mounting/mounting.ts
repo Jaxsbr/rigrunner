@@ -135,6 +135,24 @@ export function hasMountedParts(world: World, rig: EntityId): boolean {
   return false;
 }
 
+/**
+ * Every part mounted on `rig`, with the cell and facing yaw it sits at — the read inverse of
+ * `mountPart`. Persistence snapshots a rig's loadout through this so each mounted product can be
+ * re-mounted at the same cell and facing on load. `yaw` is enumerated, not dropped: a part's facing
+ * is load-bearing (a gun fires the way it points), so a restored rig must keep it.
+ */
+export function mountedPartsOn(
+  world: World,
+  rig: EntityId,
+): { part: EntityId; col: number; row: number; yaw: number }[] {
+  const out: { part: EntityId; col: number; row: number; yaw: number }[] = [];
+  for (const p of world.query(Part, Mount)) {
+    const m = world.get(p, Mount)!;
+    if (m.rig === rig) out.push({ part: p, col: m.col, row: m.row, yaw: m.yaw });
+  }
+  return out;
+}
+
 /** Does this rig have at least one mounted part of the given kind? (Drives the engine gate.) */
 export function hasMountedPartKind(world: World, rig: EntityId, kind: PartKind): boolean {
   for (const p of world.query(Part, Mount)) {

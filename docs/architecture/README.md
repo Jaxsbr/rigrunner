@@ -29,3 +29,4 @@ Consequences · Anti-pattern this prevents.**
 | [001](adr-001-canonical-grid-snap.md) | One canonical grid-snap; `mounting.ts` owns cell geometry | Accepted |
 | [002](adr-002-shared-three-canvas-host.md) | One shared three.js canvas host for 3D widgets | Accepted |
 | [003](adr-003-feature-first-src-structure.md) | Feature-first `game/src/` structure (three tiers + features) | Accepted |
+| [004](adr-004-semantic-snapshot-persistence.md) | Persistence is a semantic snapshot, not a component dump | Accepted |

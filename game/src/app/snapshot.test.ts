@@ -1,0 +1,207 @@
+import { describe, it, expect } from 'vitest';
+import { World } from '@core/world';
+import { seedStaticWorld, seedNewGameContent } from './scenarios/real-game';
+import { captureSnapshot, restoreSnapshot, SNAPSHOT_VERSION } from './snapshot';
+import { getWallet } from '@features/economy/wallet';
+import { getActiveRig, ownedChassis, setActiveRig } from '@features/chassis/ownership';
+import { mountedPartsOn } from '@features/mounting/mounting';
+import { deployChassis } from '@features/mounting/rig';
+import { chassisParts } from '@features/chassis/chassis';
+import { spawnStumpFromSave } from '@features/restoration/restoration-persistence';
+import { ScrapPile } from '@features/scrap/scrap-pile';
+import { Collectible } from '@features/scrap/collectible';
+import { Transform } from '@common/components/transform';
+import { Camp } from '@features/camps/camp';
+import { campSystem } from '@features/camps/camp-system';
+import { Enemy } from '@features/camps/enemy';
+import { Dissolving } from '@features/scrap/dissolving';
+import { LootDrop } from '@common/components/loot-drop';
+import { Healable } from '@features/restoration/healable';
+import { RestorableSite } from '@common/components/restorable-site';
+import { Storage } from '@common/components/storage';
+import { workshopEntity, stagedProducts, stageProduct } from '@features/workshop/staging';
+import { getBench, loadRecipe, placeOnBench } from '@features/workshop/bench';
+import { composeProduct } from '@common/sim/assembly';
+import { STORAGE_RECIPE, chassisRecipeForSize } from '@common/parts/recipes';
+import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
+
+/**
+ * The semantic-snapshot save round-trip (Phase 0). The localStorage layer no-ops headless, so these
+ * exercise the capture/restore seam directly — proving that banked + unbanked scrap, the rig and its
+ * mounted loadout, the standing world, and a healed stump all survive a capture → rebuild. That is what
+ * makes Continue mean "the world remembers what I did", not just "my scrap total".
+ */
+function seedRealGame(): World {
+  const w = new World();
+  seedStaticWorld(w);
+  seedNewGameContent(w);
+  return w;
+}
+
+function continueFrom(snap: ReturnType<typeof captureSnapshot>): World {
+  const w = new World();
+  seedStaticWorld(w);
+  restoreSnapshot(w, snap);
+  return w;
+}
+
+describe('game snapshot round-trip', () => {
+  it('restores the wallet and the active rig with its mounted loadout', () => {
+    const a = seedRealGame();
+    getWallet(a)!.scrap = 250;
+
+    const snap = captureSnapshot(a);
+    expect(snap.version).toBe(SNAPSHOT_VERSION);
+
+    const b = continueFrom(snap);
+    expect(getWallet(b)!.scrap).toBe(250);
+    expect(ownedChassis(b).length).toBe(1);
+    const rig = getActiveRig(b);
+    expect(rig).not.toBeNull();
+    expect(mountedPartsOn(b, rig!).length).toBe(2); // the starter's engine + storage
+  });
+
+  it('restores unbanked container scrap, a partly-dug pile, the camp, and stump growth', () => {
+    const a = seedRealGame();
+
+    // Dig one pile down, bank some scrap into the mounted container, and grow a stump halfway.
+    const firstPile = a.query(ScrapPile)[0]!;
+    a.get(firstPile, ScrapPile)!.remaining = 3;
+    const storageMount = mountedPartsOn(a, getActiveRig(a)!).find((m) => a.get(m.part, Storage));
+    a.get(storageMount!.part, Storage)!.amount = 2;
+    spawnStumpFromSave(a, { x: 5, z: 5, rotationY: 0, kind: 'scrap', sourceLevel: 0, growth: 0.5 });
+
+    const b = continueFrom(captureSnapshot(a));
+
+    // The world content: three piles still standing (one dug to 3), the camp, and the healed stump.
+    expect(b.query(ScrapPile).length).toBe(3);
+    expect(b.query(ScrapPile).map((p) => b.get(p, ScrapPile)!.remaining)).toContain(3);
+    expect(b.query(Camp).length).toBe(1);
+
+    const stumps = b.query(RestorableSite);
+    expect(stumps.length).toBe(1);
+    expect(b.get(stumps[0]!, Healable)?.growth).toBe(0.5);
+
+    // Unbanked scrap sitting in the mounted container survives the reload.
+    const storageB = mountedPartsOn(b, getActiveRig(b)!).map((m) => b.get(m.part, Storage)).find(Boolean);
+    expect(storageB!.amount).toBe(2);
+  });
+
+  it('restores a container staged on the workshop deck mid-drain (with its scrap)', () => {
+    const a = seedRealGame();
+    // Stage a half-full container on the workshop deck — the state the workshop drain banks from, and
+    // the one a refresh-then-Continue used to drop (it's mounted on the workshop, not an owned chassis).
+    const workshopA = workshopEntity(a)!;
+    const container = composeProduct(a, STORAGE_RECIPE, ['container-shell', 'container-rim'].map((id) => partDef(id)!));
+    stageProduct(a, container, workshopA, 0, 0);
+    a.get(container, Storage)!.amount = 3;
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const staged = stagedProducts(b, workshopEntity(b)!);
+    expect(staged.length).toBe(1);
+    expect(b.get(staged[0]!, Storage)?.amount).toBe(3);
+  });
+
+  it('restores parts left mid-assembly in bench slots', () => {
+    const a = seedRealGame();
+    // A part dropped into a bench slot mid-build — owned, but in neither rig, deck, nor inventory.
+    const shell = spawnCatalogPart(a, partDef('container-shell')!);
+    loadRecipe(a, STORAGE_RECIPE.id, STORAGE_RECIPE.slots.map((s) => s.slot));
+    placeOnBench(a, partDef('container-shell')!.slot, shell);
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const bench = getBench(b)!;
+    expect(bench.recipeId).toBe(STORAGE_RECIPE.id);
+    expect(bench.slots[partDef('container-shell')!.slot]).not.toBeNull();
+  });
+
+  it('restores multiple owned rigs, each loadout, and which one was active', () => {
+    const a = seedRealGame(); // 1 owned rig (the starter, engine + storage), active
+    // Deploy a second, bare chassis and switch control to it.
+    const kit = composeProduct(a, chassisRecipeForSize('1x3'), chassisParts('1x3'));
+    deployChassis(a, kit, 20, 5);
+    setActiveRig(a, ownedChassis(a)[1]!);
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const owned = ownedChassis(b);
+    expect(owned.length).toBe(2);
+    expect(getActiveRig(b)).toBe(owned[1]); // the active selection round-trips
+    // Loadouts are per-rig: the starter keeps its engine + storage, the deployed one stays bare.
+    expect(mountedPartsOn(b, owned[0]).length).toBe(2);
+    expect(mountedPartsOn(b, owned[1]).length).toBe(0);
+  });
+
+  it('restores leftover loose-scrap pieces at their exact spots (not a re-scatter)', () => {
+    const a = seedRealGame(); // the New-Game field of loose scrap is scattered
+
+    const positions = (w: World): string[] =>
+      w.query(Collectible).map((e) => {
+        const t = w.get(e, Transform)!;
+        return `${t.x.toFixed(4)},${t.z.toFixed(4)}`;
+      }).sort();
+
+    const before = positions(a);
+    expect(before.length).toBeGreaterThan(0);
+
+    const b = continueFrom(captureSnapshot(a));
+
+    // Same count AND same positions — the actual pieces persist, not a fresh random field.
+    expect(positions(b)).toEqual(before);
+  });
+
+  it('keeps killed camp guards dead across Continue', () => {
+    const a = seedRealGame(); // one level-1 camp with its guard ring
+    const guardsBefore = a.query(Enemy).length;
+    expect(guardsBefore).toBeGreaterThan(1);
+    a.destroyEntity(a.query(Enemy)[0]!); // kill one guard
+
+    const b = continueFrom(captureSnapshot(a));
+
+    expect(b.query(Enemy).length).toBe(guardsBefore - 1); // the kill persisted — not revived
+  });
+
+  it('restores a camp whose guards were all killed as disarmable, with none revived', () => {
+    const a = seedRealGame();
+    for (const e of [...a.query(Enemy)]) a.destroyEntity(e); // clear the whole guard ring
+
+    const b = continueFrom(captureSnapshot(a));
+
+    expect(b.query(Enemy).length).toBe(0);
+    // The restore leaves state to the state machine: the first sim tick flips a guardless camp
+    // guarded→disarmable through campSystem (its single owner), before anything reads it that frame.
+    campSystem(b, 0.016);
+    expect(b.get(b.query(Camp)[0]!, Camp)!.state).toBe('disarmable');
+  });
+
+  it('omits a fully-rummaged pile but keeps the stump it left', () => {
+    const a = seedRealGame(); // 3 piles
+    // Empty one pile (the post-rummage state: depleted, mid-dissolve) — its stump already stands.
+    const spent = a.query(ScrapPile)[0]!;
+    const st = a.get(spent, Transform)!;
+    a.get(spent, ScrapPile)!.remaining = 0;
+    a.add(spent, Dissolving, { elapsed: 0 });
+    spawnStumpFromSave(a, { x: st.x, z: st.z, rotationY: 0, kind: 'scrap', sourceLevel: 0, growth: 0 });
+
+    const b = continueFrom(captureSnapshot(a));
+
+    expect(b.query(ScrapPile).length).toBe(2);     // the spent heap is gone for good
+    expect(b.query(RestorableSite).length).toBe(1); // its stump survives, healable
+  });
+
+  it('keeps an uncollected loot drop pending across Continue', () => {
+    const a = seedRealGame();
+    const drop = a.createEntity();
+    a.add(drop, LootDrop, { scrap: 7, finds: [{ tierId: 'common', rarity: 'common', itemId: 'container-rim' }] });
+
+    const b = continueFrom(captureSnapshot(a));
+
+    const drops = b.query(LootDrop);
+    expect(drops.length).toBe(1);
+    const d = b.get(drops[0]!, LootDrop)!;
+    expect(d.scrap).toBe(7);
+    expect(d.finds).toEqual([{ tierId: 'common', rarity: 'common', itemId: 'container-rim' }]);
+  });
+});

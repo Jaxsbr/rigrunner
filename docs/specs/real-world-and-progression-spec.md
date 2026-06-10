@@ -75,16 +75,42 @@ only if a real need appears that the world map can't serve.
 
 All `pending` / candidate / movable. Cut each into a deliberately-minimum first slice when picked up.
 
-### Phase 0 — Game-state boundary + front-door menu + persistence · `pending`
+### Phase 0 — Game-state boundary + front-door menu + persistence · `done`
 The **enabler** — unblocks everything by giving testing its own room.
-- A **game/save** vs **sandbox** distinction; a menu: **New Game · Continue · Sandbox**.
-- **Persistence:** serialize/restore the real game's state — wallet, inventory, rig config, **and
-  world-content state** (which piles are cleared, which camps fell, which stumps are healed + their growth).
-- The **sandbox keeps** every grant-myself-anything testing affordance used today; the **real game gets none**.
-- **Technical seam:** deciding what "game state" *is* (which ECS components serialize). The restoration slice
-  already stores `growth` in `Healable` and emits `RestorableSite`, so the world-state half is "serialize the
-  relevant components" — the seam exists, the scope is defining its boundary.
-- **The win:** stop vandalizing the starting experience to test.
+
+**The split (launch-time, not a menu button):** `npm run dev:sandbox` boots straight into the
+grant-everything test world; `npm run dev:game` opens a **New Game / Continue** menu, then the real game.
+One Vite app, the command differs only by `--mode sandbox`. The old welded composition root is split into
+an `app/` tier — `bootstrap` (the invariant engine + frame loop), `scenarios/` (`sandbox` keeps every dev
+affordance; `real-game` is a clean, dev-grant-free cold-open), a `menu`, `snapshot`, and `persistence`.
+The **win is delivered**: the real opening is no longer vandalised to test.
+
+> **Note — the split presents as two npm commands, refining the original "New Game · Continue · Sandbox"
+> menu** (2026-06-10 build session). The npm command picks game-vs-sandbox; the menu (inside `dev:game`) picks
+> New-vs-Continue. So the menu shrank to two entries and `Sandbox` became its own command.
+
+**Persistence — full, by semantic snapshot ([ADR-004](../architecture/adr-004-semantic-snapshot-persistence.md)).**
+After an architectural decision (snapshot vs delta-over-reseed vs generic component dump → **snapshot**),
+the save describes durable state in the game's own vocabulary and rebuilds the world through the real
+constructors. Continue restores:
+
+- **banked + unbanked scrap** (wallet + scrap sitting in any container, mounted or staged),
+- the **inventory**, **every owned chassis with its mounted loadout** (each part's cell + facing yaw),
+  products **staged on the workshop deck** (a container mid-drain), and parts **on the bench** mid-build
+  — the full four-place conservation invariant, so an owned part is never dropped wherever it sat,
+- **world content** — piles still standing (how dug-down), camps with only their **surviving guards**
+  (a killed guard stays dead; a fully-cleared ring restores `disarmable`), stumps already healed (how
+  grown), and the **loose-scrap pieces** lying in the world (the exact remaining set, not a re-scatter —
+  the ground keeps what you left, and a reload can't farm a fresh field).
+
+The reusable describe/rebuild kernel is `@common/sim/serialize`; each feature owns its own durable-state
+description; `app/snapshot.ts` folds them into one `GameSnapshot` (versioned) and replays it. *Reset on
+load by design:* rig HP/boost heat (a reload repairs), composed parts/kits dropped loose on the ground
+(not on a rig/deck/bench/in inventory), and all transient/derived state.
+
+- **The win:** stop vandalizing the starting experience to test. ✅
+- **Carried forward (small, deliberate):** packed-kit crates left loose in the world and mid-combat
+  progress aren't checkpointed — a save is never a half-fought fight.
 
 ### Phase 1 — The designed cold-open · `pending`
 Now that testing lives in the sandbox, craft the canonical **New Game** in peace.
