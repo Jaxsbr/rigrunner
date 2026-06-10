@@ -129,11 +129,12 @@ Phase 4  onboarding / guidance / story               ← rides on a defined path
 
 ---
 
-## §5. Reconcile later (do not rewrite unilaterally)
+## §5. Where this connects
 
-- [`../world-progression-guidance.md`](../world-progression-guidance.md): the **"persistent vs roguelike"**
-  open fork now **leans persistent**; the **separate Restoration Sanctuary** is **superseded-leaning** (the
-  persistent world absorbs its job). Reconcile that doc deliberately when these harden — flagged here, not
-  silently rewritten.
+- [`../world-progression-guidance.md`](../world-progression-guidance.md): **reconciled (2026-06-10).** The
+  guidance now states the persistent world, in-world restoration (no separate Sanctuary), and the
+  (a)-gate + (c)-territory purpose as its current leaning; the Sanctuary and its ecosystem sub-game are
+  marked superseded/parked there. This spec holds the *phased plan*; the guidance holds the *vision*.
 - [`../milestones.md`](../milestones.md): when a phase firms up, promote it to a milestone entry (carved into a
-  deliberately-minimum first cut), the way Options A–D were.
+  deliberately-minimum first cut), the way Options A–D were. **Phase 0** is the natural first promotion — it
+  unblocks every other phase.

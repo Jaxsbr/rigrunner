@@ -93,6 +93,10 @@ pile, when heal a stump, and why."
 - `world-progression-guidance.md` → the "**persistent vs roguelike**" fork now **leans persistent**, and the
   **separate Restoration Sanctuary** is **superseded-leaning** (the persistent world absorbs its job). Flagging
   here; reconcile that doc deliberately later, don't silently rewrite it.
+  - *Addendum (same session):* Jaco called it — "this direction is becoming more solid" — so we **did** rework
+    the guidance doc now: persistent world stated, restoration moved in-world, Sanctuary marked superseded, the
+    ecosystem sub-game parked, the (a)-gate + (c)-territory purpose written in as the leaning. History of the
+    shift stays in this log + the 2026-06-02 sessions.
 
 ---
 
