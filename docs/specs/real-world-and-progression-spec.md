@@ -161,8 +161,14 @@ cost. Two deliberate scope calls (2026-06-11) shape its edges:
   funds upgrades → the outpost is the goal → reaching it safely needs the armour/weapons that funded it. This
   is the spine's **(c) territory / forward-base** payoff as the cold-open's pull. *Proposed minimum shape (so
   it isn't a new system):* the outpost = **the first cleared camp flipped into a forward base** — clearing it
-  *establishes* a safe re-fit point near the frontier and **expands the shop**, reusing camps + the `cleared`
-  signal + `RestorableSite` already shipped.
+  *establishes* a safe re-fit point near the frontier, reusing camps + the `cleared` signal + `RestorableSite`
+  already shipped.
+- **The outpost's core role: it unlocks new parts to *buy*.** Finding an outpost **expands the shop's stock**,
+  and new parts are what drive progression. Phase 1's initial (home) shop is there to **teach that concept** —
+  the player learns that *finding outposts unlocks the ability to purchase new parts.* More broadly,
+  **progressively unlocking shop stock is a deliberate progression lever**: across the game, what the shop
+  offers is enriched via these **outpost mechanisms** *or* via **other trigger mechanisms (TBD — captured, not
+  chosen)**. Outposts are the first known trigger; "unlock more of the shop" is the lever.
 
 **What Phase 1 quietly contains: the spine's first traversal.** Because the outpost is the climax, the
 cold-open is the opening *and* the spine's first arc: collect scrap → buy **Reclaimer** (rung 1) → work piles
@@ -182,11 +188,13 @@ payoff). This is more than "one obvious first action."
 **Deliverables (the firmed list).**
 - **The LOCKED-state cue** — dim-grey circle on intersection + "Needs X…" bottom hint (mirrors the green/LIVE
   state). *The one genuinely-new bit of code.*
-- **Self-describing shop entries** + the **first-open workshop/shop popup**.
+- **Self-describing shop entries** + the **first-open workshop/shop popup** (which also teaches that *finding
+  outposts unlocks new parts to buy*).
 - **The designed cold-open seed** — starting rig/resources, the small bowl, scrap-ring spawn, the on-path
   pile, the danger gradient, the camp-that-becomes-the-outpost. (Replaces `real-game.ts`'s provisional seed.)
 - **Starting-stake tuning** — lower it so loose-scrap collection is a *required* first step (see catch below).
-- **The outpost** — the first cleared camp flips into a forward base + expanded shop.
+- **The outpost** — the first cleared camp flips into a forward base that **unlocks new purchasable parts** (the
+  first instance of shop-unlock-as-progression).
 
 **Tuning risks / catches to carry into the build.**
 - **The danger gradient is the sole pacer.** With no fuel, "enemies between the bowl and the outpost are
@@ -195,9 +203,11 @@ payoff). This is more than "one obvious first action."
 - **The starting stake over-funds rung 1.** `createPlayerStore(world, 100)` vs a **36**-scrap Reclaimer (arm
   24 + bucket 12) lets a new player skip the rung-0 collect lesson. Lower it to make collecting required.
 
-**Open questions (resolve at build time).** What exactly the outpost "expands what you can buy/do" *is*
-(more shop stock? a closer re-fit point? both?); the bowl's size + danger-gradient numbers; whether ramming
-is left as a pure emergent discovery (lean: yes — the intended path, a bought weapon, is shop-taught).
+**Open questions (resolve at build time).** The **other** shop-unlock *trigger mechanisms* beyond outposts
+(TBD — the outpost answers "what does it expand?" = it unlocks new purchasable parts; what *else* triggers an
+unlock is open); how unlocked stock is represented/gated, and whether an outpost also grants a closer re-fit
+point on top of the shop-unlock; the bowl's size + danger-gradient numbers; whether ramming is left as a pure
+emergent discovery (lean: yes — the intended path, a bought weapon, is shop-taught).
 
 ### Phase 2 — The progression spine + restoration's purpose · `pending` *(the keystone)*
 Commit the §1 ladder; restoration purpose = §2 (a-primary + c-sprinkled).

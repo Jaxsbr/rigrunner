@@ -93,8 +93,19 @@ world just makes it cost.
   forward-base** payoff showing up as the cold-open's pull. (Proposed *minimum* shape so it isn't a whole new
   system: the outpost = **the first cleared camp, flipped into a forward base** — clearing it doesn't just
   drop loot, it *establishes* a safe re-fit point near the frontier and **expands the shop**. Reuses camps +
-  the `cleared` signal + `RestorableSite` we already ship. Open question: what exactly "expands what you can
-  buy/do" means.)
+  the `cleared` signal + `RestorableSite` we already ship.)
+
+### The clarification: outposts *unlock the shop* — and shop-unlocking is a progression lever
+Want this captured clearly, because it answers "what does the outpost expand?" The outpost's **core role is to
+unlock new parts to *buy*.** For Phase 1 specifically, the initial outpost-like shop's job is to **teach that
+concept** — the player learns that *finding outposts unlocks the ability to purchase new parts*, and new parts
+are obviously what lead to progression.
+
+And the broader idea I want on record: **progressively unlocking the shop's stock is one of the deliberate ways
+I want to drive progression.** Throughout the game, I'll enrich what the shop offers either via these
+**outpost mechanisms** or via **other trigger mechanisms I haven't determined yet** (TBD — captured, not
+chosen). So "unlock more of the shop" becomes a first-class progression lever, with outposts as the first known
+trigger and other triggers to be discovered later.
 
 ### What this all means for Phase 1's edges (the honest scope)
 Putting the calls together, Phase 1 quietly contains **the first traversal of the spine**, not just "one
