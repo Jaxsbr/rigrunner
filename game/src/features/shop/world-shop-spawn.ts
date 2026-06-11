@@ -10,12 +10,26 @@ import { PART_COSTS } from './part-costs';
 const ZONE_RADIUS = 3.5;
 
 /**
- * The shop's authored front (the open counter) faces −Z at yaw 0 (the asset-style FORWARD convention),
- * which points it straight away from a player approaching from the south — they'd see the blank back
- * wall. Turn it to face **south-east** so the rig drives up to a 3/4 view of the open counter, awning
- * and signage. Purely cosmetic: the interaction zone is a circle, so facing never affects gameplay.
+ * The four **diagonal** facings (NW, SW, SE, NE) as a yaw about +Y. The shop's authored front (the open
+ * counter) faces −Z at yaw 0; these turn it to a diagonal. We use ONLY diagonals — never a cardinal —
+ * for two reasons:
+ *  - **Legibility:** square-on to an axis, the open front can sit dead-away from the camera; a diagonal
+ *    always leaves a camera angle that sees into the counter (paired with the open-top asset).
+ *  - **Naturalness:** a world of grid-aligned, identically-facing buildings looks artificial. Varied
+ *    diagonals read as deliberately, individually placed.
  */
-const FRONT_FACES_SE = (5 * Math.PI) / 4;
+const DIAGONAL_YAWS = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4];
+
+/**
+ * Pick a shop's diagonal facing from its position — varied across shops, but **stable** for a given
+ * spot. A shop is static scaffolding rebuilt every load (it isn't in the save), so a position-derived
+ * pick keeps it from spinning to a new facing on each reload the way a fresh `Math.random()` would:
+ * same place → same facing, session after session, while different shops still face different ways.
+ */
+function diagonalFacingFor(x: number, z: number): number {
+  const h = Math.imul(Math.round(x * 1000) | 0, 374761393) ^ Math.imul(Math.round(z * 1000) | 0, 668265263);
+  return DIAGONAL_YAWS[((h % 4) + 4) % 4]!;
+}
 
 /**
  * Every priced catalog part — the "carries everything" stock for the first, sole world shop, so
@@ -31,6 +45,9 @@ export function allStockedPartIds(): string[] {
  * `stock` at its `tier`. Mirrors `spawnWorkshop` — a pure entity builder (Transform + Renderable +
  * the gating component), no special state. Defaults to the rusty grade carrying everything (the first
  * bowl shop); pass a tier + a subset list for the tier-themed, partial-stock shops that follow.
+ *
+ * Facing defaults to a position-derived **diagonal** (`diagonalFacingFor`) so shops vary naturally and
+ * the open front is always reachable by some camera angle; pass `rotationY` to pin a specific facing.
  */
 export function spawnWorldShop(
   world: World,
@@ -38,9 +55,10 @@ export function spawnWorldShop(
   z: number,
   tier: TierId = DEFAULT_TIER,
   stock: string[] = allStockedPartIds(),
+  rotationY: number = diagonalFacingFor(x, z),
 ): EntityId {
   const e = world.createEntity();
-  world.add(e, Transform, { x, z, rotationY: FRONT_FACES_SE });
+  world.add(e, Transform, { x, z, rotationY });
   world.add(e, WorldShop, { tier, stock, radius: ZONE_RADIUS, active: false });
   world.add(e, Renderable, { shape: 'model', assetId: 'shop' });
   return e;

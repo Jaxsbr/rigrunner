@@ -32,4 +32,27 @@ describe('spawnWorldShop', () => {
     expect(shop.tier).toBe('iron');
     expect(shop.stock).toEqual(['reclaimer-arm', 'reclaimer-bucket']);
   });
+
+  it('faces a DIAGONAL (never a cardinal), derived stably from its position', () => {
+    // The four diagonals are the odd multiples of π/4; a cardinal (0, π/2, π, 3π/2) is an even one.
+    const isDiagonal = (yaw: number): boolean => {
+      const k = yaw / (Math.PI / 4);
+      return Math.abs(k - Math.round(k)) < 1e-9 && Math.round(k) % 2 === 1;
+    };
+    const world = new World();
+    const yawAt = (x: number, z: number): number =>
+      world.get(spawnWorldShop(world, x, z), Transform)!.rotationY;
+
+    for (const [x, z] of [[8, 0], [9, 5], [10, 4], [-30, 30], [3, -8]] as const) {
+      expect(isDiagonal(yawAt(x, z))).toBe(true);
+    }
+    // Same spot → same facing (stable across reloads, since the shop isn't saved).
+    expect(yawAt(9, 5)).toBe(yawAt(9, 5));
+  });
+
+  it('lets a caller pin an explicit facing (the override seam)', () => {
+    const world = new World();
+    const e = spawnWorldShop(world, 0, 0, 'rusty', undefined, Math.PI / 4);
+    expect(world.get(e, Transform)!.rotationY).toBe(Math.PI / 4);
+  });
 });
