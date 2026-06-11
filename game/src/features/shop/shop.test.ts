@@ -3,8 +3,8 @@ import { World } from '@core/world';
 import { Inventory, addToInventory, inventoryItems } from '@features/economy/inventory';
 import { Wallet } from '@features/economy/wallet';
 import { EnginePart } from '@common/parts/engine-part';
-import { PART_COSTS } from '@features/workshop/part-costs';
-import { shopStockForTier, shopItemForPart, tieredCost } from '@features/workshop/part-shop';
+import { PART_COSTS } from '@features/shop/part-costs';
+import { shopStockForTier, shopItemForPart, tieredCost } from '@features/shop/part-shop';
 import { PARTS_CATALOG, partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
 import { buyPart, purchaseVerdict, resaleValue, sellPart } from './shop';
 

@@ -184,7 +184,7 @@ export const SUB_PART_POOL: readonly string[] = PARTS_CATALOG
  *
  * The name reflects the registry it draws from, not one kind: it spawns ANY catalog sub-part — engine
  * pieces, container shells, Reclaimer parts, chassis parts. The shop hands it a non-default tier to
- * mint an iron part (`@features/workshop/shop`); seeds and the bench use the rusty default.
+ * mint an iron part (`@features/shop/shop`); seeds and the bench use the rusty default.
  */
 export function spawnCatalogPart(world: World, def: PartDef, tier: TierId = DEFAULT_TIER): EntityId {
   const e = world.createEntity();

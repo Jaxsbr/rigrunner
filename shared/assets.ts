@@ -25,6 +25,9 @@ export const MODEL_ASSETS: Record<string, string> = {
   'engine-mk1': '/assets/engine-mk1.glb',
   'engine-mk2': '/assets/engine-mk2.glb',
   'workshop': '/assets/workshop.glb',
+  // A world shop — a rusty container shopfront the rig drives to, to buy/sell parts. Its open counter
+  // faces the player; a `joint_vent` roof whirlybird spins (shop-vent-animator) so it reads as occupied.
+  'shop': '/assets/shop.glb',
   // The Reclaimer (Option C): an articulated arm (named joint_* nodes + a socket_wrist attach
   // point) and its swappable unearthing-bucket head. See docs/asset-style.md "Articulated assets".
   'reclaimer-arm': '/assets/reclaimer-arm.glb',
