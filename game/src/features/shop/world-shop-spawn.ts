@@ -10,6 +10,14 @@ import { PART_COSTS } from './part-costs';
 const ZONE_RADIUS = 3.5;
 
 /**
+ * The shop's authored front (the open counter) faces −Z at yaw 0 (the asset-style FORWARD convention),
+ * which points it straight away from a player approaching from the south — they'd see the blank back
+ * wall. Turn it to face **south-east** so the rig drives up to a 3/4 view of the open counter, awning
+ * and signage. Purely cosmetic: the interaction zone is a circle, so facing never affects gameplay.
+ */
+const FRONT_FACES_SE = (5 * Math.PI) / 4;
+
+/**
  * Every priced catalog part — the "carries everything" stock for the first, sole world shop, so
  * relocating the old workshop Shop tab into the world loses no capability. A partial/unique stock is
  * just a hand-picked subset of these ids, which later shops will use to spread parts across the map.
@@ -32,7 +40,7 @@ export function spawnWorldShop(
   stock: string[] = allStockedPartIds(),
 ): EntityId {
   const e = world.createEntity();
-  world.add(e, Transform, { x, z, rotationY: 0 });
+  world.add(e, Transform, { x, z, rotationY: FRONT_FACES_SE });
   world.add(e, WorldShop, { tier, stock, radius: ZONE_RADIUS, active: false });
   world.add(e, Renderable, { shape: 'model', assetId: 'shop' });
   return e;
