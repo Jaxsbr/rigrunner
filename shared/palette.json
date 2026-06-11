@@ -5,6 +5,7 @@
   "hazard_yellow": { "hex": "#D9A521", "use": "warnings, accents, markings" },
   "rig_blue":      { "hex": "#2A82C4", "use": "signature — containers + player-built parts" },
   "glow_green":    { "hex": "#59FF9F", "use": "energy, tier fill, powered lights", "emissive": true },
+  "glow_warm":     { "hex": "#E8B45C", "use": "warm lamp light — habitation, a sign of life", "emissive": true, "emissive_strength": 1.3 },
   "nature_green":  { "hex": "#50A336", "use": "restoration — foliage, regrowth" },
   "bone_white":    { "hex": "#CDC6B8", "use": "bleached structures, old plastic" }
 }

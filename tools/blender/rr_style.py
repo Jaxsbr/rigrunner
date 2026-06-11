@@ -87,7 +87,9 @@ def material(name: str):
 
     if name in _EMISSIVE:
         bsdf.inputs["Emission Color"].default_value = rgba
-        bsdf.inputs["Emission Strength"].default_value = 3.0
+        # Per-colour glow brightness from the palette (default 3.0 = a bright neon). A warm habitation
+        # lamp carries a lower strength so it reads as a dim, lived-in light rather than a hot sign.
+        bsdf.inputs["Emission Strength"].default_value = _PAL[name].get("emissive_strength", 3.0)
         bsdf.inputs["Metallic"].default_value = 0.0
         bsdf.inputs["Roughness"].default_value = 0.4
     elif name == "rig_blue":

@@ -67,6 +67,7 @@ import { ShopOverlay } from '@features/shop/shop-overlay';
 import { shopZoneSystem } from '@features/shop/shop-zone-system';
 import { shopZoneDiscs } from '@features/shop/overlays';
 import { animateShopVents } from '@features/shop/shop-vent-animator';
+import { ShopStains } from '@features/shop/shop-stains';
 import { WorldShop } from '@features/shop/world-shop';
 
 /** Per-launch configuration for the engine — what differs between the real game and the sandbox. */
@@ -140,6 +141,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
   const stains = new ScrapStains(view.scene);
   const pileStains = new ScrapPileStains(view.scene);
   const campStains = new CampStains(view.scene);
+  // A modest oil smudge under each world shop — worked ground, a sign the place is used (a fraction of
+  // the pile/camp blight; a shop reads as tended, not ruined).
+  const shopStains = new ShopStains(view.scene);
   // Restoration render: the green regrowth patch under each cleared-site stump, and the procedural young
   // tree that rises out of a stump as the player grows it (posed off the sim's `Healable.growth`).
   const restorationStains = new RestorationStains(view.scene);
@@ -418,6 +422,8 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     pileStains.sync(world, dt);
     // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
     campStains.sync(world, dt);
+    // the shop's worked-ground oil smudge — held under each live shop (a modest, lived-in mess).
+    shopStains.sync(world, dt);
     // restoration regrowth: a faint green patch shows under every cleared-site stump and DEEPENS as the
     // player grows it into a tree (scaled by Healable.growth) — the land healing. Runs always so a live grow
     // and any fade finish smoothly behind an overlay.
