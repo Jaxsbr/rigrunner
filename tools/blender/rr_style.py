@@ -95,7 +95,7 @@ def material(name: str):
     elif name == "rig_blue":
         bsdf.inputs["Metallic"].default_value = 0.2   # painted, not bare metal
         bsdf.inputs["Roughness"].default_value = 0.5
-    elif name == "nature_green":
+    elif name in ("nature_green", "leaf_green"):
         bsdf.inputs["Metallic"].default_value = 0.0
         bsdf.inputs["Roughness"].default_value = 0.8
     else:  # the metals

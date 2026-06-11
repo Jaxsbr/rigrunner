@@ -5,6 +5,7 @@ import { Renderable } from '@common/components/renderable';
 import { DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { WorldShop } from './world-shop';
 import { PART_COSTS } from './part-costs';
+import { spawnShopYard } from './shop-yard';
 
 /** Metres from the shop centre the rig must reach to open it — matches the workshop's reach. */
 const ZONE_RADIUS = 3.5;
@@ -41,6 +42,10 @@ export function allStockedPartIds(): string[] {
  *
  * Facing defaults to **SE** (`SHOP_FRONT_SE`) so the open front catches the fixed light and reads; pass
  * `rotationY` to pin a different diagonal.
+ *
+ * Spawning a shop also scatters its goods **yard** — the props that wrap it (`spawnShopYard`) — so a shop
+ * is never a bare container in the middle of nowhere. The yard is decoration entities, oriented to this
+ * shop's facing; the returned id is the shop building (the gated entity), as callers expect.
  */
 export function spawnWorldShop(
   world: World,
@@ -54,5 +59,6 @@ export function spawnWorldShop(
   world.add(e, Transform, { x, z, rotationY });
   world.add(e, WorldShop, { tier, stock, radius: ZONE_RADIUS, active: false });
   world.add(e, Renderable, { shape: 'model', assetId: 'shop' });
+  spawnShopYard(world, x, z, rotationY);
   return e;
 }

@@ -15,13 +15,15 @@ What's here:
   recipes or world placement.
 - **The world entity:** `world-shop.ts` (the `WorldShop` component — `{ tier, stock, radius, active }`,
   the stock-list seam tiers/partial-stock/set-completion ride on), `world-shop-spawn.ts`
-  (`spawnWorldShop` builder + `allStockedPartIds`), `shop-zone-system.ts` (the circle-vs-circle proximity
-  gate, mirroring `workshopZoneSystem`).
+  (`spawnWorldShop` builder + `allStockedPartIds`; it also scatters the shop's yard), `shop-zone-system.ts`
+  (the circle-vs-circle proximity gate, mirroring `workshopZoneSystem`), `shop-yard.ts` (`spawnShopYard` —
+  the goods-yard layout algorithm: deterministic, entrance-relative scatter of `yard-*` props around a shop).
 - **The UI:** `shop-overlay.ts` (the standalone `ShopOverlay` — buy/sell scoped to one shop's stock,
   with the self-describing `part-descriptions.ts` blurbs). It is NOT part of the workshop overlay.
 - **Render** (dispatched from `app/bootstrap.ts`, never from `@common/render`): `overlays.ts` (the shop's
   proximity-disc entries), `shop-vent-animator.ts` (the roof whirlybird spin off the `joint_vent` node), and
-  `shop-stains.ts` (the modest worked-ground oil smudge, on the shared `@common/render/ground-stains` engine).
+  `shop-stains.ts` (the worked-ground grime across the yard, on the shared `@common/render/ground-stains` engine).
+  (The yard PROPS are ordinary decoration entities `shop-yard.ts` spawns — `view.sync` draws them like any model.)
 
 Single-owner / placement rules at the point of edit:
 
@@ -33,22 +35,36 @@ Single-owner / placement rules at the point of edit:
   (the catalog + tiers) — never the reverse. `@common`/`@core` never import shop; per-frame shop render is
   dispatched from the `app/` composition root.
 
-## Visual design — a shop reads as a *sign of life*, and a shop's *tier* shows in its asset
+## Visual design — a shop is a *point of interest*: a busy, lived-in trade post
 
-Two design directions the shopfront's look serves. Both are forward-looking — only the rusty asset exists
-today — but they steer every shop visual from here on.
+A world shop is one of the FEW points of interest in a barren landscape, so it has to earn the drive:
+styled, busy, unmistakably tended. It is built in three layers — keep them separate.
 
-- **Tier-distinct assets.** A shop's grade is legible at a glance: a rusty shop looks rusty and scrappy; an
-  iron shop reads posh — clean, machined metal; future grades go grand and futuristic. Each tier gets its
-  OWN authored GLB, not a tint. Today there is one asset (`shop` = the rusty tier, `tools/blender/assets/shop.py`),
-  so `spawnWorldShop` hard-wires `assetId: 'shop'`. When the second tier's asset is authored, that becomes a
-  `tier → assetId` lookup (and the asset is likely renamed `shop-rusty` then) — add the seam with the real
-  second case, not a speculative one-entry map now (Rule of Three).
-- **A sign of life, not a ruin.** A shop is the one tended, valuable spot in a barren world — the deliberate
-  opposite of a looter camp (ruined, worthless). The rusty asset carries this with: a **warm lamp** glow
-  (`glow_warm`, a dim amber — NOT the neon `glow_green` used for energy/tier fill), a **pot plant** + **vines**
-  on the container (greenery = life clinging on), and **neat, refined storage** — a marked crate stack and a
-  pallet of laid-out wares (orderly, the counterpoint to the chaotic scrap strewn across the map). The lone
-  patch of green + order in an empty landscape is itself a navigation cue: somewhere worth driving to.
-- **Worked-ground mess is modest.** `shop-stains.ts` lays a small oil smudge under the shop (someone works
-  here) — a fraction of the scrap pile / camp blight. Tended, lived-in, not a spreading contamination.
+- **The building** (`tools/blender/assets/shop.py` → `shop` GLB): just the lit container shopfront — the
+  open, roofed-at-the-back bay so the elevated camera sees the counter; the hazard doorway frame; and a
+  **warm lamp** panel + beacon (`glow_warm`, a dim amber — NOT the neon `glow_green`, which read as too
+  futuristic; `glow_green` stays for energy/tier fill). No yard dressing is baked in here.
+- **The goods yard** (`shop-yard.ts` + the `yard-*` props): the building is never a bare box in the void.
+  `spawnShopYard` scatters small props — supply **crates**, fuel **drums**, half-unpacked **parts** heaps,
+  a loaded delivery **pallet**, and one potted **plant** — across the **eight tiles around the shop's one
+  tile**, 360°, dense enough to read as a working yard (deliveries unpacked, shipments batched) you tiptoe
+  through to reach the counter. Why separate props + a layout algorithm, not one baked asset: the yard
+  varies per shop (a position-seeded RNG → no two identical) and the kit can grow without re-authoring the
+  building. Placement is in the shop's frame (entrance-relative), so the cell in front of the counter stays
+  lighter and the yard sits right at any facing. The props are plain decoration entities (no collider — you
+  drive through them).
+- **The grime** (`shop-stains.ts`): a heavy, layered oil/rust/grime field across the whole yard footprint —
+  a place that hauls goods all day is genuinely dirty. Heavier than a lone spill, but still short of a
+  camp's scorched, contaminated blight: the honest mess of a worked yard, not a ruin.
+
+The **plant** is the deliberate sign of life — the one green thing — but its foliage is `leaf_green` (the
+muted sage that matches the restored-tree leaves), NOT the saturated `nature_green` that pops as neon under
+the warm sun. It's set forward and misaligned from the building, not flush to a wall, so it reads as
+placed-by-someone, not built-in. Green + order amid barren ground is itself the navigation cue.
+
+**Tier-distinct assets (forward-looking).** A shop's grade should be legible at a glance: rusty looks
+scrappy; iron reads posh, clean machined metal; future grades go grand and futuristic. Each tier gets its
+OWN building GLB (and, in time, its own yard-prop flavour), not a tint. Today there is one (`shop` = rusty),
+so `spawnWorldShop` hard-wires `assetId: 'shop'`. When the second tier's asset is authored, that becomes a
+`tier → assetId` lookup (and `shop` likely renames to `shop-rusty`) — add the seam with the real second
+case, not a speculative one-entry map now (Rule of Three).

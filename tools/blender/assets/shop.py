@@ -1,16 +1,15 @@
 """
 shop — a world shop: a rusty container trade post the rig drives to, to buy/sell parts.
 
-Two jobs beyond "be a container". First, the ENTRANCE must read from the game's elevated camera (the
-roof covers only the BACK so the front bay is open to the sky and lit; a bright counter + a hazard
-doorway frame + a warm lamp panel + a warm beacon on a mast mark it as a place you walk up and trade).
+This is just the BUILDING. The ENTRANCE must read from the game's elevated camera: the roof covers only
+the BACK so the front bay is open to the sky and lit, and a bright counter + a hazard doorway frame + a
+warm lamp panel + a warm beacon on a mast mark it as a place you walk up and trade.
 
-Second — and this is the design intent — the shop is a **sign of life** in a barren world. Where an enemy
-camp reads as ruined and worthless, a shop reads as tended and valuable: a leafy pot plant by the door
-and vines creeping up the container show green still clings on here; a neat crate stack and a pallet of
-laid-out wares show someone keeps stock in order (refined, not the chaotic scrap strewn across the world).
-That contrast is a navigation cue — in an empty landscape, the one spot with greenery and order is worth
-driving to. (The worked-ground oil staining is added in-engine, not here — features/shop/shop-stains.ts.)
+The shop's "sign of life" character — the messy goods YARD that surrounds it (crates, drums, parts,
+deliveries, a potted plant) and its worked-ground grime — is NOT baked here. It is assembled from separate
+small props (`yard-*` assets) scattered 360° around the shop by features/shop/shop-yard.ts, plus the stain
+field in features/shop/shop-stains.ts. Keeping the yard out of this mesh lets the layout vary per shop and
+grow over time without re-authoring the building.
 
 This is the RUSTY tier's asset. Higher tiers get their OWN asset (iron = posh clean metal; future tiers =
 grand and futuristic) — the design consideration is recorded in game/src/features/shop/CLAUDE.md.
@@ -93,80 +92,11 @@ def _shell():
     return parts
 
 
-def _pot_plant(cx, cy):
-    """A leafy plant in a planter — greenery at the entrance, the clearest sign life clings on here."""
-    parts = []
-    parts.append(rr.beveled_box("planter", (0.44, 0.44, 0.40), "rust", (cx, cy, 0.20)))
-    parts.append(rr.beveled_box("planter_rim", (0.50, 0.50, 0.07), "dark_metal", (cx, cy, 0.40)))
-    parts.append(rr.beveled_box("plant_stem", (0.07, 0.07, 0.34), "nature_green", (cx, cy, 0.55)))
-    # A bushy clump of angled leaf slabs so the foliage reads full from the elevated camera.
-    leaves = [
-        ((0.30, 0.18, 0.20), (cx - 0.10, cy - 0.04, 0.62), (0.35, 0.0, 0.4)),
-        ((0.18, 0.30, 0.22), (cx + 0.10, cy + 0.06, 0.66), (0.2, 0.3, 1.0)),
-        ((0.26, 0.24, 0.22), (cx - 0.02, cy + 0.08, 0.74), (-0.25, 0.2, 0.6)),
-        ((0.20, 0.20, 0.20), (cx + 0.06, cy - 0.08, 0.78), (0.25, -0.2, 1.4)),
-        ((0.16, 0.16, 0.18), (cx - 0.06, cy + 0.02, 0.86), (0.1, 0.4, -0.5)),
-    ]
-    for i, (size, loc, rot) in enumerate(leaves):
-        leaf = rr.beveled_box(f"leaf_{i}", size, "nature_green", loc)
-        leaf.rotation_euler = rot
-        parts.append(leaf)
-    return parts
-
-
-def _vines(wall_x):
-    """Vines creeping up the LEFT container wall — green reclaiming the rust, a quiet pulse of life. A
-    couple of strands with leaf tufts, flush against the exterior face (`wall_x` just outside the wall)."""
-    parts = []
-    strands = [(-0.30, 1.45), (0.34, 1.05)]  # (centre Y along the wall, height climbed)
-    for s, (sy, h) in enumerate(strands):
-        parts.append(rr.beveled_box(f"vine_{s}", (0.05, 0.05, h), "nature_green", (wall_x, sy, FLOOR_TOP + h / 2)))
-        # leaf tufts stepping up the strand
-        for k in range(3):
-            lz = FLOOR_TOP + 0.35 + k * (h / 3.2)
-            dy = 0.10 if k % 2 == 0 else -0.10
-            parts.append(rr.beveled_box(f"vine_{s}_leaf_{k}", (0.05, 0.16, 0.10), "nature_green",
-                                        (wall_x - 0.02, sy + dy, lz)))
-    return parts
-
-
-def _crates(cx, cy):
-    """A NEAT stack of two marked crates — kept stock, in order. The bone-white stencil + hazard band read
-    them as inventoried goods, not the chaotic scrap strewn across the world."""
-    parts = []
-    # base crate
-    parts.append(rr.beveled_box("crate_a", (0.72, 0.72, 0.72), "rust", (cx, cy, 0.36)))
-    parts.append(rr.beveled_box("crate_a_band", (0.74, 0.10, 0.10), "hazard_yellow", (cx, cy + 0.37, 0.52)))
-    # smaller crate stacked on top, tidily offset
-    parts.append(rr.beveled_box("crate_b", (0.56, 0.56, 0.56), "rust", (cx - 0.06, cy - 0.05, 0.72 + 0.28)))
-    parts.append(rr.beveled_box("crate_b_label", (0.30, 0.04, 0.22), "bone_white", (cx - 0.06, cy - 0.05 + 0.29, 1.00)))
-    return parts
-
-
-def _wares(cx, cy):
-    """A pallet of laid-out wares beside the counter — refined parts on display: a couple of canisters, a
-    module box and a coil, set out in a tidy row (the orderly counterpoint to world scrap)."""
-    parts = []
-    parts.append(rr.beveled_box("pallet", (0.95, 0.70, 0.12), "dark_metal", (cx, cy, 0.06)))
-    parts.append(rr.beveled_cylinder("ware_canister_a", 0.13, 0.34, "scrap_grey", (cx - 0.26, cy - 0.06, 0.12 + 0.17)))
-    parts.append(rr.beveled_cylinder("ware_canister_b", 0.11, 0.30, "scrap_grey", (cx - 0.02, cy + 0.10, 0.12 + 0.15)))
-    parts.append(rr.beveled_box("ware_module", (0.26, 0.22, 0.22), "dark_metal", (cx + 0.22, cy - 0.10, 0.12 + 0.11)))
-    coil = rr.beveled_cylinder("ware_coil", 0.10, 0.24, "bone_white", (cx + 0.20, cy + 0.12, 0.12 + 0.10))
-    coil.rotation_euler = (0.0, math.pi / 2, 0.0)  # lay it on its side
-    parts.append(coil)
-    return parts
-
-
 def _body():
-    """The whole static shop: the lit container shell plus the sign-of-life dressing around it, joined
-    into one mesh `shop` with its origin dropped to base-centre on the ground (the in-game convention)."""
-    parts = _shell()
-    parts += _pot_plant(-1.92, 0.95)          # front-left, flanking the entrance
-    parts += _vines(-(HALF_W + 0.03))         # up the left exterior wall
-    parts += _crates(2.05, -0.15)             # tidy stack off the right side
-    parts += _wares(1.78, 0.92)               # pallet of wares to the right of the counter
-
-    body = rr.join(parts, "shop")
+    """The static shop building — just the lit container shell, joined into one mesh `shop` with its origin
+    dropped to base-centre on the ground (the in-game convention). The surrounding goods yard is separate
+    props placed in-engine (features/shop/shop-yard.ts), not baked here."""
+    body = rr.join(_shell(), "shop")
     rr.set_origin(body, (0.0, 0.0, 0.0))  # base-centre, on the ground — the in-game origin convention
     return body
 
