@@ -21,9 +21,11 @@ What's here:
 - **The UI:** `shop-overlay.ts` (the standalone `ShopOverlay` — buy/sell scoped to one shop's stock,
   with the self-describing `part-descriptions.ts` blurbs). It is NOT part of the workshop overlay.
 - **Render** (dispatched from `app/bootstrap.ts`, never from `@common/render`): `overlays.ts` (the shop's
-  proximity-disc entries), `shop-vent-animator.ts` (the roof whirlybird spin off the `joint_vent` node), and
-  `shop-stains.ts` (the worked-ground grime across the yard, on the shared `@common/render/ground-stains` engine).
-  (The yard PROPS are ordinary decoration entities `shop-yard.ts` spawns — `view.sync` draws them like any model.)
+  proximity-disc entries), `shop-vent-animator.ts` (the roof whirlybird spin off the `joint_vent` node),
+  `shop-ground.ts` (the worn, trampled, cracked ground decal — a procedural CanvasTexture plane, laid under
+  the grime), and `shop-stains.ts` (the worked-ground oil/rust/grime over it, on the shared
+  `@common/render/ground-stains` engine). (The yard PROPS are ordinary decoration entities `shop-yard.ts`
+  spawns — `view.sync` draws them like any model.)
 
 Single-owner / placement rules at the point of edit:
 
@@ -53,9 +55,13 @@ styled, busy, unmistakably tended. It is built in three layers — keep them sep
   building. Placement is in the shop's frame (entrance-relative), so the cell in front of the counter stays
   lighter and the yard sits right at any facing. The props are plain decoration entities (no collider — you
   drive through them).
-- **The grime** (`shop-stains.ts`): a heavy, layered oil/rust/grime field across the whole yard footprint —
-  a place that hauls goods all day is genuinely dirty. Heavier than a lone spill, but still short of a
-  camp's scorched, contaminated blight: the honest mess of a worked yard, not a ruin.
+- **The worked ground** — two stacked decals so the EARTH reads as used, not pristine desert the props were
+  dropped onto. First `shop-ground.ts` lays a worn pad (a procedural CanvasTexture plane oriented to the
+  shop): compacted/trampled dirt, dried-mud cracks, drag-scuffs, a beaten path and a few salvaged pavers
+  clustered AT THE ENTRANCE where the rig walks up. Over it, `shop-stains.ts` adds the heavy oil/rust/grime
+  field — a place that hauls goods all day is genuinely dirty. Both are unlit, depth-write-off decals (they
+  discolour the floor + its shadows), drawn under the props; both seed off shop position (stable per shop,
+  varied shop to shop). Heavy, but still short of a camp's scorched blight: a worked yard, not a ruin.
 
 The **plant** is the deliberate sign of life — the one green thing — but its foliage is `leaf_green` (the
 muted sage that matches the restored-tree leaves), NOT the saturated `nature_green` that pops as neon under
