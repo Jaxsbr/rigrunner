@@ -35,10 +35,11 @@ const TRODDEN = '92,74,50';    // the heavily-walked core + drag marks
 const CRACK = '48,38,26';      // dried-mud seams between the stones
 const SCUFF = '156,134,94';    // a polished, lighter scuff — the beaten footpath
 
-// The gravel/cobble mix — a worn blend of greys and warm browns: the rocks that pack a trodden path.
-const STONES = ['176,168,146', '146,136,116', '120,110,90', '98,88,72', '130,114,86', '76,68,54'];
-const STONE_SHADOW = '36,29,19'; // the contact shadow a stone casts into the dirt
-const STONE_HILITE = '212,202,178'; // a sun-catch on a stone's crown
+// The gravel/cobble mix — earthy browns and tans that sit in the wasteland palette (NOT grey/white
+// pebbles, which pop off the warm sand): the rocks that pack a trodden path.
+const STONES = ['150,124,86', '134,108,72', '120,96,62', '104,82,54', '86,68,46', '128,92,58'];
+const STONE_SHADOW = '40,30,18'; // the contact shadow a stone casts into the dirt
+const STONE_HILITE = '184,156,110'; // a warm sand sun-catch on a stone's crown (kept subtle, not white)
 
 function rngFor(seed: number): () => number {
   let a = seed >>> 0;
@@ -90,12 +91,12 @@ function pebble(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: 
   ctx.beginPath();
   ctx.ellipse(x + 1.2, y + 1.6, r * 1.08, r * 0.82, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = `rgba(${tone},${0.52 + rng() * 0.34})`;
+  ctx.fillStyle = `rgba(${tone},${0.44 + rng() * 0.3})`;
   ctx.beginPath();
   ctx.ellipse(x, y, r, r * (0.72 + rng() * 0.18), rng() * Math.PI, 0, Math.PI * 2);
   ctx.fill();
-  if (rng() < 0.55) {
-    ctx.fillStyle = `rgba(${STONE_HILITE},${0.1 + rng() * 0.13})`;
+  if (rng() < 0.38) {
+    ctx.fillStyle = `rgba(${STONE_HILITE},${0.06 + rng() * 0.09})`;
     ctx.beginPath();
     ctx.ellipse(x - r * 0.22, y - r * 0.28, r * 0.42, r * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
