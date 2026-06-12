@@ -90,12 +90,14 @@ When a mover's circle overlaps a `Solid` circle, **de-penetrate** the mover — 
 
 ### The system (≈25 lines)
 
-A new `collisionResponseSystem(world, dt)`, dispatched from `app/bootstrap` **after** `movementSystem`
-(so it corrects the final position for the frame), independent of the existing `collisionSystem` trigger
-pass:
+`collisionResponseSystem(world)` lives in **`features/drive/collision-response.ts`** (beside `movement.ts` —
+it reads the rig's own `Velocity`/`Drivetrain`, so it can't sit in `@common`). Dispatched from `app/bootstrap`
+**after** `movementSystem` (so it corrects the final position for the frame) and before mounted parts ride to
+their cells, independent of the existing `collisionSystem` trigger pass. (No `dt` parameter — it became
+unused once the speed-bleed was dropped; the system touches position only.)
 
 ```
-for each mover (Transform + Drivetrain + Velocity + Collider):   // player rig AND enemy rigs — §4
+for each mover (Transform + Drivetrain + Velocity + Collider):   // driven rigs: player today, any enemy rig — §4
   const T = mover.Transform, R = mover.Collider.radius
   for each solid (Transform + Collider + Solid):
     const dx = T.x - solid.x, dz = T.z - solid.z
@@ -128,10 +130,14 @@ for each mover (Transform + Drivetrain + Velocity + Collider):   // player rig A
 - **Restored tree** — when a `Healable` stump grows into a tree, it gains `Collider` + `Solid`, so **you
   cannot drive through the very thing you restored.**
 
-**Movers that de-penetrate from solids — decided: the player rig AND enemy rigs.** Both are blocked, so
-enemies also can't ghost through buildings. **Caveat to tune:** enemies can now **snag on geometry** — a
-simple steer-around nudge in enemy pathing may be wanted once it's felt. That nudge can read the same
-`Solid` set; it is **captured, not built** here.
+**Movers that de-penetrate from solids — driven rigs** (`Transform + Drivetrain + Velocity + Collider`): the
+**player rig** today, and **any future enemy built as a real rig** is blocked automatically by the same
+query. **As built, the current camp guards are NOT blocked:** they are not rigs (no `Velocity` — they move
+by direct Transform stepping), and a drive/`@common` system can't query the camps `Enemy` component without
+breaking the inward-only invariant. So a guard could still pass through a building — guard **steer-around
+stays the §6 captured seam** (it can read the same `Solid` set). The spec drafted "enemy rigs" assuming
+enemies were rigs; the build kept the precise driven-rig query, which is forward-compatible the moment an
+enemy rig exists.
 
 **Stays as-is (NOT solid):** loose scrap pieces (drive-over collect), enemy guards + projectiles
 (ram/combat), and all proximity zones (workshop/shop/pile/heal gates are unaffected).
@@ -186,7 +192,11 @@ reaches a tree. Nothing extra to serialize.
 - Approaching a structure **at an angle** makes the rig **slide along** it rather than stick.
 - Regression: **loose scrap still collects** by driving over it; **enemy guards are still rammable**; the
   **reclaimer / heal / shop / workshop proximity** interactions all still fire.
-- An **enemy rig** no longer drives through a structure.
+- A **driven rig** (the player rig today, any future enemy rig) cannot drive through a structure. Current
+  camp **guards are not rigs**, so they are not yet blocked — the §6 steer-around seam.
+- **Debug overlay (tooling):** press **C** to toggle wireframe collider cages — **RED** = `Solid` (blocks),
+  **CYAN** = pass-through — shipped with this slice (`@common/render/collision-debug.ts`) to make the
+  footprints + their radii visible while tuning.
 
 ---
 
@@ -200,5 +210,6 @@ reaches a tree. Nothing extra to serialize.
   builds on.
 - `features/drive/movement.ts` — where motion integrates; the response runs **after** it each frame.
 - `features/scrap/collectible.ts` — the **footprint-vs-meaning** precedent the `Solid` tag follows.
-- [`../observations.md`](../observations.md) — capture the play-feel finding here once it ships (does the
-  settle read as believable; do enemies snag?).
+- [`../observations.md`](../observations.md) — **observation #20** records the shipped play-feel finding: the
+  head-on "settle" made walls sticky, so the response is now **position-only** (you keep your speed and can
+  steer off a wall). The enemy-snag question stays open (guards aren't blocked yet — §4/§6).
