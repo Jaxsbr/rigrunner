@@ -57,11 +57,14 @@ styled, busy, unmistakably tended. It is built in three layers — keep them sep
   drive through them).
 - **The worked ground** — two stacked decals so the EARTH reads as used, not pristine desert the props were
   dropped onto. First `shop-ground.ts` lays a worn pad (a procedural CanvasTexture plane oriented to the
-  shop): compacted/trampled dirt, dried-mud cracks, drag-scuffs, a beaten path and a few salvaged pavers
-  clustered AT THE ENTRANCE where the rig walks up. Over it, `shop-stains.ts` adds the heavy oil/rust/grime
-  field — a place that hauls goods all day is genuinely dirty. Both are unlit, depth-write-off decals (they
-  discolour the floor + its shadows), drawn under the props; both seed off shop position (stable per shop,
-  varied shop to shop). Heavy, but still short of a camp's scorched blight: a worked yard, not a ruin.
+  shop): a TRODDEN GRAVEL PATH — compacted dirt studded with small stones (greys + warm browns, each with a
+  contact shadow so a dense field reads as cobble, not noise), dried seams, drag-scuffs, with the gravel
+  heaviest down the front approach so it reads as a path to the counter. Over it, `shop-stains.ts` adds the
+  heavy oil/rust/grime field — a place that hauls goods all day is genuinely dirty. Both are unlit,
+  depth-write-off decals (they discolour the floor + its shadows), drawn under the props; both seed off shop
+  position (stable per shop, varied shop to shop). Heavy, but still short of a camp's scorched blight: a
+  worked yard, not a ruin. Keep the ground texture organic (gravel, scuffs, seams) — flat rectangular
+  "paver" slabs read as window panels lying on the sand, not as ground.
 
 The **plant** is the deliberate sign of life — the one green thing — but its foliage is `leaf_green` (the
 muted sage that matches the restored-tree leaves), NOT the saturated `nature_green` that pops as neon under

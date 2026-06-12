@@ -6,16 +6,17 @@ import { WorldShop } from './world-shop';
 
 /**
  * The shop's worn ground: a textured decal laid UNDER the goods yard so the earth itself reads as worked —
- * trampled, compacted, cracked, scuffed by dragged deliveries, with a beaten path and a few salvaged
- * pavers at the entrance. Without it the props look dropped onto pristine desert; with it the whole area
- * reads as a place people have walked and staged things for a long time.
+ * not pristine desert the props were dropped onto. The look is a TRODDEN GRAVEL PATH: dirt compacted and
+ * studded with small stones walked over again and again until they read as a rough cobbled surface, with
+ * drag-scuffs where crates get hauled and the heaviest wear running in FRONT of the counter where the rig
+ * drives up.
  *
  * It is a flat, transparent plane carrying a procedurally-drawn canvas (the same idiom as the wasteland
  * floor and the stain decals), laid a hair above the ground (under the grime stains, which sit higher) and
- * oriented to the shop so the heaviest wear — the path + the pavers — falls in FRONT of the counter where
- * the rig drives up. Unlit + depth-write-off like the stains, so it darkens/discolours the floor beneath
- * (and the floor's received shadows) rather than repainting it. Pure view polish: it owns only the mesh +
- * texture, reads the sim only to know where each shop is, and never writes it.
+ * oriented to the shop so the path concentrates at the entrance. Unlit + depth-write-off like the stains,
+ * so it discolours the floor beneath (and the floor's received shadows) rather than repainting it. Pure
+ * view polish: it owns only the mesh + texture, reads the sim only to know where each shop is, never
+ * writing it.
  *
  * The pattern is seeded off the shop's position, so a shop's worn ground is identical every load yet
  * differs shop to shop (it matches the position-seeded yard scatter).
@@ -31,11 +32,13 @@ const FRONT = C - 80;   // the worn area's centre, nudged toward the entrance (c
 // own dirt palette so the pad reads as the SAME earth, only compacted + worked.
 const PACKED = '120,100,66';   // trodden, compacted dirt — darker/greyer than loose sand
 const TRODDEN = '92,74,50';    // the heavily-walked core + drag marks
-const CRACK = '48,38,26';      // dried-mud cracks
+const CRACK = '48,38,26';      // dried-mud seams between the stones
 const SCUFF = '156,134,94';    // a polished, lighter scuff — the beaten footpath
-const PAVER = '138,129,116';   // a salvaged stone slab
-const BOARD = '110,92,62';     // a salvaged timber board
-const GAP = '40,30,18';        // the dark gap/edge around a paver
+
+// The gravel/cobble mix — a worn blend of greys and warm browns: the rocks that pack a trodden path.
+const STONES = ['176,168,146', '146,136,116', '120,110,90', '98,88,72', '130,114,86', '76,68,54'];
+const STONE_SHADOW = '36,29,19'; // the contact shadow a stone casts into the dirt
+const STONE_HILITE = '212,202,178'; // a sun-catch on a stone's crown
 
 function rngFor(seed: number): () => number {
   let a = seed >>> 0;
@@ -59,12 +62,12 @@ function blot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, rg
   ctx.fill();
 }
 
-/** Walk a thin branching crack from (x,y), drifting and occasionally forking. */
+/** Walk a thin seam between the stones from (x,y), drifting and occasionally forking. */
 function crack(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: number, ang: number, len: number, depth: number): void {
   let cx = x, cy = y, a = ang;
   const steps = Math.max(2, Math.floor(len / 14));
-  ctx.lineWidth = 1 + rng() * 1.6;
-  ctx.strokeStyle = `rgba(${CRACK},${0.32 + rng() * 0.22})`;
+  ctx.lineWidth = 1 + rng() * 1.4;
+  ctx.strokeStyle = `rgba(${CRACK},${0.26 + rng() * 0.18})`;
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   for (let i = 0; i < steps; i++) {
@@ -72,30 +75,31 @@ function crack(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: n
     cx += Math.cos(a) * 14;
     cy += Math.sin(a) * 14;
     ctx.lineTo(cx, cy);
-    if (depth > 0 && rng() < 0.18) crack(ctx, rng, cx, cy, a + (rng() - 0.5) * 1.6, len * 0.5, depth - 1);
+    if (depth > 0 && rng() < 0.16) crack(ctx, rng, cx, cy, a + (rng() - 0.5) * 1.6, len * 0.5, depth - 1);
   }
   ctx.stroke();
 }
 
-/** A weathered, slightly-rotated salvaged slab (stone paver or timber board) with a dark gap around it. */
-function slab(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: number): void {
-  const w = 46 + rng() * 60, h = 34 + rng() * 46;
-  const rot = (rng() - 0.5) * 0.6;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rot);
-  ctx.fillStyle = `rgba(${GAP},0.5)`;
-  ctx.fillRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6); // the gap/shadow it sits in
-  ctx.fillStyle = `rgba(${rng() < 0.55 ? PAVER : BOARD},${0.4 + rng() * 0.25})`;
-  ctx.fillRect(-w / 2, -h / 2, w, h);
-  // A crack or two across the slab so it reads as broken/old.
-  ctx.strokeStyle = `rgba(${GAP},0.4)`;
-  ctx.lineWidth = 1.4;
+/** One embedded stone: a contact shadow, a rounded body in a random rock tone, and an occasional crown
+ *  highlight — so packed densely they read as gravel/cobble rather than noise. */
+function pebble(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: number): void {
+  const big = rng() < 0.13;
+  const r = (2.3 + rng() * 4.4) * (big ? 1.9 : 1);
+  const tone = STONES[(rng() * STONES.length) | 0]!;
+  ctx.fillStyle = `rgba(${STONE_SHADOW},${0.14 + rng() * 0.12})`;
   ctx.beginPath();
-  ctx.moveTo(-w / 2 + rng() * w, -h / 2);
-  ctx.lineTo(-w / 2 + rng() * w, h / 2);
-  ctx.stroke();
-  ctx.restore();
+  ctx.ellipse(x + 1.2, y + 1.6, r * 1.08, r * 0.82, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(${tone},${0.52 + rng() * 0.34})`;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * (0.72 + rng() * 0.18), rng() * Math.PI, 0, Math.PI * 2);
+  ctx.fill();
+  if (rng() < 0.55) {
+    ctx.fillStyle = `rgba(${STONE_HILITE},${0.1 + rng() * 0.13})`;
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.22, y - r * 0.28, r * 0.42, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawWornYard(seed: number): HTMLCanvasElement {
@@ -105,31 +109,47 @@ function drawWornYard(seed: number): HTMLCanvasElement {
   const ctx = canvas.getContext('2d')!;
 
   // 1) The trampled area: a lumpy mound of compacted-dirt discolouration, denser in the middle and frayed
-  //    at the edges (overlapping soft blots → an organic blob, not a disc), nudged toward the front.
+  //    at the edges (overlapping soft blots → an organic blob, not a disc), nudged toward the front. This
+  //    is the BED the gravel beds into.
   for (let i = 0; i < 30; i++) {
     const ang = rng() * Math.PI * 2;
     const d = Math.pow(rng(), 0.7) * 360;       // denser toward the centre
     const r = 130 + rng() * 230;
     blot(ctx, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, r, PACKED, 0.1 + rng() * 0.12);
   }
-
-  // 2) The heavily-walked core + a beaten path running from the front edge in to the counter.
   for (let i = 0; i < 7; i++) {
-    blot(ctx, C + (rng() - 0.5) * 200, FRONT + (rng() - 0.5) * 160, 120 + rng() * 120, TRODDEN, 0.12 + rng() * 0.12);
-  }
-  for (let i = 0; i < 9; i++) {
-    const t = i / 8;                            // 0 = front edge (top), 1 = the counter
-    blot(ctx, C + (rng() - 0.5) * 90, t * (C - 40) + 30, 70 + rng() * 50, SCUFF, 0.06 + rng() * 0.06);
+    blot(ctx, C + (rng() - 0.5) * 200, FRONT + (rng() - 0.5) * 160, 120 + rng() * 120, TRODDEN, 0.1 + rng() * 0.1);
   }
 
-  // 3) Dried-mud cracks across the compacted ground — more through the worked core.
-  for (let i = 0; i < 16; i++) {
+  // 2) The compacted GRAVEL/COBBLE — small stones walked into the dirt. A broad field across the worked
+  //    area (denser toward the centre), plus a heavier lane down the front approach so it reads as a PATH
+  //    leading to the counter.
+  for (let i = 0; i < 2400; i++) {
     const ang = rng() * Math.PI * 2;
-    const d = Math.pow(rng(), 0.6) * 330;
-    crack(ctx, rng, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, rng() * Math.PI * 2, 70 + rng() * 130, 2);
+    const d = Math.pow(rng(), 0.72) * 380;
+    pebble(ctx, rng, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d);
+  }
+  for (let i = 0; i < 1000; i++) {
+    const t = rng();                            // 0 = front edge (top), 1 = the counter
+    const y = t * (C - 30) + 20;
+    const x = C + (rng() - 0.5) * 150 * (0.55 + t); // the lane widens a touch toward the building
+    pebble(ctx, rng, x, y);
   }
 
-  // 4) Drag/scuff arcs — curved sweeps where crates get hauled around.
+  // 3) A beaten, polished footpath sheen drawn over the front approach (lighter, where feet smooth it).
+  for (let i = 0; i < 9; i++) {
+    const t = i / 8;
+    blot(ctx, C + (rng() - 0.5) * 90, t * (C - 40) + 30, 60 + rng() * 50, SCUFF, 0.05 + rng() * 0.05);
+  }
+
+  // 4) Dried seams threading between the stones — more through the worked core.
+  for (let i = 0; i < 12; i++) {
+    const ang = rng() * Math.PI * 2;
+    const d = Math.pow(rng(), 0.6) * 320;
+    crack(ctx, rng, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, rng() * Math.PI * 2, 60 + rng() * 120, 2);
+  }
+
+  // 5) Drag/scuff arcs — curved sweeps where crates get hauled around (the marks that read well already).
   for (let i = 0; i < 10; i++) {
     ctx.strokeStyle = `rgba(${rng() < 0.5 ? TRODDEN : SCUFF},${0.1 + rng() * 0.12})`;
     ctx.lineWidth = 4 + rng() * 7;
@@ -137,21 +157,6 @@ function drawWornYard(seed: number): HTMLCanvasElement {
     ctx.beginPath();
     ctx.arc(ax, ay, 50 + rng() * 130, rng() * Math.PI * 2, rng() * Math.PI + 0.6);
     ctx.stroke();
-  }
-
-  // 5) A rough hardstanding of salvaged pavers/boards clustered at the entrance (the front apron).
-  const slabs = 7 + Math.floor(rng() * 4);
-  for (let i = 0; i < slabs; i++) {
-    slab(ctx, rng, C + (rng() - 0.5) * 360, 90 + rng() * 240); // upper canvas = front of the shop
-  }
-
-  // 6) Fine grit so the surface holds texture under a low camera.
-  for (let i = 0; i < 900; i++) {
-    const s = 1 + rng() * 1.8;
-    ctx.fillStyle = `rgba(${rng() < 0.6 ? CRACK : SCUFF},${0.05 + rng() * 0.08})`;
-    const ang = rng() * Math.PI * 2;
-    const d = Math.pow(rng(), 0.5) * 430;
-    ctx.fillRect(C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, s, s);
   }
 
   return canvas;
@@ -163,7 +168,7 @@ function seedFor(x: number, z: number): number {
 }
 
 export class ShopGround {
-  private readonly pads = new Map<EntityId, THREE.Mesh>();
+  private readonly pads = new Map<EntityId, THREE.Group>();
 
   constructor(private readonly scene: THREE.Scene) {}
 
@@ -182,10 +187,10 @@ export class ShopGround {
       mesh.rotation.x = -Math.PI / 2;          // lay flat; canvas TOP → the group's local front (−Z)
       const group = new THREE.Group();
       group.position.set(t.x, PAD_Y, t.z);
-      group.rotation.y = t.rotationY;          // so the apron/path falls in front of the entrance
+      group.rotation.y = t.rotationY;          // so the path falls in front of the entrance
       group.add(mesh);
       this.scene.add(group);
-      this.pads.set(s, group as unknown as THREE.Mesh);
+      this.pads.set(s, group);
     }
     for (const [id, group] of this.pads) {
       if (world.isAlive(id) && world.has(id, WorldShop)) continue;
