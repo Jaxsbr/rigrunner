@@ -2,6 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
+import { Solid } from '@common/components/solid';
 import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { RestorableSite } from '@common/components/restorable-site';
@@ -32,6 +33,9 @@ import { Healable } from './healable';
 export const HEAL_RADIUS = 4.0;
 const HEAL_FOV = (120 * Math.PI) / 180;   // the arm must have the stump within this cone (full angle)
 const GROW_DURATION = 6.0;                // seconds of holding to grow a stump fully — a weighty "I grew a tree"
+// The grown tree's solid footprint (trunk + a little): once grown you can't drive through the very thing
+// you restored. Tunable.
+const TREE_SOLID_RADIUS = 0.8;
 
 /** The HEALING Reclaimer mounted on `rig` (a Reclaimer whose head is the stump-healer), or null. */
 function mountedHealer(world: World, rig: EntityId): EntityId | null {
@@ -52,6 +56,17 @@ export function restorationSystem(world: World, rig: EntityId, working: boolean,
   // emerge together, never a tree floating above a half-buried stump.
   for (const s of world.query(RestorableSite, Transform)) {
     if (!world.has(s, Healable)) world.add(s, Healable, { growth: 0, active: false });
+  }
+
+  // A fully-grown stump is a tree the rig can no longer drive through — it gains the same Solid footprint
+  // the other structures carry, once. Driven by `growth >= 1` (not a one-frame transition), so it covers
+  // both finishing a grow this frame AND a save reloaded already-grown (growth restored to 1) — both pick
+  // up their Solid on the first tick.
+  for (const s of world.query(Healable)) {
+    if (world.get(s, Healable)!.growth >= 1 && !world.has(s, Solid)) {
+      if (!world.has(s, Collider)) world.add(s, Collider, { radius: TREE_SOLID_RADIUS });
+      world.add(s, Solid, true);
+    }
   }
 
   const rigT = world.get(rig, Transform);

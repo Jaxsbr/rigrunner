@@ -3,6 +3,7 @@ import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Collectible } from '@features/scrap/collectible';
 import { Collider } from '@common/components/collider';
+import { Solid } from '@common/components/solid';
 import { Renderable } from '@common/components/renderable';
 import { ScrapPile } from '@features/scrap/scrap-pile';
 
@@ -73,17 +74,21 @@ export function scatterScrap(
 const PILE_RADIUS = 4.0;                 // metres from centre the rig must reach to work it (tunable)
 const PILE_FOV = (120 * Math.PI) / 180;  // the arm must have the pile within this full field-of-view
 const PILE_WAVES = 8;                    // waves of scrap the heap holds (≈ how long hold-to-work runs)
+// The heap's solid footprint (≈2 m core) — what the rig physically bumps, far smaller than the generous
+// rummage reach above, so the rig still drives in close enough to dig. Tunable.
+const PILE_SOLID_RADIUS = 1.3;
 
 // The three pile-mesh variants (one seeded generator, scrap_pile.py); a spawn picks one at random so
 // piles don't all look the same. Each is a distinct silhouette + tone — see scrap-pile-polish-spec.md.
 const PILE_VARIANTS = ['scrap-pile-a', 'scrap-pile-b', 'scrap-pile-c'] as const;
 
 /**
- * Spawn a rummageable scrap pile at a world position — a big junk heap the Reclaimer digs into. It
- * mirrors the workshop's proximity model (a gated zone, no Collider — proximity, not collisions,
- * governs the interaction) but adds the Reclaimer + facing gate (see components/scrap-pile.ts). The
- * heap renders one of the three `scrap-pile-*` variant GLBs (picked by `rng`); the render layer shrinks
- * it as `remaining` falls, then sinks it on reclaim while a stump rises in its place.
+ * Spawn a rummageable scrap pile at a world position — a big junk heap the Reclaimer digs into. Its
+ * rummage interaction is governed by a proximity + facing gate (the `ScrapPile`'s reach/FOV, see
+ * components/scrap-pile.ts), while a separate, smaller Solid collider is what the rig physically bumps —
+ * so you can't drive through the heap, but can still drive in close enough to work it. The heap renders one
+ * of the three `scrap-pile-*` variant GLBs (picked by `rng`); the render layer shrinks it as `remaining`
+ * falls, then sinks it on reclaim while a stump rises in its place.
  */
 export function spawnScrapPile(world: World, x: number, z: number, rotationY = 0, rng: () => number = Math.random): EntityId {
   const e = world.createEntity();
@@ -99,6 +104,8 @@ export function spawnScrapPile(world: World, x: number, z: number, rotationY = 0
   });
   const assetId = PILE_VARIANTS[Math.floor(rng() * PILE_VARIANTS.length)] ?? PILE_VARIANTS[0];
   world.add(e, Renderable, { shape: 'model', assetId });
+  world.add(e, Collider, { radius: PILE_SOLID_RADIUS });
+  world.add(e, Solid, true);
   return e;
 }
 
@@ -182,5 +189,7 @@ export function spawnScrapPileFromSave(world: World, d: PileSave): EntityId {
     active: false,
   });
   world.add(e, Renderable, { shape: 'model', assetId: d.assetId });
+  world.add(e, Collider, { radius: PILE_SOLID_RADIUS });
+  world.add(e, Solid, true);
   return e;
 }

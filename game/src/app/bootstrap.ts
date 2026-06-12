@@ -6,6 +6,7 @@ import { DriveControl } from '@features/drive/drive-control';
 import { mountingSystem } from '@features/mounting/mounting';
 import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { movementSystem } from '@features/drive/movement';
+import { collisionResponseSystem } from '@features/drive/collision-response';
 import { boostSystem } from '@features/boost/boost';
 import { Boost } from '@common/components/boost';
 import { collisionSystem } from '@common/sim/collision';
@@ -25,6 +26,7 @@ import { activeStagingTargets } from '@features/workshop/staging';
 import { RenderView } from '@common/render/view';
 import type { CameraPose } from '@common/render/orbit-camera';
 import { ZoneOverlays } from '@common/render/zone-overlays';
+import { CollisionDebug } from '@common/render/collision-debug';
 import { ScrapStains } from '@features/scrap/scrap-stains';
 import { workshopZoneDiscs } from '@features/workshop/overlays';
 import { scrapPileDiscs } from '@features/scrap/overlays';
@@ -139,6 +141,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
   // shared render tier (`@common/render/view`) imports no feature. The sim-driven animators are plain
   // functions called below against `view.entityViews`.
   const zones = new ZoneOverlays(view.scene);
+  // Debug-only: press C to toggle wireframe cages over every Collider (red = Solid/blocks, cyan =
+  // pass-through). Off by default; holds no scene objects until switched on. Wired below.
+  const collisionDebug = new CollisionDebug(view.scene);
   const stains = new ScrapStains(view.scene);
   const pileStains = new ScrapPileStains(view.scene);
   const campStains = new CampStains(view.scene);
@@ -261,6 +266,14 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     });
   }
 
+  // C toggles the collision-debug overlay (available in every mode — it's inert until pressed, and seeing
+  // the footprints is as useful for tuning the real game's radii as the sandbox's). A toast confirms it.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'c' || e.key === 'C') {
+      capToast.show(`Collision debug ${collisionDebug.toggle() ? 'ON' : 'OFF'} (red = solid · cyan = pass-through)`);
+    }
+  });
+
   let last = performance.now();
   let prevActiveRig: EntityId | null = null; // last frame's active rig — a change drives the camera pan
   let prevWork = false; // E held last frame — the rising edge is the single-press pack-up trigger
@@ -302,6 +315,10 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // Resolve boost heat/surge for every rig BEFORE movement reads it (so the surge is current).
       boostSystem(world, dt);
       movementSystem(world, dt);
+      // Push every driven rig back out of any Solid structure it drove into this frame, BEFORE mounted
+      // parts ride to their cells (so they follow the corrected position) and before the proximity gates
+      // recompute against the rig's settled spot.
+      collisionResponseSystem(world);
       mountingSystem(world);
       // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
       // it, so a part dropped this frame snaps onto the workshop only when it's lit.
@@ -413,6 +430,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     view.setFovExtra(boosting ? 6 : 0);
     view.follow(world.get(activeRig, Transform)!, cameraInput.poll(), dt, retarget);
     view.sync(world);
+    // Debug collider cages (off unless toggled with C) — synced after view.sync so they track the same
+    // positions the models render at; runs always so they stay put behind an overlay or while paused.
+    collisionDebug.sync(world);
     // proximity discs (workshop + scrap): each feature contributes its gated disc entries and we
     // concatenate them for the shared render tier. Each feature's "what key does this" prompt is a
     // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
