@@ -4,7 +4,6 @@ import { Transform } from '@common/components/transform';
 import { Renderable } from '@common/components/renderable';
 import { DEFAULT_TIER, type TierId } from '@common/parts/tiers';
 import { WorldShop } from './world-shop';
-import { PART_COSTS } from './part-costs';
 import { spawnShopYard } from './shop-yard';
 
 /** Metres from the shop centre the rig must reach to open it — matches the workshop's reach. */
@@ -26,19 +25,10 @@ const ZONE_RADIUS = 3.5;
 const SHOP_FRONT_SE = (5 * Math.PI) / 4;
 
 /**
- * Every priced catalog part — the "carries everything" stock for the first, sole world shop, so
- * relocating the old workshop Shop tab into the world loses no capability. A partial/unique stock is
- * just a hand-picked subset of these ids, which later shops will use to spread parts across the map.
- */
-export function allStockedPartIds(): string[] {
-  return PART_COSTS.map((c) => c.partId);
-}
-
-/**
- * Place a world shop: a structure the rig drives to that opens the shop interface scoped to its own
- * `stock` at its `tier`. Mirrors `spawnWorkshop` — a pure entity builder (Transform + Renderable +
- * the gating component), no special state. Defaults to the rusty grade carrying everything (the first
- * bowl shop); pass a tier + a subset list for the tier-themed, partial-stock shops that follow.
+ * Place a world shop: a structure the rig drives to that opens the shop interface, selling the full priced
+ * catalogue at its `tier`. Mirrors `spawnWorkshop` — a pure entity builder (Transform + Renderable + the
+ * gating component), no special state. Defaults to the rusty grade (the first bowl shop); pass a tier for
+ * the tier-themed shops that follow (a rusty shop sells rusty parts, an iron shop iron, etc.).
  *
  * Facing defaults to **SE** (`SHOP_FRONT_SE`) so the open front catches the fixed light and reads; pass
  * `rotationY` to pin a different diagonal.
@@ -52,12 +42,11 @@ export function spawnWorldShop(
   x: number,
   z: number,
   tier: TierId = DEFAULT_TIER,
-  stock: string[] = allStockedPartIds(),
   rotationY: number = SHOP_FRONT_SE,
 ): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY });
-  world.add(e, WorldShop, { tier, stock, radius: ZONE_RADIUS, active: false });
+  world.add(e, WorldShop, { tier, radius: ZONE_RADIUS, active: false });
   world.add(e, Renderable, { shape: 'model', assetId: 'shop' });
   spawnShopYard(world, x, z, rotationY);
   return e;

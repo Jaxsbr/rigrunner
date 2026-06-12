@@ -326,6 +326,13 @@
         letter-spacing: 0.06em;
       }
       .shop-wallet strong { color: #59ff9f; font-size: 14px; }
+      /* A brief pulse when a buy/sell registers, so the wallet visibly reacts to each transaction. */
+      .shop-wallet.bumped { animation: shop-wallet-bump 320ms ease-out; }
+      @keyframes shop-wallet-bump {
+        0% { transform: scale(1); border-color: #2c343a; }
+        35% { transform: scale(1.09); border-color: #59ff9f; }
+        100% { transform: scale(1); border-color: #2c343a; }
+      }
       #shop-close {
         width: 26px;
         height: 26px;

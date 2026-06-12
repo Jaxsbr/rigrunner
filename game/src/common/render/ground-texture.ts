@@ -77,8 +77,9 @@ function drawWastelandFloor(): HTMLCanvasElement {
   return canvas;
 }
 
-/** A soft-edged radial blot of `color` that fades to fully transparent at its rim. */
-function softPatch(
+/** A soft-edged radial blot of `color` (an `'r,g,b'` string) that fades to fully transparent at its rim.
+ *  Reused by the shop's worn-ground decal, which draws the same "the same idiom as the wasteland floor". */
+export function softPatch(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,

@@ -9,17 +9,18 @@ shop UI, and the shopfront's render.
 What's here:
 
 - **Transactions (the seam):** `shop.ts` (`buyPart`/`sellPart`/`purchaseVerdict`/`resaleValue`) +
-  `part-shop.ts` (the `PartShopItem` stock line + `tieredCost`/`shopItemForPart`) + `part-costs.ts` (the
-  single price-tuning table). These moved out of `features/workshop/` — the shop no longer lives inside
-  the build surface. They mutate only Wallet + Inventory (`@features/economy`), and know nothing about
-  recipes or world placement.
-- **The world entity:** `world-shop.ts` (the `WorldShop` component — `{ tier, stock, radius, active }`,
-  the stock-list seam tiers/partial-stock/set-completion ride on), `world-shop-spawn.ts`
-  (`spawnWorldShop` builder + `allStockedPartIds`; it also scatters the shop's yard), `shop-zone-system.ts`
-  (the circle-vs-circle proximity gate, mirroring `workshopZoneSystem`), `shop-yard.ts` (`spawnShopYard` —
-  the goods-yard layout algorithm: deterministic, entrance-relative scatter of `yard-*` props around a shop).
-- **The UI:** `shop-overlay.ts` (the standalone `ShopOverlay` — buy/sell scoped to one shop's stock,
-  with the self-describing `part-descriptions.ts` blurbs). It is NOT part of the workshop overlay.
+  `part-shop.ts` (the `PartShopItem` line + `tieredCost`/`shopItemForPart` + `shopStockForTier`, the buy
+  list = the full catalogue at a tier) + `part-costs.ts` (the single price-tuning table). These moved out
+  of `features/workshop/` — the shop no longer lives inside the build surface. They mutate only Wallet +
+  Inventory (`@features/economy`), and know nothing about recipes or world placement.
+- **The world entity:** `world-shop.ts` (the `WorldShop` component — `{ tier, radius, active }`; it
+  satisfies the shared `ProximityGate`), `world-shop-spawn.ts` (`spawnWorldShop` builder; it also scatters
+  the shop's yard), `shop-zone-system.ts` (a thin binding of the shared `@common/sim/proximity-gate` — the
+  same gate the workshop uses), `shop-yard.ts` (`spawnShopYard` — the goods-yard layout algorithm:
+  deterministic, entrance-relative scatter of `yard-*` props around a shop).
+- **The UI:** `shop-overlay.ts` (the standalone `ShopOverlay` — buy the full catalogue at the shop's tier,
+  sell any loose part at a loss, with the self-describing `part-descriptions.ts` blurbs). It is NOT part of
+  the workshop overlay.
 - **Render** (dispatched from `app/bootstrap.ts`, never from `@common/render`): `overlays.ts` (the shop's
   proximity-disc entries), `shop-vent-animator.ts` (the roof whirlybird spin off the `joint_vent` node),
   `shop-ground.ts` (the worn, trampled, cracked ground decal — a procedural CanvasTexture plane, laid under
@@ -33,9 +34,19 @@ Single-owner / placement rules at the point of edit:
   Don't re-add a shop tab to `features/workshop/`; a part you can't afford is bought at a world shop.
 - **Tier is intrinsic to a shop**, not a UI selector — a rusty shop sells rusty. There is no in-UI tier
   toggle that reprices the list (that was obs #10's gripe).
+- **No per-shop stock; selling is universal and lossy.** A shop sells the FULL priced catalogue at its
+  tier — buying is *"any part the shop sells, always in stock"* (no scarcity, no per-shop subset). Selling
+  works for ANY loose part at ANY shop: the shop is a greedy buyer that takes even parts it doesn't sell,
+  always at a loss (`resaleValue` ≈ half the part's price). **Partial/unique stock is a captured idea we
+  deliberately did NOT build** — `WorldShop` carries no `stock` list (complexity earns its place). If it's
+  ever wanted, it reattaches as a `WorldShop.stock?` subset the buy list filters on.
+- **One overlay owns the sim at a time.** Both this and the workshop bind a window `E` keydown; the
+  `isBusy()` seam (true when another overlay already holds `paused`) stops a single E in overlapping zones
+  from stacking two modals. Any new sim-freezing overlay should honour the same gate.
 - **Cross-feature edges point downhill:** shop depends on `economy` (Wallet/Inventory) and `common/parts`
-  (the catalog + tiers) — never the reverse. `@common`/`@core` never import shop; per-frame shop render is
-  dispatched from the `app/` composition root.
+  (the catalog + tiers + `part-color`) — never the reverse. The proximity gate, the seeded RNG, and the
+  part-identity colour all come from `@common`. `@common`/`@core` never import shop; per-frame shop render
+  is dispatched from the `app/` composition root.
 
 ## Visual design — a shop is a *point of interest*: a busy, lived-in trade post
 

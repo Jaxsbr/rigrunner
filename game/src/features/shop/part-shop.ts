@@ -3,11 +3,11 @@ import { tierOf, type TierId } from '@common/parts/tiers';
 import { PART_COSTS } from './part-costs';
 
 /**
- * The scrap spend sink: a tiny, data-driven stock list for workshop purchases, now tier-aware. The
- * shop is Phase 1's testable source of iron parts (`docs/part-identity-spec.md` §5/§6): the player
- * picks a tier in the overlay and the same catalog part is offered at that grade, priced up the
- * steeper the tier. `PART_COSTS` holds the base (rusty) price; the tier multiplier scales it, so
- * there is one price surface, not a hand-maintained price per tier.
+ * The scrap spend sink: a tiny, data-driven catalogue for world-shop purchases, tier-aware. A shop is
+ * Phase 1's testable source of iron parts (`docs/part-identity-spec.md` §5/§6): the shop's intrinsic tier
+ * sets the grade, and the same catalog part is offered at that grade, priced up the steeper the tier.
+ * `PART_COSTS` holds the base (rusty) price; the tier multiplier scales it, so there is one price surface,
+ * not a hand-maintained price per tier. `shopStockForTier` is the buy list (the full catalogue at a tier).
  *
  * This stays intentionally just "part id + tier -> scrap cost". The future production chain can
  * replace the stock source (recipes, fixtures, smelter) while keeping the transaction seam in shop.ts.

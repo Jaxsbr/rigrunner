@@ -7,6 +7,7 @@ import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Renderable } from '@common/components/renderable';
 import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
+import { tintForKey, cssHex } from '@common/parts/part-color';
 import { tierOf, type TierId } from '@common/parts/tiers';
 import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
 import { productAssetId, productRenderSpec } from '@features/workshop/product-visual';
@@ -81,25 +82,18 @@ import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from 
 export interface WorkshopOverlayOptions {
   /** Fired with `true` when the overlay opens, `false` when it closes — main flips `paused`. */
   onPauseChange(paused: boolean): void;
+  /** True while the sim is already paused by another overlay — the workshop must not open on top of it. */
+  isBusy(): boolean;
 }
 
 /**
  * The chip dot + portrait-placeholder tint, keyed by an item's energy type when it has one (engine
  * parts and engine products), else by its category/kind — so storage items (no electric/steam) get
- * the rig_blue "player-built" signature instead of a missing colour. This colour IS the type cast
- * (`docs/part-identity-spec.md` §3): electric reads cool/clean, steam warm/copper.
+ * the rig_blue "player-built" signature instead of a missing colour. The colour table is the part's
+ * identity cast (`docs/part-identity-spec.md` §3), shared with the world shop via `@common/parts/part-color`.
  */
-const COLOR_BY_KEY: Record<string, number> = {
-  electric: 0x59ff9f, // glow_green — cool/clean electric cast
-  steam: 0x8a4b2f, // rust — warm/copper steam cast
-  storage: 0x2f6f9f, // rig_blue
-  reclaimer: 0xd9a521, // hazard_yellow — the rummage tool's signature
-  chassis: 0x6b6b6b, // scrap_grey — the structural foundation
-};
-const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
+const tintOf = (colorKey: string): number => tintForKey(colorKey);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-/** A colour number as a CSS `#rrggbb` string — for inline tier-finish swatches. */
-const cssHex = (n: number): string => '#' + n.toString(16).padStart(6, '0');
 /** The small material-finish swatch (§3) that marks a part's tier on an inventory/bench chip. */
 const finishSwatch = (color: number): string =>
   `<span class="wk-tier-finish" style="background:${cssHex(color)}"></span>`;
@@ -253,7 +247,10 @@ export class WorkshopOverlay {
   }
 
   private openOverlay(): void {
-    if (this.open) return;
+    // Don't open over another already-open sim-freezing overlay (e.g. the world shop, when a shop zone
+    // overlaps this workshop's zone and one E press reaches both window listeners). The first to open
+    // flips the shared `paused` bit, so the second sees `isBusy()` and bows out — never two stacked modals.
+    if (this.open || this.opts.isBusy()) return;
     this.open = true;
     this.opts.onPauseChange(true);
     this.syncPanel();

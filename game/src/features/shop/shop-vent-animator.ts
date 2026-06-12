@@ -16,8 +16,10 @@ import { WorldShop } from './world-shop';
 const VENT_SPEED = 0.9;
 
 export function animateShopVents(views: EntityViews, world: World, dt: number): void {
-  for (const [id, obj] of views.objects) {
-    if (!world.isAlive(id) || !world.has(id, WorldShop)) continue;
+  // Iterate the few shops, not every renderable object in the scene — then look up each shop's Object3D.
+  for (const id of world.query(WorldShop)) {
+    const obj = views.objects.get(id);
+    if (!obj) continue;
     // Locate the vent node once the GLB has loaded, then cache it. Until it's found (the model loads
     // async) we keep looking — caching a premature null would freeze the vent forever.
     let vent = obj.userData['shopVent'] as THREE.Object3D | null | undefined;

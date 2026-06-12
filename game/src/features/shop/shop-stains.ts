@@ -59,7 +59,9 @@ export class ShopStains {
   sync(world: World, dt: number): void {
     for (const s of world.query(WorldShop, Transform)) {
       const stain = this.stains.get(s) ?? this.spawn(s, world);
-      this.field.ease(stain, 1, 1); // snap to full
+      // Settle to full once (a fresh cluster builds at progress 0); a shop is static, so once it's there
+      // re-asserting it every frame just rewrites every blotch's opacity to the same value. Skip that.
+      if (stain.progress < 1) this.field.ease(stain, 1, 1);
     }
     for (const [id, stain] of this.stains) {
       if (world.isAlive(id) && world.has(id, WorldShop)) continue;

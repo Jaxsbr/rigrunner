@@ -171,6 +171,7 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     world,
     {
       onPauseChange: (p) => { workshopPaused = p; syncPaused(); },
+      isBusy: () => paused,
     },
   );
 
@@ -183,6 +184,7 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     world,
     {
       onPauseChange: (p) => { shopPaused = p; syncPaused(); },
+      isBusy: () => paused,
     },
   );
 

@@ -2,6 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Renderable } from '@common/components/renderable';
+import { seededRng } from '@common/sim/rng';
 
 /**
  * The shop's goods YARD: a scatter of small props (`yard-*` GLBs) spread 360° around a world shop so it
@@ -35,18 +36,6 @@ const JITTER = 0.85;     // max random offset of a prop from its cell centre (or
 const SCATTER_LITTER = 4; // loose-scrap bits strewn as ground litter (dropped bits during unpacking)
 const STRAGGLERS = 3;     // a few props spilled past the tight ring, so the yard edge isn't a clean square
 
-/** A small, fast seeded RNG (mulberry32) so a shop's yard is deterministic from its position. */
-function rngFor(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /** Hash a world position into a 32-bit seed (so two shops at different spots get different yards). */
 function seedFor(x: number, z: number): number {
   return (Math.imul(Math.round(x * 100), 73856093) ^ Math.imul(Math.round(z * 100), 19349663)) >>> 0;
@@ -67,7 +56,7 @@ function pickWeighted(r: number): string {
  * `spawnWorldShop` places the building.
  */
 export function spawnShopYard(world: World, shopX: number, shopZ: number, rotationY: number): EntityId[] {
-  const rng = rngFor(seedFor(shopX, shopZ));
+  const rng = seededRng(seedFor(shopX, shopZ));
   const ids: EntityId[] = [];
 
   // The shop's local axes in world space: `forward` points out the entrance, `side` runs across it.

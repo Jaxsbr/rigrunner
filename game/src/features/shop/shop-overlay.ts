@@ -3,10 +3,11 @@ import type { EntityId } from '@core/types';
 import { EnginePart } from '@common/parts/engine-part';
 import { partDef, type PartDef } from '@common/parts/parts-catalog';
 import { tierOf } from '@common/parts/tiers';
+import { partColorKey as keyOf, partTint as tintOf, cssHex } from '@common/parts/part-color';
 import { inventoryItems } from '@features/economy/inventory';
 import { getWallet } from '@features/economy/wallet';
 import { createModelPortrait, type ModelPortrait } from '@shared/model-portrait';
-import { shopItemForPart, type PartShopItem } from './part-shop';
+import { shopItemForPart, shopStockForTier, type PartShopItem } from './part-shop';
 import { buyPart, purchaseVerdict, resaleValue, sellPart } from './shop';
 import { partDescription } from './part-descriptions';
 import { WorldShop } from './world-shop';
@@ -17,35 +18,31 @@ import { WorldShop } from './world-shop';
  * in-world "Press E" hint). Opening freezes the simulation; closing (✕ or Escape) resumes. It is the
  * in-world replacement for the old workshop Shop tab (the workshop now only builds/assembles/banks).
  *
- * One reusable surface, scoped per shop: opening reads the in-range `WorldShop`'s own `stock` + `tier`,
- * so every shop — and any future home/special shop — drives the same UI with a different stock list.
- * Buying mints the part at the shop's tier into Inventory; selling values a loose part at its own tier.
- * The left column lists the stock (buy) and your loose parts (sell); the right column inspects the
+ * One reusable surface: opening reads the in-range `WorldShop`'s `tier`, and the shop sells the FULL
+ * priced catalogue at that grade — there is no per-shop stock subset (buying is "any part the shop sells,
+ * always available"). Buying mints the part at the shop's tier into Inventory; selling values a loose part
+ * at its OWN tier and resells it at a loss to ANY shop (a greedy buyer that takes parts it doesn't sell).
+ * The left column lists the catalogue (buy) and your loose parts (sell); the right column inspects the
  * focused entry — its portrait and the **self-describing blurb** that teaches what the part is for.
  *
  * Mutates the World only through the shop transaction seam (`buyPart`/`sellPart`) and reads Inventory +
- * Wallet — never a parallel store, so state survives close/reopen. It surfaces two seams to the
- * composition root: `onPauseChange(paused)` (open ⇒ true) and `setActiveShop(entity)`, pushed each
- * frame so the tab tracks proximity.
+ * Wallet — never a parallel store, so state survives close/reopen. It surfaces seams to the composition
+ * root: `onPauseChange(paused)` (open ⇒ true), `setActiveShop(entity)` (pushed each frame so the tab
+ * tracks proximity), and `isBusy()` — true when another sim-freezing overlay already holds the pause, so
+ * one E press in overlapping zones can't stack two interfaces.
  */
 export interface ShopOverlayOptions {
   /** Fired with `true` when the overlay opens, `false` when it closes — bootstrap flips `paused`. */
   onPauseChange(paused: boolean): void;
+  /** True while the sim is already paused by another overlay — the shop must not open on top of it. */
+  isBusy(): boolean;
 }
 
-/** Chip/accent colour for a part, keyed by its energy type (engines) else its category. */
-const COLOR_BY_KEY: Record<string, number> = {
-  electric: 0x59ff9f,
-  steam: 0x8a4b2f,
-  storage: 0x2f6f9f,
-  reclaimer: 0xd9a521,
-  chassis: 0x6b6b6b,
-  weapon: 0xe0432a,
-  trap: 0xd9a521,
-};
-const keyOf = (def: PartDef): string => def.type ?? def.category;
-const tintOf = (def: PartDef): number => COLOR_BY_KEY[keyOf(def)] ?? 0x6b6b6b;
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A chassis sub-part's size badge (e.g. " (1×3)"), so the scout and hauler chassis parts — which share a
+ *  displayName like "Chassis Frame" — are never indistinguishable in the buy list. Empty for non-chassis. */
+const sizeSuffix = (def: PartDef): string => (def.chassisSize ? ` (${def.chassisSize.replace('x', '×')})` : '');
 
 /** A selection: a stock line to buy (no entity yet) or a loose inventory part to sell. */
 type Selection =
@@ -108,7 +105,11 @@ export class ShopOverlay {
   }
 
   private openOverlay(): void {
-    if (this.open || this.activeShop === null) return;
+    // Don't open over an already-open sim-freezing overlay. Both this and the workshop bind a window
+    // `keydown` 'E' listener; where a shop zone overlaps a workshop zone, one press fires both. The first
+    // to open flips the shared `paused` bit (synchronously, via onPauseChange), so the second sees
+    // `isBusy()` and bows out — only one interface opens, instead of two stacked modals.
+    if (this.open || this.activeShop === null || this.opts.isBusy()) return;
     this.open = true;
     this.shop = this.activeShop;
     this.selected = null;
@@ -146,11 +147,9 @@ export class ShopOverlay {
     this.walletEl.innerHTML = `<span>SCRAP</span><strong>${scrap}</strong>`;
     this.listEl.innerHTML = '';
 
-    // BUY — every in-stock part, minted at this shop's tier. An unpriced id is skipped (not sold).
+    // BUY — the full priced catalogue, minted at this shop's tier (always in stock; no per-shop subset).
     this.appendSectionTitle('Buy');
-    const buyItems = shop.stock
-      .map((partId) => shopItemForPart(partId, shop.tier))
-      .filter((i): i is PartShopItem => i !== undefined);
+    const buyItems = shopStockForTier(shop.tier);
     for (const item of buyItems) this.listEl.appendChild(this.buyCard(item));
 
     // SELL — loose inventory parts that have a shop price, valued at their OWN tier.
@@ -234,7 +233,7 @@ export class ShopOverlay {
       `<div class="shop-card-name-row">` +
       `<span class="shop-dot"></span>` +
       `<span class="shop-finish" style="background:${cssHex(tier.finishColor)}"></span>` +
-      `<span class="shop-name">${tier.name} ${def.displayName}</span>` +
+      `<span class="shop-name">${tier.name} ${def.displayName}${sizeSuffix(def)}</span>` +
       `</div>` +
       `<div class="shop-card-meta">${cap(def.category)} part</div>` +
       `</div>` +
@@ -259,7 +258,7 @@ export class ShopOverlay {
         ? `<div class="shop-price">Buy · <strong>${sel.item.cost}</strong> scrap</div>`
         : `<div class="shop-price sell">Sell · <strong>+${resaleValue(sel.item)}</strong> scrap</div>`;
     this.detailEl.innerHTML =
-      `<h4>${tier.name} ${def.displayName}</h4>` +
+      `<h4>${tier.name} ${def.displayName}${sizeSuffix(def)}</h4>` +
       `<div class="shop-detail-sub">${tier.name} · ${def.type ?? def.category} · ${def.slot}</div>` +
       (desc ? `<p class="shop-blurb">${desc}</p>` : '') +
       priceLine;
@@ -279,6 +278,7 @@ export class ShopOverlay {
     const result = buyPart(this.world, item);
     if (result.ok) this.selected = { mode: 'buy', item }; // keep it focused after the purchase
     this.refresh();
+    if (result.ok) this.bumpWallet();
   }
 
   private doSell(entity: EntityId): void {
@@ -287,6 +287,15 @@ export class ShopOverlay {
       this.selected = null; // the sold part is gone — drop the inspect focus
     }
     this.refresh();
+    if (result.ok) this.bumpWallet();
+  }
+
+  /** A brief pulse on the wallet readout so each buy/sell visibly "registers" — the tactile cue the old
+   *  workshop shop gave by flashing the moved chip. The reflow read restarts the CSS animation each time. */
+  private bumpWallet(): void {
+    this.walletEl.classList.remove('bumped');
+    void this.walletEl.offsetWidth;
+    this.walletEl.classList.add('bumped');
   }
 
   // ── Visibility ──────────────────────────────────────────────────────────────────────────────
@@ -308,9 +317,4 @@ export class ShopOverlay {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('resize', this.onResize);
   }
-}
-
-/** A colour number as a CSS `#rrggbb` string — for the inline tier-finish swatch. */
-function cssHex(n: number): string {
-  return '#' + n.toString(16).padStart(6, '0');
 }

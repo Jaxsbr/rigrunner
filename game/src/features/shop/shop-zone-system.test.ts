@@ -16,7 +16,7 @@ function rig(world: World, x: number, z: number, radius = 1.2): EntityId {
 function shop(world: World, x: number, z: number, radius = 3.5): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY: 0 });
-  world.add(e, WorldShop, { tier: 'rusty', stock: [], radius, active: false });
+  world.add(e, WorldShop, { tier: 'rusty', radius, active: false });
   return e;
 }
 

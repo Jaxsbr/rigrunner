@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
+import { seededRng } from '@common/sim/rng';
+import { softPatch } from '@common/render/ground-texture';
 import { WorldShop } from './world-shop';
 
 /**
@@ -40,28 +42,6 @@ const SCUFF = '156,134,94';    // a polished, lighter scuff — the beaten footp
 const STONES = ['150,124,86', '134,108,72', '120,96,62', '104,82,54', '86,68,46', '128,92,58'];
 const STONE_SHADOW = '40,30,18'; // the contact shadow a stone casts into the dirt
 const STONE_HILITE = '184,156,110'; // a warm sand sun-catch on a stone's crown (kept subtle, not white)
-
-function rngFor(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** A soft radial blot fading to transparent at its rim. */
-function blot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, rgb: string, a: number): void {
-  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, `rgba(${rgb},${a})`);
-  g.addColorStop(1, `rgba(${rgb},0)`);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-}
 
 /** Walk a thin seam between the stones from (x,y), drifting and occasionally forking. */
 function crack(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: number, ang: number, len: number, depth: number): void {
@@ -104,7 +84,7 @@ function pebble(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: 
 }
 
 function drawWornYard(seed: number): HTMLCanvasElement {
-  const rng = rngFor(seed);
+  const rng = seededRng(seed);
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = TEX_PX;
   const ctx = canvas.getContext('2d')!;
@@ -116,10 +96,10 @@ function drawWornYard(seed: number): HTMLCanvasElement {
     const ang = rng() * Math.PI * 2;
     const d = Math.pow(rng(), 0.7) * 360;       // denser toward the centre
     const r = 130 + rng() * 230;
-    blot(ctx, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, r, PACKED, 0.1 + rng() * 0.12);
+    softPatch(ctx, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, r, PACKED, 0.1 + rng() * 0.12);
   }
   for (let i = 0; i < 7; i++) {
-    blot(ctx, C + (rng() - 0.5) * 200, FRONT + (rng() - 0.5) * 160, 120 + rng() * 120, TRODDEN, 0.1 + rng() * 0.1);
+    softPatch(ctx, C + (rng() - 0.5) * 200, FRONT + (rng() - 0.5) * 160, 120 + rng() * 120, TRODDEN, 0.1 + rng() * 0.1);
   }
 
   // 2) The compacted GRAVEL/COBBLE — small stones walked into the dirt. A broad field across the worked
@@ -140,7 +120,7 @@ function drawWornYard(seed: number): HTMLCanvasElement {
   // 3) A beaten, polished footpath sheen drawn over the front approach (lighter, where feet smooth it).
   for (let i = 0; i < 9; i++) {
     const t = i / 8;
-    blot(ctx, C + (rng() - 0.5) * 90, t * (C - 40) + 30, 60 + rng() * 50, SCUFF, 0.05 + rng() * 0.05);
+    softPatch(ctx, C + (rng() - 0.5) * 90, t * (C - 40) + 30, 60 + rng() * 50, SCUFF, 0.05 + rng() * 0.05);
   }
 
   // 4) Dried seams threading between the stones — more through the worked core.
@@ -181,6 +161,7 @@ export class ShopGround {
       const tex = new THREE.CanvasTexture(drawWornYard(seedFor(t.x, t.z)));
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.minFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false; // a flat ground decal, never minified — skip the unused mip chain
       const mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(PLANE, PLANE),
         new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),

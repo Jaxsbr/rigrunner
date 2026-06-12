@@ -3,6 +3,7 @@ import { World } from '@core/world';
 import { Transform } from '@common/components/transform';
 import { Renderable } from '@common/components/renderable';
 import { Collider } from '@common/components/collider';
+import { Collectible } from '@features/scrap/collectible';
 import { spawnShopYard } from './shop-yard';
 
 /** The (x,z) of every yard prop, as a stable signature for comparing two layouts. */
@@ -18,7 +19,7 @@ function layoutSig(world: World, ids: number[]): string {
 }
 
 describe('spawnShopYard', () => {
-  it('scatters a full yard of model props with no colliders (pure decoration)', () => {
+  it('scatters a full yard of pure-decoration props (no collider, no pickup)', () => {
     const world = new World();
     const ids = spawnShopYard(world, 9, 5, 0);
     // "Eight tiles full of stuff" — a busy yard, not a couple of boxes.
@@ -27,6 +28,9 @@ describe('spawnShopYard', () => {
       expect(world.get(e, Renderable)).toMatchObject({ shape: 'model' });
       expect(world.has(e, Transform)).toBe(true);
       expect(world.has(e, Collider)).toBe(false); // you drive THROUGH the yard; it never blocks
+      // The yard reuses the `loose-scrap` assetId for litter, but it's pure dressing — it must NOT carry
+      // Collectible, or the rig would farm the shop's décor as scrap on contact.
+      expect(world.has(e, Collectible)).toBe(false);
     }
   });
 
