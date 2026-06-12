@@ -6,6 +6,7 @@ import { DriveControl } from '@features/drive/drive-control';
 import { mountingSystem } from '@features/mounting/mounting';
 import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { movementSystem } from '@features/drive/movement';
+import { collisionResponseSystem } from '@features/drive/collision-response';
 import { boostSystem } from '@features/boost/boost';
 import { Boost } from '@common/components/boost';
 import { collisionSystem } from '@common/sim/collision';
@@ -302,6 +303,10 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // Resolve boost heat/surge for every rig BEFORE movement reads it (so the surge is current).
       boostSystem(world, dt);
       movementSystem(world, dt);
+      // Push every driven rig back out of any Solid structure it drove into this frame, BEFORE mounted
+      // parts ride to their cells (so they follow the corrected position) and before the proximity gates
+      // recompute against the rig's settled spot.
+      collisionResponseSystem(world);
       mountingSystem(world);
       // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
       // it, so a part dropped this frame snaps onto the workshop only when it's lit.

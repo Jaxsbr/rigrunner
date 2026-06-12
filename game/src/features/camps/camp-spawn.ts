@@ -2,6 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
+import { Solid } from '@common/components/solid';
 import { TrackEmitter } from '@common/components/track-emitter';
 import { Renderable } from '@common/components/renderable';
 import { Health } from '@common/components/health';
@@ -12,6 +13,10 @@ import { campLevel } from './camp-levels';
 
 /** How far the guard ring stands from the camp centre, and how big the structure reads. */
 const GUARD_RING_RADIUS = 3.5;
+
+/** The cache's solid footprint (≈1.4 m crate) — the central loot container the rig can't drive through.
+ *  Only the cache blocks; the tent + scattered debris stay pass-through. Tunable. */
+const CACHE_SOLID_RADIUS = 0.85;
 
 /** The wreckage strewn around a standing camp (the environmental mess). Each piece is scattered with a
  *  random yaw + slight scale so a tiny asset set reads as a littered, fought-over camp; all are
@@ -53,13 +58,16 @@ function spawnCampStructure(world: World, x: number, z: number, level: number): 
   world.add(camp, Transform, { x, z, y: 0, rotationY: 0 });
   world.add(camp, Camp, { level, state: 'guarded', tornDown: 0 });
 
-  // The loot container (the cache the camp guards) and a tent — the level-1 silhouette. Pure visual
-  // props (no collider; the game has no collision response, and loot is granted on clear, not on touch).
-  // Both are `CampDecor` of this camp, so they sink + despawn when it's cleared.
+  // The loot container (the cache the camp guards) and a tent — the level-1 silhouette. The cache carries
+  // a Solid footprint so the rig can't drive through the loot crate; the tent stays a pass-through prop.
+  // Loot is still granted on CLEAR, not on touch — the Solid only blocks movement. Both are `CampDecor` of
+  // this camp, so they sink + despawn (their Solid going with them) when it's cleared.
   const container = world.createEntity();
   world.add(container, Transform, { x: x + 1.4, z, y: 0, rotationY: 0 });
   world.add(container, Renderable, { shape: 'model', assetId: 'camp-cache' });
   world.add(container, CampDecor, { camp });
+  world.add(container, Collider, { radius: CACHE_SOLID_RADIUS });
+  world.add(container, Solid, true);
 
   const tent = world.createEntity();
   world.add(tent, Transform, { x: x - 1.6, z: z + 0.4, y: 0, rotationY: 0 });
