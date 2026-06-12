@@ -112,6 +112,17 @@ load by design:* rig HP/boost heat (a reload repairs), composed parts/kits dropp
 - **Carried forward (small, deliberate):** packed-kit crates left loose in the world and mid-combat
   progress aren't checkpointed — a save is never a half-fought fight.
 
+### Phase 0.5 — World shops (split the shop UI + the first world shop) · ✅ first slice `shipped` *(precedes Phase 1)*
+Pulled out into **its own spec** — [`world-shops-spec.md`](world-shops-spec.md) — and sequenced **before** the
+cold-open, because the cold-open must be designed *around where you buy.* The shop leaves the workshop overlay
+(buy/sell at home is too easy, and it adds to the workshop's bulk — [`../observations.md`](../observations.md)
+#10) and becomes **world destinations themed by part tier** (rusty, iron…). **First slice (shipped, PR #71):**
+the **UI split *and* the first rusty shop** (a short drive into the safe bowl) — playable now; a shop sells the
+full catalogue at its tier, and you sell any part anywhere at a loss. **Decided 2026-06-12:** the once-planned
+**partial/unique stock + set-completion** progression lever is **parked, not built** (see the world-shops spec +
+[`../observations.md`](../observations.md) #19); the tier-themed "find shops → unlock parts" idea stays captured.
+**Phase 1 consumes its output** (the first bowl shop is the cold-open's first-purchase point).
+
 ### Phase 1 — The designed cold-open · `pending`
 Now that testing lives in the sandbox, craft the canonical **New Game** in peace. Fleshed out **2026-06-11**
 ([`../ideas.md`](../ideas.md) for the voice/why); the calls below are **candidate direction, still movable.**
@@ -140,9 +151,10 @@ The piece that turns every LOCKED into a *goal* is **the shop as catalog**: self
 ("Reclaimer — digs scrap piles") let *browsing the shop* teach the whole possibility space.
 
 **Teaching = arrangement, with one sanctioned popup.** Phase 1 teaches **silently, by arrangement** (spawn
-placement, the LOCKED cue, the self-describing shop) — **not** by narration. The single exception: the
-workshop is the player's **home base**, and the first time its shop opens it gets a **text popup** explaining
-it (the base introducing itself once). This redraws the **Phase 1 ↔ Phase 4 boundary**: *Phase 1 = teach by
+placement, the LOCKED cue, the self-describing shop) — **not** by narration. The single exception: the first
+time the player reaches a **shop** — the first rusty shop, a short drive into the bowl (shops now live in the
+world, not at the workshop — see [`world-shops-spec.md`](world-shops-spec.md)) — it gets a **text popup**
+introducing itself once. This redraws the **Phase 1 ↔ Phase 4 boundary**: *Phase 1 = teach by
 **arrangement** (silent, world + shop); Phase 4 = teach by **narration** (text/arrows/story), an enhancement
 layer on top of an opening that already works.* Phase 1 is allowed to teach — just not with words.
 
@@ -157,18 +169,16 @@ cost. Two deliberate scope calls (2026-06-11) shape its edges:
 - **The bowl wall is visual only.** A wreckage wall is great for *directing the eye*, but we have **no
   physical collision yet**, so it can't block. Real physical blockers are their own future job, not Phase 1.
 - **The outpost IS a Phase 1 deliverable.** The bowl needs a *destination*. An **outpost** out in the danger —
-  a **forward base** that expands what you can buy/do — is the carrot: the safe zone teaches the basics and
-  funds upgrades → the outpost is the goal → reaching it safely needs the armour/weapons that funded it. This
-  is the spine's **(c) territory / forward-base** payoff as the cold-open's pull. *Proposed minimum shape (so
-  it isn't a new system):* the outpost = **the first cleared camp flipped into a forward base** — clearing it
-  *establishes* a safe re-fit point near the frontier, reusing camps + the `cleared` signal + `RestorableSite`
-  already shipped.
-- **The outpost's core role: it unlocks new parts to *buy*.** Finding an outpost **expands the shop's stock**,
-  and new parts are what drive progression. Phase 1's initial (home) shop is there to **teach that concept** —
-  the player learns that *finding outposts unlocks the ability to purchase new parts.* More broadly,
-  **progressively unlocking shop stock is a deliberate progression lever**: across the game, what the shop
-  offers is enriched via these **outpost mechanisms** *or* via **other trigger mechanisms (TBD — captured, not
-  chosen)**. Outposts are the first known trigger; "unlock more of the shop" is the lever.
+  a **forward base** — is the carrot: the safe zone teaches the basics and funds upgrades → the outpost is the
+  goal → reaching it safely needs the armour/weapons that funded it. This is the spine's **(c) territory /
+  forward-base** payoff as the cold-open's pull. *Proposed minimum shape (so it isn't a new system):* the
+  outpost = **the first cleared camp flipped into a forward base** — clearing it *establishes* a safe re-fit
+  point near the frontier, reusing camps + the `cleared` signal + `RestorableSite` already shipped.
+- **The pull is "find shops → unlock parts."** An outpost's reward is access to **new parts to buy**, realized
+  through **world shops** ([`world-shops-spec.md`](world-shops-spec.md)) — distributed, tier-themed, with
+  partial/unique stock. The first rusty shop sits in the bowl; **richer, higher-tier shops are out in the
+  danger**, which is what draws the player onward. So the outpost and the shop are the same family — *a cleared
+  outpost can **host** a world shop* — and "find shops to unlock parts" is the progression lever.
 
 **What Phase 1 quietly contains: the spine's first traversal.** Because the outpost is the climax, the
 cold-open is the opening *and* the spine's first arc: collect scrap → buy **Reclaimer** (rung 1) → work piles
@@ -176,25 +186,27 @@ cold-open is the opening *and* the spine's first arc: collect scrap → buy **Re
 payoff). This is more than "one obvious first action."
 
 **Cold-open choreography (the first ~90 seconds).**
-1. **Spawn inside a dense ring of loose scrap**, workshop visible a short drive away. First movement sweeps a
-   piece → HUD ticks → *"I collect by driving."* (Rung 0 self-teaches; storage is already mounted.)
-2. **One scrap pile sits on the path to the workshop**, showing the **LOCKED "Needs Reclaimer"** cue as you
-   pass. The question is planted.
-3. **The path leads to the workshop**; parking opens the shop (with its first-open popup), where the Reclaimer
-   entry *answers* the question. Buy → mount → return → work the pile (rung 1).
+1. **Spawn inside a dense ring of loose scrap**, the home hub (workshop + the first shop nearby) a short drive
+   away. First movement sweeps a piece → HUD ticks → *"I collect by driving."* (Rung 0 self-teaches; storage is
+   already mounted.)
+2. **One scrap pile sits on the path inward**, showing the **LOCKED "Needs Reclaimer"** cue as you pass. The
+   question is planted.
+3. **A short drive to the first rusty shop (in the bowl)** opens the shop UI (with its first-open popup), where
+   the Reclaimer entry *answers* the question. Buy → mount → return → work the pile (rung 1). *(The workshop is
+   for building/assembling/banking, not buying.)*
 4. **A camp/outpost sits visible but farther out** — INERT silhouette = "later." Its threat teaches the
-   stakes; the shop teaches the solution (a weapon). Clearing it establishes the outpost (rung 2 → 3).
+   stakes; a shop teaches the solution (a weapon). Clearing it establishes the outpost (rung 2 → 3).
 
 **Deliverables (the firmed list).**
 - **The LOCKED-state cue** — dim-grey circle on intersection + "Needs X…" bottom hint (mirrors the green/LIVE
   state). *The one genuinely-new bit of code.*
-- **Self-describing shop entries** + the **first-open workshop/shop popup** (which also teaches that *finding
-  outposts unlocks new parts to buy*).
 - **The designed cold-open seed** — starting rig/resources, the small bowl, scrap-ring spawn, the on-path
   pile, the danger gradient, the camp-that-becomes-the-outpost. (Replaces `real-game.ts`'s provisional seed.)
 - **Starting-stake tuning** — lower it so loose-scrap collection is a *required* first step (see catch below).
-- **The outpost** — the first cleared camp flips into a forward base that **unlocks new purchasable parts** (the
-  first instance of shop-unlock-as-progression).
+- **The outpost** — the first cleared camp flips into a forward base that **hosts/unlocks a world shop**
+  ([`world-shops-spec.md`](world-shops-spec.md)) — the first instance of shop-unlock-as-progression.
+- *(Consumed from the Phase 0.5 world-shops slice, not built here):* the **shop UI**, **self-describing shop
+  entries**, the **first-open popup**, and the **first bowl shop** — Phase 1 designs the cold-open *around* them.
 
 **Tuning risks / catches to carry into the build.**
 - **The danger gradient is the sole pacer.** With no fuel, "enemies between the bowl and the outpost are
@@ -203,11 +215,10 @@ payoff). This is more than "one obvious first action."
 - **The starting stake over-funds rung 1.** `createPlayerStore(world, 100)` vs a **36**-scrap Reclaimer (arm
   24 + bucket 12) lets a new player skip the rung-0 collect lesson. Lower it to make collecting required.
 
-**Open questions (resolve at build time).** The **other** shop-unlock *trigger mechanisms* beyond outposts
-(TBD — the outpost answers "what does it expand?" = it unlocks new purchasable parts; what *else* triggers an
-unlock is open); how unlocked stock is represented/gated, and whether an outpost also grants a closer re-fit
-point on top of the shop-unlock; the bowl's size + danger-gradient numbers; whether ramming is left as a pure
-emergent discovery (lean: yes — the intended path, a bought weapon, is shop-taught).
+**Open questions (resolve at build time).** The bowl's size + danger-gradient numbers; whether an outpost also
+grants a closer re-fit point on top of hosting a shop; whether ramming is left as a pure emergent discovery
+(lean: yes — the intended path, a bought weapon, is shop-taught). *Shop-side questions* (stock per shop,
+set-completion gating, the shop↔outpost relationship) live in [`world-shops-spec.md`](world-shops-spec.md).
 
 ### Phase 2 — The progression spine + restoration's purpose · `pending` *(the keystone)*
 Commit the §1 ladder; restoration purpose = §2 (a-primary + c-sprinkled).
@@ -235,9 +246,11 @@ Lead the player down the now-defined spine. **This is the *narration* layer** �
 ## §4. Dependency shape
 
 ```
-Phase 0  game-state boundary + menu + persistence   ← unblocks everything
+Phase 0    game-state boundary + menu + persistence   ← unblocks everything
    │
-Phase 1  designed cold-open (real world, crafted)    ← Phase 0 lets you craft in peace
+Phase 0.5  world shops (split shop UI + first shop)    ← shop leaves the workshop; the cold-open is built around it
+   │
+Phase 1    designed cold-open (real world, crafted)    ← buys at the first bowl shop; Phase 0 let you craft in peace
    │     (Phase 2 DESIGN sketched here, in parallel — the opening teaches rung 1)
 Phase 2  progression spine + restoration's PURPOSE   ← keystone; region-gate impl lands with Phase 3
    │
@@ -254,6 +267,9 @@ Phase 4  onboarding / guidance / story               ← rides on a defined path
   guidance now states the persistent world, in-world restoration (no separate Sanctuary), and the
   (a)-gate + (c)-territory purpose as its current leaning; the Sanctuary and its ecosystem sub-game are
   marked superseded/parked there. This spec holds the *phased plan*; the guidance holds the *vision*.
+- [`world-shops-spec.md`](world-shops-spec.md): the **shop's own spec** — sequenced **before Phase 1** (Phase
+  0.5 above). It splits the shop UI out of the workshop and turns buying into **world destinations**; Phase 1
+  consumes its first bowl shop. Holds the world-shop mechanics + open questions this spec defers to it.
 - [`../milestones.md`](../milestones.md): when a phase firms up, promote it to a milestone entry (carved into a
   deliberately-minimum first cut), the way Options A–D were. **Phase 0** is the natural first promotion — it
   unblocks every other phase.

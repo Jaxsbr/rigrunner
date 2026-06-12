@@ -129,6 +129,30 @@ the outpost as its climax). The only genuinely-new code is small: the **LOCKED-s
 tuning. Fuel, rescue-on-empty, and physical collision are real future mechanisms — captured here, deliberately
 *not* in Phase 1.
 
+### Reconsidering the shop: world shops, not a home tab (its own phase, *before* Phase 1)
+I've reconsidered the shop mechanism. Right now the shop is a **tab inside the workshop** — so as long as
+you're at home you can buy and sell whatever. I think that's **too easy**, and it's piling onto the
+**bulkiness** we already flagged in the workshop UI (`observations.md` #10 — the Parts Shop "needs work," the
+tier selector silently regrades everything).
+
+The way around it: put **shops out in the world**, and have them **mimic our part tiers** — rusty, iron, etc.
+You have to **visit those shops** to buy certain parts. And it's **not guaranteed** a rusty shop has *all* the
+rusty parts — there might be **multiple shops** to find the different parts you need. I also like that shops
+are **unique**: some might unlock a **higher-tier single part**, and you might have to **visit all the shops to
+complete a set of parts** to progress to a next phase and venture out further, looking for more shops.
+
+This is the **concrete version of last session's "shop-unlock as a progression lever"** — instead of outposts
+enriching one home shop, the shops *are* the distributed destinations, with partial/unique stock, and
+completing sets is the gate.
+
+**The amendment:** the shop is **its own phase**, separate from the world-start phase — and it comes **before
+Phase 1.** The first thing is to **separate the workshop UI from the shop UI**, which I can simply start on.
+Decided with this session: it gets its **own spec** (`specs/world-shops-spec.md`); there's **no buy/sell at
+home** — the **first (rusty) shop sits a short drive away inside the safe bowl** so even the first purchase is
+a tiny journey; and the **minimum first slice ships the UI split *and* the first world shop together**, so it's
+playable straight away rather than a UI refactor with nothing behind it. The workshop goes back to being where
+you **build, assemble, and bank** — not buy.
+
 ---
 
 ## 2026-06-10 — From a sandbox-I-test-in to a game-someone-plays (real world · persistence · the progression spine)
