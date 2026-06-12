@@ -25,6 +25,17 @@ export const MODEL_ASSETS: Record<string, string> = {
   'engine-mk1': '/assets/engine-mk1.glb',
   'engine-mk2': '/assets/engine-mk2.glb',
   'workshop': '/assets/workshop.glb',
+  // A world shop — a rusty container shopfront the rig drives to, to buy/sell parts. Its open counter
+  // faces the player; a `joint_vent` roof whirlybird spins (shop-vent-animator) so it reads as occupied.
+  'shop': '/assets/shop.glb',
+  // The shop's goods YARD — small props scattered 360° around a world shop (features/shop/shop-yard.ts) so
+  // it reads as a busy, lived-in trade post: stacked supply crates, fuel drums, unpacked component heaps,
+  // a loaded delivery pallet, and a potted plant (the muted-green sign of life). Duplicated/yawed/scaled.
+  'yard-crate': '/assets/yard-crate.glb',
+  'yard-drum': '/assets/yard-drum.glb',
+  'yard-parts': '/assets/yard-parts.glb',
+  'yard-pallet': '/assets/yard-pallet.glb',
+  'yard-plant': '/assets/yard-plant.glb',
   // The Reclaimer (Option C): an articulated arm (named joint_* nodes + a socket_wrist attach
   // point) and its swappable unearthing-bucket head. See docs/asset-style.md "Articulated assets".
   'reclaimer-arm': '/assets/reclaimer-arm.glb',

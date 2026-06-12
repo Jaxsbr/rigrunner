@@ -22,6 +22,7 @@ import { mountPart } from '@features/mounting/mounting';
 import { stageProduct } from '@features/workshop/staging';
 import { markOwned, setActiveRig } from '@features/chassis/ownership';
 import { spawnCamp } from '@features/camps/camp-spawn';
+import { spawnWorldShop } from '@features/shop/world-shop-spawn';
 
 /**
  * The **sandbox** scenario — the free-for-all test world, launched by `npm run dev:sandbox`. It owns
@@ -51,13 +52,16 @@ export function seedSandboxWorld(world: World): void {
     mountPart(world, engine, player, 0, 1); // centre deck cell; the mounting system rides it into place
   }
   // Loose scrap scattered around the rig — drive over pieces to sweep them into mounted storage, bank
-  // them at the workshop, then spend the wallet total in the Parts Shop. The larger field makes the
-  // first spend loop worth playing: one starter container can bootstrap enough scrap for more storage.
+  // them at the workshop, then spend the wallet total at a world shop. The larger field makes the first
+  // spend loop worth playing: one starter container can bootstrap enough scrap for more storage.
   scatterScrap(world, 64, 5, 34);
 
   // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
   // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
   const workshop = spawnWorkshop(world, 0, 8);
+  // A rusty world shop a short drive from home — exercises the world-shop mechanic (drive to it, open
+  // the shop interface, buy/sell its full rusty stock). Placed clear of the workshop's own zone.
+  spawnWorldShop(world, 8, 0);
   // DEV/TEST SEED — stage everything a drive/boost test needs straight onto the workshop deck, so it's
   // grab-and-mount with no shop trip: the rest of the 2×2 engine MATRIX to swap through (the rig already
   // runs a rusty electric, so the other three sit here — rusty steam, iron electric, iron steam, front
@@ -90,7 +94,7 @@ export function seedSandboxWorld(world: World): void {
     spawnCamp(world, cx, cz, 1);
   }
   // The player store (wallet + inventory). Starting scrap — a small stake so the player can buy a
-  // few early parts from the Parts Shop without first grinding the loose-scrap field; the inventory
+  // few early parts at a world shop without first grinding the loose-scrap field; the inventory
   // starts EMPTY (every build sub-part is bought). The workshop drain feeds the wallet; the HUD
   // reads it; the workshop interface browses the inventory.
   createPlayerStore(world, 100);

@@ -4,7 +4,7 @@ import { EnginePart } from '@common/parts/engine-part';
 import { addToInventory, getInventory, removeFromInventory } from '@features/economy/inventory';
 import { getWallet } from '@features/economy/wallet';
 import { partDef, spawnCatalogPart } from '@common/parts/parts-catalog';
-import { shopItemForPart, type PartShopItem } from '@features/workshop/part-shop';
+import { shopItemForPart, type PartShopItem } from '@features/shop/part-shop';
 
 export type PurchaseVerdict =
   | { ok: true }

@@ -13,6 +13,7 @@ import { placeProductInWorld } from '@features/workshop/assembly';
 import { mountPart } from '@features/mounting/mounting';
 import { markOwned, setActiveRig } from '@features/chassis/ownership';
 import { spawnCamp } from '@features/camps/camp-spawn';
+import { spawnWorldShop } from '@features/shop/world-shop-spawn';
 
 /**
  * The **real game** scenario — the world a player plays, launched by `npm run dev:game`. It is split at
@@ -39,6 +40,12 @@ export function seedStaticWorld(world: World): void {
   // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
   // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
   spawnWorkshop(world, 0, 8);
+
+  // The first (rusty) world shop — a short drive from home, the cold-open's first-purchase point (the
+  // Reclaimer is bought here, not at the workshop). Buying lives in the world now, not a workshop tab;
+  // this shop carries the full rusty stock so no buying capability was lost in the move. Higher-tier,
+  // partial-stock shops out in the danger come in later slices. Placed clear of the workshop's own zone.
+  spawnWorldShop(world, 9, 5);
 
   // The assembly bench — a singleton: the role slots the workshop interface drops parts into while
   // composing the active recipe's output. Starts on the engine recipe, empty.

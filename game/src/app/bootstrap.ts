@@ -63,6 +63,13 @@ import { RestorationStains } from '@features/restoration/restoration-stains';
 import { TreeGrower } from '@features/restoration/tree-grower';
 import { HealPrompt } from '@features/restoration/heal-prompt';
 import { healDiscs } from '@features/restoration/overlays';
+import { ShopOverlay } from '@features/shop/shop-overlay';
+import { shopZoneSystem } from '@features/shop/shop-zone-system';
+import { shopZoneDiscs } from '@features/shop/overlays';
+import { animateShopVents } from '@features/shop/shop-vent-animator';
+import { ShopStains } from '@features/shop/shop-stains';
+import { ShopGround } from '@features/shop/shop-ground';
+import { WorldShop } from '@features/shop/world-shop';
 
 /** Per-launch configuration for the engine — what differs between the real game and the sandbox. */
 export interface BootCfg {
@@ -135,6 +142,10 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
   const stains = new ScrapStains(view.scene);
   const pileStains = new ScrapPileStains(view.scene);
   const campStains = new CampStains(view.scene);
+  // The worked ground under each world shop: a worn, trampled, cracked pad (with a beaten path + salvaged
+  // pavers at the entrance) laid first, then the heavier oil/rust/grime smear over it.
+  const shopGround = new ShopGround(view.scene);
+  const shopStains = new ShopStains(view.scene);
   // Restoration render: the green regrowth patch under each cleared-site stump, and the procedural young
   // tree that rises out of a stump as the player grows it (posed off the sim's `Healable.growth`).
   const restorationStains = new RestorationStains(view.scene);
@@ -142,14 +153,15 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
   // Fading tread trails pressed into the ground by everything that drives (the rig + camp guards).
   const tracks = new TrackMarks(view.scene);
 
-  // Three overlays can each freeze the simulation: the workshop interface, the loot popup, and the disarm
-  // puzzle. We own one `paused` flag that is the OR of all three, so whichever is up holds the sim
-  // still and resuming needs them all down. Each overlay flips its own bit through its callback.
+  // Four overlays can each freeze the simulation: the workshop interface, the world-shop interface, the
+  // loot popup, and the disarm puzzle. We own one `paused` flag that is the OR of all four, so whichever
+  // is up holds the sim still and resuming needs them all down. Each overlay flips its own bit.
   let paused = false;
   let workshopPaused = false;
+  let shopPaused = false;
   let lootPaused = false;
   let disarmPaused = false;
-  const syncPaused = (): void => { paused = workshopPaused || lootPaused || disarmPaused; };
+  const syncPaused = (): void => { paused = workshopPaused || shopPaused || lootPaused || disarmPaused; };
 
   // The workshop interface shell. Opening its tab freezes the simulation; the tab's visibility tracks
   // zone proximity, which we push in each frame (the overlay never touches the World).
@@ -159,6 +171,20 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     world,
     {
       onPauseChange: (p) => { workshopPaused = p; syncPaused(); },
+      isBusy: () => paused,
+    },
+  );
+
+  // The world-shop interface shell — buy/sell at a shop the rig drives to (the workshop no longer sells).
+  // Its tab tracks shop-zone proximity, which we push each frame; opening it freezes the sim like the
+  // workshop. The overlay never touches the World beyond the shop transaction seam.
+  const shop = new ShopOverlay(
+    document.querySelector<HTMLButtonElement>('#shop-tab')!,
+    document.querySelector<HTMLElement>('#shop-overlay')!,
+    world,
+    {
+      onPauseChange: (p) => { shopPaused = p; syncPaused(); },
+      isBusy: () => paused,
     },
   );
 
@@ -207,6 +233,14 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       if (world.get(w, WorkshopZone)!.active) return true;
     }
     return false;
+  }
+
+  /** The world shop the rig is currently parked in range of, or null — drives the shop tab + E gate. */
+  function activeShopEntity(): EntityId | null {
+    for (const s of world.query(WorldShop)) {
+      if (world.get(s, WorldShop)!.active) return s;
+    }
+    return null;
   }
 
   // The run reset — the placeholder death stake (spec §2.1, flagged to revisit). On HP=0 (or, in the
@@ -272,17 +306,20 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
       // it, so a part dropped this frame snaps onto the workshop only when it's lit.
       workshopZoneSystem(world, activeRig);
+      // recompute each world shop's proximity gate too — the shop tab + its E-to-open read it, and the
+      // pack-up gate below excludes shop zones (they own E there, like the workshop).
+      shopZoneSystem(world, activeRig);
       build.update(dt);
       // advance any in-progress chassis deploy (a kit the build interaction just hauled out and
       // converted): ticks the unfold's timeline and retires the Deploying marker when it completes.
       advanceDeploying(world, dt);
 
       // pack-up: one E press on an EMPTY controlled chassis (and only when a backup chassis exists to
-      // hand control to) folds it back into a kit crate where it stands. Gated off the workshop zone —
-      // which owns E there to open the interface — so the bottom-centre prompt slot and the E key are
-      // never contested; control snaps to the backup (the camera eases over next frame). The local
+      // hand control to) folds it back into a kit crate where it stands. Gated off the workshop AND shop
+      // zones — which own E there to open their interfaces — so the bottom-centre prompt slot and the E
+      // key are never contested; control snaps to the backup (the camera eases over next frame). The local
       // `activeRig` is now the packed crate for the rest of this frame; getActiveRig is the backup.
-      if (ePressed && !anyZoneActive() && canPackUp(world, activeRig)) {
+      if (ePressed && !anyZoneActive() && activeShopEntity() === null && canPackUp(world, activeRig)) {
         packUpChassis(world, activeRig);
       }
 
@@ -333,12 +370,16 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     // the tab tracks zone proximity each frame (the overlay hides it while open, so reading the
     // frozen zone state while paused is harmless).
     overlay.setZoneActive(anyZoneActive());
+    // the shop tab mirrors that for world shops: push the in-range shop (or null) so the tab tracks
+    // proximity and E opens the right shop's stock.
+    const shopInRange = activeShopEntity();
+    shop.setActiveShop(shopInRange);
     // the scrap prompt mirrors that for piles: shown only while the sim runs and a pile's gate is lit.
     scrapPrompt.sync(world, !paused);
-    // the pack-up prompt shares the slot: shown only while the sim runs, away from any workshop zone,
-    // and when the controlled chassis is empty with a backup to fall back to (`canPackUp`). Read fresh
-    // from getActiveRig so the frame a pack-up happens it reflects the backup (not the just-packed crate).
-    packPrompt.sync(!paused && !anyZoneActive() && canPackUp(world, getActiveRig(world)!));
+    // the pack-up prompt shares the slot: shown only while the sim runs, away from any workshop OR shop
+    // zone, and when the controlled chassis is empty with a backup to fall back to (`canPackUp`). Read
+    // fresh from getActiveRig so the frame a pack-up happens it reflects the backup (not the just-packed crate).
+    packPrompt.sync(!paused && !anyZoneActive() && shopInRange === null && canPackUp(world, getActiveRig(world)!));
 
     // the disarm gate: is the active rig parked with a mounted trap arm in reach of a DISARMABLE camp?
     // Push it (and the head tier that sets the puzzle difficulty) into the overlay, then advance the
@@ -377,7 +418,7 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
     // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
     // overlay rather than popping on resume.
-    zones.sync([...workshopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig), ...healZones], dt);
+    zones.sync([...workshopZoneDiscs(world), ...shopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig), ...healZones], dt);
     // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
     // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
     stains.sync(world, dt);
@@ -385,6 +426,10 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     pileStains.sync(world, dt);
     // camp stains hold while a camp stands and fade out once it's cleared — the world visibly cleaning up.
     campStains.sync(world, dt);
+    // the shop's worn ground (built once per shop) sits UNDER its grime smear — laid first so the oil/rust
+    // draws over the trampled, cracked pad.
+    shopGround.sync(world);
+    shopStains.sync(world, dt);
     // restoration regrowth: a faint green patch shows under every cleared-site stump and DEEPENS as the
     // player grows it into a tree (scaled by Healable.growth) — the land healing. Runs always so a live grow
     // and any fade finish smoothly behind an overlay.
@@ -393,6 +438,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     // always so trails keep fading behind an overlay; the sim being frozen means nothing moves, so no new
     // marks are laid while paused.
     tracks.sync(world, dt);
+    // the shop's roof ventilator: a lazy whirlybird spin so a shopfront reads as occupied. Ambient (no
+    // sim truth), so it runs always — it keeps turning behind the shop interface rather than snapping on resume.
+    animateShopVents(view.entityViews, world, dt);
     // the camp's teardown: a cleared camp's structures + debris sink into the ground while its sprout rises.
     // Reads Camp.tornDown (sim), so it runs always — a paused pose holds rather than snapping back to rest.
     animateCampTeardown(view.entityViews, world);

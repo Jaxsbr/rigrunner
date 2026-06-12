@@ -540,3 +540,35 @@ the restoration through-line.
 future life-trail part plugs into). The mechanism design lives in `ideas.md` **2026-06-08**; the
 restoration-attributing trail remains captured in guidance §3a. Continues the captured "residual scorch"
 extension in [`specs/scrap-stain-decals-spec.md`](specs/scrap-stain-decals-spec.md) §7.
+
+## 19. The world-shop slice quietly grew a "stock" mechanic we never asked for
+
+**Context:** Reviewing the first world-shop slice (`features/shop/`, PR #71) and reconciling what was built
+against what was wanted. *(Captured 2026-06-12.)*
+
+**Observation:** The implementation grew a **per-shop `stock` list** (partial/unique stock, a "stock-list
+seam tiers and set-completion ride on") that **was never a wanted mechanic** — it slipped in from the spec
+draft. The actual model is simpler and was decided plainly: **you can buy any part a shop sells and it's
+always in stock** (no scarcity); **you can sell any loose part to any shop, always at a loss** — the shop is
+a greedy buyer that even takes parts it doesn't stock. So a shop is just *"the full catalogue at one intrinsic
+tier"*, and the `stock` field, `allStockedPartIds`, and the partial-stock test were **speculative complexity
+removed** (the buy list is now `shopStockForTier(tier)`; selling was already universal + lossy via
+`resaleValue ≈ price/2`). Captured-but-not-built — if partial stock is ever genuinely wanted it reattaches as
+an optional `WorldShop.stock?` subset the buy list filters on.
+
+**Why it matters:** This is "**complexity earns its place**" in action — a seam built for a mechanic that
+doesn't exist is cost with no payoff, and it actively mis-described the game (the sell path quietly worked
+*against* the stock concept it was supposedly enforcing). Two structural lessons fell out of the same review,
+both now fixed: **(a)** the shop and workshop each bound an independent window-`E` listener that, where their
+proximity zones overlap (reachable once driving the 3×5 hauler, whose parts the bowl shop sells), opened
+*both* full-screen overlays on one press — "which interaction owns E here" had no single arbiter, only
+hand-placed spawn coordinates keeping the zones apart; now an `isBusy()` gate lets only one sim-freezing
+overlay open at a time. **(b)** the shop had copy-pasted the workshop's proximity-gate math, the mulberry32
+RNG (a third copy), and the part-identity colour map — all promoted to `@common` (`sim/proximity-gate`,
+`sim/rng`, `parts/part-color`) so the two can't drift. A still-**latent** note left for when multiple shops
+exist: `activeShopEntity()` returns the *first* active shop, not the *nearest* — moot with one shop, a
+nearest-pick when overlapping shops become real.
+
+**Status:** DONE (PR #71 review follow-up) — stock seam removed, E double-open fixed, the three duplications
+promoted to `@common`; `tsc` + all tests green. The partial/unique-stock and multi-shop-arbitration ideas stay
+captured (here + the world-shops spec), not committed.

@@ -6,13 +6,12 @@ import { Part } from '@common/components/part';
 import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Renderable } from '@common/components/renderable';
-import { partDef, type PartDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
-import { TIERS, tierOf, type TierId } from '@common/parts/tiers';
+import { partDef, type PartSlot, type EnergyType } from '@common/parts/parts-catalog';
+import { tintForKey, cssHex } from '@common/parts/part-color';
+import { tierOf, type TierId } from '@common/parts/tiers';
 import { ELECTRIC_ENGINE_RECIPE, RECIPES, recipeById, type Recipe } from '@common/parts/recipes';
-import { shopStockForTier, shopItemForPart, shopPartDef, type PartShopItem } from '@features/workshop/part-shop';
 import { productAssetId, productRenderSpec } from '@features/workshop/product-visual';
 import { inventoryItems, addToInventory, removeFromInventory } from '@features/economy/inventory';
-import { getWallet } from '@features/economy/wallet';
 import {
   getBench,
   benchSlots,
@@ -37,10 +36,8 @@ import {
 } from './assembly';
 import {
   autoFillBench,
-  ownedCountForPart,
   planAutoFillBench,
   recipeSlotNeeds,
-  tierCountForPart,
 } from './bench-assist';
 import {
   workshopEntity,
@@ -48,7 +45,6 @@ import {
   stageProduct,
   unstageProduct,
 } from '@features/workshop/staging';
-import { buyPart, purchaseVerdict, resaleValue, sellPart } from '@features/workshop/shop';
 import { closestFreeCellLocal, partFootprint } from '@features/mounting/mounting';
 import { createModelPortrait, type ModelPortrait } from '@shared/model-portrait';
 import { ModelLoader } from '@shared/model-loader';
@@ -69,9 +65,10 @@ import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from 
  *   - WORKSHOP DECK tab — a live 3D view of the workshop deck and the products staged on it. Drag a
  *     product from inventory onto the deck to STAGE it (it snaps to the nearest free cell); click a
  *     staged product to inspect it, then UNSTAGE or DISMANTLE it.
- *   - PARTS SHOP tab — spend banked scrap from Wallet to buy stock parts into Inventory.
  *
- * The deck is the bridge between inventory and the drivable world: staging a product mounts it on
+ * Buying and selling are NOT here — parts are traded at world shops (`features/shop/`), a short drive
+ * away; the workshop only builds, assembles, stages and banks. The deck is the bridge between inventory
+ * and the drivable world: staging a product mounts it on
  * the workshop's own grid (gaining world presence), so once the overlay closes the player can grab
  * it off the deck and mount it on the rig with the in-world build interaction — and vice-versa, a
  * product set on the deck in-world (lifted off the rig) shows up here too. Rig-mounting itself stays
@@ -85,40 +82,26 @@ import { createDeckView, type DeckView, type DeckPart, type DeckSnapshot } from 
 export interface WorkshopOverlayOptions {
   /** Fired with `true` when the overlay opens, `false` when it closes — main flips `paused`. */
   onPauseChange(paused: boolean): void;
+  /** True while the sim is already paused by another overlay — the workshop must not open on top of it. */
+  isBusy(): boolean;
 }
 
 /**
  * The chip dot + portrait-placeholder tint, keyed by an item's energy type when it has one (engine
  * parts and engine products), else by its category/kind — so storage items (no electric/steam) get
- * the rig_blue "player-built" signature instead of a missing colour. This colour IS the type cast
- * (`docs/part-identity-spec.md` §3): electric reads cool/clean, steam warm/copper.
+ * the rig_blue "player-built" signature instead of a missing colour. The colour table is the part's
+ * identity cast (`docs/part-identity-spec.md` §3), shared with the world shop via `@common/parts/part-color`.
  */
-const COLOR_BY_KEY: Record<string, number> = {
-  electric: 0x59ff9f, // glow_green — cool/clean electric cast
-  steam: 0x8a4b2f, // rust — warm/copper steam cast
-  storage: 0x2f6f9f, // rig_blue
-  reclaimer: 0xd9a521, // hazard_yellow — the rummage tool's signature
-  chassis: 0x6b6b6b, // scrap_grey — the structural foundation
-};
-const tintOf = (colorKey: string): number => COLOR_BY_KEY[colorKey] ?? 0x6b6b6b;
+const tintOf = (colorKey: string): number => tintForKey(colorKey);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-/** A colour number as a CSS `#rrggbb` string — for inline tier-finish swatches. */
-const cssHex = (n: number): string => '#' + n.toString(16).padStart(6, '0');
-/** The small material-finish swatch (§3) that marks a part's tier on a chip / shop card. */
+/** The small material-finish swatch (§3) that marks a part's tier on an inventory/bench chip. */
 const finishSwatch = (color: number): string =>
   `<span class="wk-tier-finish" style="background:${cssHex(color)}"></span>`;
-
-/** A shop card's role-tag span — omitted when the slot just repeats the part's name (since the strip,
- *  "Shell" / slot "shell"); a part whose name still differs from its role keeps the tag. */
-const slotTag = (def: { slot: string; displayName: string }): string =>
-  def.slot.toLowerCase() === def.displayName.toLowerCase()
-    ? ''
-    : `<span class="wk-shop-tag">${def.slot}</span>`;
 
 const DRAG_THRESHOLD = 4; // px the pointer must travel before a press becomes a drag (vs a click)
 
 /** Which centre-workspace tab is showing. */
-type Tab = 'bench' | 'deck' | 'shop';
+type Tab = 'bench' | 'deck';
 
 /**
  * A uniform façade over an inventory/bench item, whether it's a loose part or a composed product.
@@ -164,12 +147,8 @@ export class WorkshopOverlay {
   private readonly invList: HTMLElement;
   private readonly tabBenchBtn: HTMLButtonElement;
   private readonly tabDeckBtn: HTMLButtonElement;
-  private readonly tabShopBtn: HTMLButtonElement;
   private readonly benchPanel: HTMLElement;
   private readonly deckPanel: HTMLElement;
-  private readonly shopPanel: HTMLElement;
-  private readonly shopWalletEl: HTMLElement;
-  private readonly shopListEl: HTMLElement;
   private readonly deckHost: HTMLElement;
   private readonly recipeTabsEl: HTMLElement;
   private readonly recipeEl: HTMLElement;
@@ -220,12 +199,8 @@ export class WorkshopOverlay {
     this.invList = panel.querySelector<HTMLElement>('#wk-inv-list')!;
     this.tabBenchBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-bench')!;
     this.tabDeckBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-deck')!;
-    this.tabShopBtn = panel.querySelector<HTMLButtonElement>('#wk-tab-shop')!;
     this.benchPanel = panel.querySelector<HTMLElement>('#wk-bench-panel')!;
     this.deckPanel = panel.querySelector<HTMLElement>('#wk-deck-panel')!;
-    this.shopPanel = panel.querySelector<HTMLElement>('#wk-shop-panel')!;
-    this.shopWalletEl = panel.querySelector<HTMLElement>('#wk-shop-wallet')!;
-    this.shopListEl = panel.querySelector<HTMLElement>('#wk-shop-list')!;
     this.deckHost = panel.querySelector<HTMLElement>('#wk-deck-host')!;
     this.recipeTabsEl = panel.querySelector<HTMLElement>('#wk-recipe-tabs')!;
     this.recipeEl = panel.querySelector<HTMLElement>('#wk-recipe')!;
@@ -252,7 +227,6 @@ export class WorkshopOverlay {
     this.closeBtn.addEventListener('click', this.onCloseClick);
     this.tabBenchBtn.addEventListener('click', () => this.switchTab('bench'));
     this.tabDeckBtn.addEventListener('click', () => this.switchTab('deck'));
-    this.tabShopBtn.addEventListener('click', () => this.switchTab('shop'));
     this.autoFillBtn.addEventListener('click', this.onAutoFillClick);
     this.assembleBtn.addEventListener('click', this.onAssembleClick);
     window.addEventListener('keydown', this.onKeyDown);
@@ -273,7 +247,10 @@ export class WorkshopOverlay {
   }
 
   private openOverlay(): void {
-    if (this.open) return;
+    // Don't open over another already-open sim-freezing overlay (e.g. the world shop, when a shop zone
+    // overlaps this workshop's zone and one E press reaches both window listeners). The first to open
+    // flips the shared `paused` bit, so the second sees `isBusy()` and bows out — never two stacked modals.
+    if (this.open || this.opts.isBusy()) return;
     this.open = true;
     this.opts.onPauseChange(true);
     this.syncPanel();
@@ -313,16 +290,13 @@ export class WorkshopOverlay {
     } else {
       this.deck.stop();
     }
-    if (tab === 'shop') this.renderShop();
   }
 
   private syncTabButtons(): void {
     this.tabBenchBtn.classList.toggle('active', this.tab === 'bench');
     this.tabDeckBtn.classList.toggle('active', this.tab === 'deck');
-    this.tabShopBtn.classList.toggle('active', this.tab === 'shop');
     this.benchPanel.classList.toggle('hidden', this.tab !== 'bench');
     this.deckPanel.classList.toggle('hidden', this.tab !== 'deck');
-    this.shopPanel.classList.toggle('hidden', this.tab !== 'shop');
   }
 
   // ── DOM construction ──────────────────────────────────────────────────────────────────────
@@ -455,7 +429,7 @@ export class WorkshopOverlay {
         empty.className = `wk-slot-empty ${owned > 0 ? 'owned' : 'missing'}`;
         empty.innerHTML =
           `<span>Needs ${need?.def?.displayName ?? slot}</span>` +
-          `<span>${owned > 0 ? `${owned} owned` : 'buy in shop'}</span>`;
+          `<span>${owned > 0 ? `${owned} owned` : 'buy at a shop'}</span>`;
         el.appendChild(empty);
       }
     }
@@ -470,7 +444,6 @@ export class WorkshopOverlay {
     this.recipeTabsEl.style.display = inspected ? 'none' : '';
     this.renderBenchPreview(recipe, inspected !== null);
     this.renderAssemble(recipe, inspected !== null);
-    this.renderShop();
     this.renderDetail();
     if (this.tab === 'deck') this.renderDeck();
   }
@@ -560,9 +533,11 @@ export class WorkshopOverlay {
       this.autoFillBtn.textContent = 'Auto-fill Available';
       this.autoFillBtn.title = 'Fill every empty slot that has a matching owned part.';
     } else if (!plan.complete) {
-      this.autoFillBtn.disabled = false;
-      this.autoFillBtn.textContent = 'Buy Missing Parts';
-      this.autoFillBtn.title = 'Open the shop list focused on the parts this recipe still needs.';
+      // Nothing owned to fill these slots and the bench is short — the missing parts are bought out in
+      // the world (`features/shop/`), not here. The button reads as a pointer, not an action.
+      this.autoFillBtn.disabled = true;
+      this.autoFillBtn.textContent = 'Buy missing at a shop';
+      this.autoFillBtn.title = 'Missing parts are bought at a world shop, a short drive away — not the workshop.';
     } else {
       this.autoFillBtn.disabled = true;
       this.autoFillBtn.textContent = 'Bench Filled';
@@ -579,8 +554,7 @@ export class WorkshopOverlay {
     const recipe = this.activeRecipe();
     const plan = planAutoFillBench(this.world, recipe);
     if (plan.entries.length === 0 && !plan.complete) {
-      this.switchTab('shop');
-      return;
+      return; // nothing owned to fill — the missing parts are bought at a world shop, not here
     }
 
     autoFillBench(this.world, recipe);
@@ -597,167 +571,6 @@ export class WorkshopOverlay {
     if (product === null) return; // refused (incomplete / hybrid) — no change
     this.setSelected(product);
     this.flashSnap(product);
-  }
-
-  // ── Parts Shop ─────────────────────────────────────────────────────────────────────────────
-
-  /** Render the current stock against the live Wallet total, with the active recipe first. */
-  private renderShop(): void {
-    const scrap = getWallet(this.world)?.scrap ?? 0;
-    this.shopWalletEl.innerHTML = `<span>SCRAP</span><strong>${scrap}</strong>`;
-    this.shopListEl.innerHTML = '';
-
-    const recipe = this.activeRecipe();
-    this.appendShopSectionTitle(`${recipe.output} Parts`);
-    this.appendNeededPartCards(recipe);
-
-    this.appendShopSectionTitle('All Stock');
-    for (const item of shopStockForTier(TIERS[0]!.id)) {
-      const def = shopPartDef(item);
-      if (!def) continue;
-      this.shopListEl.appendChild(this.shopBuyCard(def));
-    }
-
-    this.appendShopSectionTitle('Sell Loose Parts');
-    const sellable = inventoryItems(this.world)
-      .map((entity) => ({ entity, part: this.world.get(entity, EnginePart) }))
-      .filter((row): row is { entity: EntityId; part: EnginePart } => {
-        return row.part != null && shopItemForPart(row.part.id, row.part.tier) != null;
-      });
-
-    if (sellable.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'wk-shop-empty';
-      empty.textContent = 'No loose parts in inventory.';
-      this.shopListEl.appendChild(empty);
-      return;
-    }
-
-    for (const { entity, part } of sellable) {
-      const item = shopItemForPart(part.id, part.tier)!; // an instance is valued at its own tier
-      const def = shopPartDef(item)!;
-      const key = def.type ?? def.category;
-      const tier = tierOf(part.tier);
-      const value = resaleValue(item);
-      const card = document.createElement('div');
-      card.className = `wk-shop-card sell ${key}`;
-      card.innerHTML =
-        `<div class="wk-shop-main">` +
-        `<div class="wk-shop-name-row">` +
-        `<span class="wk-shop-dot"></span>` +
-        finishSwatch(tier.finishColor) +
-        `<span class="wk-shop-name">${tier.name} ${def.displayName}</span>` +
-        slotTag(def) +
-        `</div>` +
-        `<div class="wk-shop-meta">${cap(def.category)} part</div>` +
-        `</div>` +
-        `<div class="wk-shop-side">` +
-        `<div class="wk-shop-cost">${value} scrap</div>` +
-        `</div>`;
-
-      const side = card.querySelector<HTMLElement>('.wk-shop-side')!;
-      const sell = document.createElement('button');
-      sell.type = 'button';
-      sell.className = 'wk-sell';
-      sell.textContent = 'Sell';
-      sell.addEventListener('click', () => this.sellShopPart(entity));
-      side.appendChild(sell);
-
-      this.shopListEl.appendChild(card);
-    }
-  }
-
-  private appendShopSectionTitle(label: string): void {
-    const title = document.createElement('div');
-    title.className = 'wk-shop-section-title';
-    title.textContent = label;
-    this.shopListEl.appendChild(title);
-  }
-
-  private appendNeededPartCards(recipe: Recipe): void {
-    for (const need of recipeSlotNeeds(this.world, recipe)) {
-      const def = need.def;
-      if (!def) continue;
-      const key = def.type ?? def.category;
-      const card = this.shopBuyCard(def);
-      card.classList.add('needed', key, need.onBench ? 'filled' : 'missing');
-      const state = card.querySelector<HTMLElement>('.wk-shop-state')!;
-      if (need.onBench !== null) {
-        const view = this.viewOf(need.onBench);
-        state.textContent = view ? `on bench · ${view.displayName}` : 'on bench';
-      } else if (need.owned.length > 0) {
-        const best = this.viewOf(need.owned[0]!);
-        state.textContent = best ? `${need.owned.length} owned · best ${best.displayName}` : `${need.owned.length} owned`;
-      } else {
-        state.textContent = 'missing';
-      }
-      this.shopListEl.appendChild(card);
-    }
-  }
-
-  private shopBuyCard(def: PartDef): HTMLElement {
-    const key = def.type ?? def.category;
-    const owned = ownedCountForPart(this.world, def.id);
-    const card = document.createElement('div');
-    card.className = `wk-shop-card ${key}`;
-    card.innerHTML =
-      `<div class="wk-shop-main">` +
-      `<div class="wk-shop-name-row">` +
-      `<span class="wk-shop-dot"></span>` +
-      `<span class="wk-shop-name">${def.displayName}</span>` +
-      slotTag(def) +
-      `</div>` +
-      `<div class="wk-shop-meta">${cap(def.category)} part · ${owned} owned</div>` +
-      `<div class="wk-shop-state"></div>` +
-      `</div>` +
-      `<div class="wk-shop-side wk-tier-buy-row"></div>`;
-
-    const side = card.querySelector<HTMLElement>('.wk-shop-side')!;
-    for (const tier of TIERS) {
-      const item = shopItemForPart(def.id, tier.id);
-      if (!item) continue;
-      side.appendChild(this.tierBuyButton(item));
-    }
-    return card;
-  }
-
-  private tierBuyButton(item: PartShopItem): HTMLButtonElement {
-    const tier = tierOf(item.tier);
-    const verdict = purchaseVerdict(this.world, item);
-    const ownedAtTier = tierCountForPart(this.world, item.partId, item.tier);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'wk-buy-tier';
-    btn.disabled = !verdict.ok;
-    btn.title = verdict.ok
-      ? `${tier.name} · ${item.cost} scrap · ${ownedAtTier} owned`
-      : `${verdict.reason} · ${tier.name} costs ${item.cost} scrap`;
-    btn.innerHTML =
-      finishSwatch(tier.finishColor) +
-      `<span class="wk-buy-tier-name">${tier.name}</span>` +
-      `<span class="wk-buy-tier-cost">${item.cost}</span>`;
-    btn.addEventListener('click', () => this.buyShopItem(item));
-    return btn;
-  }
-
-  /** Execute one shop transaction and select the newly owned part. */
-  private buyShopItem(item: PartShopItem): void {
-    const result = buyPart(this.world, item);
-    if (!result.ok) {
-      this.refresh();
-      return;
-    }
-
-    this.selected = result.item;
-    this.refresh();
-    this.flashSnap(result.item);
-  }
-
-  /** Sell one loose inventory part back to the shop and clear it from selection if needed. */
-  private sellShopPart(entity: EntityId): void {
-    const result = sellPart(this.world, entity);
-    if (result.ok && this.selected === entity) this.selected = null;
-    this.refresh();
   }
 
   /**

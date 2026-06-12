@@ -77,7 +77,7 @@ function drawWastelandFloor(): HTMLCanvasElement {
   return canvas;
 }
 
-/** A soft-edged radial blot of `color` that fades to fully transparent at its rim. */
+/** A soft-edged radial blot of `color` (a `#rrggbb` hex string) that fades to fully transparent at its rim. */
 function softPatch(
   ctx: CanvasRenderingContext2D,
   x: number,

@@ -124,6 +124,7 @@ export class GroundStainField<K extends string> {
     const tex = new THREE.CanvasTexture(drawStainBlob(this.palette[kind]));
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.minFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false; // a flat, ground-flush decal never minifies — skip the unused mip chain
     this.textures.set(cacheKey, tex);
     return tex;
   }
