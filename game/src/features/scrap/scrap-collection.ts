@@ -40,8 +40,13 @@ export interface CollectedPiece {
   value: number;
 }
 
-/** A piece a full / storage-less rig drove over but couldn't take — its world spot, for the "no space" warning. */
+/**
+ * A piece a full / storage-less rig drove over but couldn't take — its entity id + world spot, for the
+ * "no space" warning. The id lets the warning tell one stuck piece from the next, so a rig parked on a
+ * single uncollectable piece warns once rather than nagging every frame.
+ */
 export interface RefusedPiece {
+  id: EntityId;
   x: number;
   z: number;
 }
@@ -118,7 +123,7 @@ export function scrapCollectionSystem(world: World, pairs: CollisionPair[]): Col
   // ones that ended up left behind, each once, at its world spot.
   const refused: RefusedPiece[] = [];
   for (const id of refusedIds) {
-    if (!taken.has(id)) refused.push(spotOf(world, id));
+    if (!taken.has(id)) refused.push({ id, ...spotOf(world, id) });
   }
 
   return { collected, refused };

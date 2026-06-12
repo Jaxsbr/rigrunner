@@ -117,7 +117,7 @@ describe('scrapCollectionSystem', () => {
     const result = scrapCollectionSystem(world, [pair(r, s)]);
 
     expect(result.collected).toEqual([]);
-    expect(result.refused).toEqual([{ x: 5, z: 5 }]); // reported at its spot for the "NO SPACE" cue
+    expect(result.refused).toEqual([{ id: s, x: 5, z: 5 }]); // reported (id + spot) for the "NO SPACE" cue
     expect(world.isAlive(s)).toBe(true); // still there to pick up later
   });
 
@@ -129,7 +129,7 @@ describe('scrapCollectionSystem', () => {
     const result = scrapCollectionSystem(world, [pair(r, s)]);
 
     expect(result.collected).toEqual([]);
-    expect(result.refused).toEqual([{ x: -4, z: 7 }]);
+    expect(result.refused).toEqual([{ id: s, x: -4, z: 7 }]);
     expect(world.isAlive(s)).toBe(true);
   });
 
