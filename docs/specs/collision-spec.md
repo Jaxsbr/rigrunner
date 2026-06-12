@@ -7,10 +7,12 @@ restored trees) instead of clipping straight through them. It builds entirely on
 of [`real-world-and-progression-spec.md`](real-world-and-progression-spec.md), because the crafted
 cold-open (the bowl, the outpost, the structures you drive up to) has to *read as believable*.
 
-> **Status:** ✏️ **Specced, not started.** Captured from the **2026-06-12** brainstorm (read
-> [`../ideas.md`](../ideas.md) for the voice/why). The **response model**, the **head-on settle**, and the
-> **scope (player + enemies)** are **decided** (§3/§4). Radii, the speed-bleed strength, and resolve
-> iteration are **build-time tuning**. Candidate/movable per "build by discovery."
+> **Status:** ✅ **Built** (PR #74). Captured from the **2026-06-12** brainstorm (read
+> [`../ideas.md`](../ideas.md) for the voice/why). The **response model** and **scope** shipped as specced,
+> with one change found in play: the **head-on speed-bleed was removed** — it made walls *sticky* (at zero
+> speed the turning model, `yaw ∝ speed`, couldn't rotate the rig off a wall, forcing a full reverse). The
+> response now corrects **position only** and keeps the rig's speed, so a held turn pivots it off (§3). Radii
+> are **build-time tuning**. Candidate/movable per "build by discovery."
 
 ---
 
@@ -76,11 +78,13 @@ When a mover's circle overlaps a `Solid` circle, **de-penetrate** the mover — 
   over-step, so the mover **sits flush** against the surface frame after frame. It is a **clamp to the
   surface, not an impulse that overshoots** — there is nothing to oscillate. And because there is **no
   velocity reflection**, there is **no bounce**.
-- **Head-on settle (decided).** A head-on hit **bleeds the mover's `speed` toward 0** in proportion to how
-  head-on it is (`intoSurface = max(0, −(heading · normal))`: 1 = dead-on, 0 = glancing), so the rig
-  visibly **comes to rest** against the wall and the wheels stop. A glancing hit keeps its speed, so the
-  slide continues. This is the difference between "settles against the wall" and "floors it forever going
-  nowhere."
+- **Keep the mover's speed — position only (revised in play).** The response corrects **position only** and
+  never touches `speed`. We first **bled** head-on speed toward 0 for a "settle," but play exposed a trap:
+  steering is `yaw ∝ speed`, so a rig pinned at 0 speed **could not rotate off a wall** — it had to fully
+  reverse, which read as *sticky / unforgiving*. Keeping the speed means a **held turn pivots the rig off**
+  the wall and drives it away, no reverse needed. **Coming to rest is the existing coasting friction's job**
+  (release the throttle against a wall and it stops there); the response doesn't duplicate that. A glancing
+  hit keeps its speed too, so the slide carries on.
 - **Degenerate case.** If a mover is exactly concentric with a `Solid` (`dist ≈ 0`, no defined normal),
   push out along the mover's **reverse heading** so the correction is deterministic.
 
@@ -103,10 +107,8 @@ for each mover (Transform + Drivetrain + Velocity + Collider):   // player rig A
         ? [dx/dist, dz/dist]                          // contact normal (solid → mover)
         : [-Math.sin(T.rotationY), -Math.cos(T.rotationY)]  // concentric: reverse heading
     const pen = reach - dist
-    T.x += nx * pen;  T.z += nz * pen                 // de-penetrate to exactly touching
-    const hx = -Math.sin(T.rotationY), hz = -Math.cos(T.rotationY)   // heading
-    const intoSurface = Math.max(0, -(hx*nx + hz*nz))               // 1 head-on … 0 glancing
-    mover.Velocity.speed *= (1 - intoSurface)         // head-on settles, glancing keeps its slide
+    T.x += nx * pen;  T.z += nz * pen                 // de-penetrate to exactly touching — POSITION only;
+                                                      // speed is left alone so the turning model can steer it off
 ```
 
 - **One pass** is enough for the sparse `Solid` set. If a mover wedges into two solids at once and a corner
@@ -177,8 +179,10 @@ reaches a tree. Nothing extra to serialize.
 ## §8. Done when (verify in-game)
 
 - Driving the rig into a **scrap pile / camp structure / shop / workshop / restored tree** stops it at the
-  surface — **no clip-through** — and **holding forward** settles it flush (speed bleeds to rest, wheels
-  stop), with **no jitter and no bounce**.
+  surface — **no clip-through**, **no jitter, no bounce**. Holding forward holds it flush against the
+  surface; **releasing the throttle** lets it coast to rest there.
+- **Forgiving recovery:** after a head-on hit you can **steer away and drive off without fully reversing**
+  (the response keeps the rig's speed, so the turning model can rotate it off the wall).
 - Approaching a structure **at an angle** makes the rig **slide along** it rather than stick.
 - Regression: **loose scrap still collects** by driving over it; **enemy guards are still rammable**; the
   **reclaimer / heal / shop / workshop proximity** interactions all still fire.

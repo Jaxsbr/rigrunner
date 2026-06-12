@@ -39,13 +39,21 @@ function drivableRig(world: World, x: number, z: number, rotationY = 0): EntityI
 }
 
 /** Advance the real sim order — movement integrates, then the response de-penetrates — for `n` frames. */
-function driveForward(world: World, rig: EntityId, n: number, dt = 1 / 60): void {
-  world.get(rig, DriveControl)!.throttle = 1;
+function drive(world: World, rig: EntityId, n: number, throttle: number, steer = 0, dt = 1 / 60): void {
+  const ctl = world.get(rig, DriveControl)!;
+  ctl.throttle = throttle;
+  ctl.steer = steer;
   for (let i = 0; i < n; i++) {
     movementSystem(world, dt);
     collisionResponseSystem(world);
   }
 }
+
+const dist = (world: World, a: EntityId, b: EntityId): number => {
+  const ta = world.get(a, Transform)!;
+  const tb = world.get(b, Transform)!;
+  return Math.hypot(ta.x - tb.x, ta.z - tb.z);
+};
 
 // Each real structure spawner, placed 8 m directly ahead of the rig (at -z).
 const STRUCTURES: ReadonlyArray<[string, (w: World) => EntityId]> = [
@@ -56,22 +64,34 @@ const STRUCTURES: ReadonlyArray<[string, (w: World) => EntityId]> = [
 
 describe('collision response vs. real world structures', () => {
   for (const [name, spawn] of STRUCTURES) {
-    it(`stops a rig head-on at the ${name} surface and settles to rest`, () => {
+    it(`stops a rig head-on at the ${name} surface without clipping through`, () => {
       const world = new World();
       const structure = spawn(world);
-      const st = world.get(structure, Transform)!;
       const solidR = world.get(structure, Collider)!.radius; // proves the spawner gave it a footprint
       const rig = drivableRig(world, 0, 0);
-      const rigR = world.get(rig, Collider)!.radius;
+      const surface = solidR + world.get(rig, Collider)!.radius; // centres' distance when the circles touch
 
-      driveForward(world, rig, 600); // ~10s of holding forward into it
+      drive(world, rig, 600, 1); // ~10s of holding forward into it
 
-      const t = world.get(rig, Transform)!;
-      const surface = solidR + rigR; // centre-to-centre distance when the circles just touch
-      const dist = Math.hypot(t.x - st.x, t.z - st.z);
-      expect(dist).toBeGreaterThanOrEqual(surface - 1e-2); // never clipped through
-      expect(dist).toBeLessThan(surface + 0.5);            // came to rest right against the surface
-      expect(world.get(rig, Velocity)!.speed).toBeLessThan(0.5); // settled — wheels ~stopped
+      const d = dist(world, rig, structure);
+      expect(d).toBeGreaterThanOrEqual(surface - 1e-2); // never clipped through
+      expect(d).toBeLessThan(surface + 0.5);            // held right against the surface
     });
   }
+
+  it('lets the rig steer off a structure after a head-on hit — no full reverse needed', () => {
+    const world = new World();
+    const workshop = spawnWorkshop(world, 0, -8);
+    const solidR = world.get(workshop, Collider)!.radius;
+    const rig = drivableRig(world, 0, 0);
+    const surface = solidR + world.get(rig, Collider)!.radius;
+
+    drive(world, rig, 180, 1); // pin head-on against the workshop
+    expect(dist(world, rig, workshop)).toBeLessThan(surface + 0.1); // genuinely pinned at the surface
+
+    // Hold a full turn, still FORWARD throttle (never reverse): the rig should pivot off and drive away.
+    drive(world, rig, 360, 1, 1);
+    expect(dist(world, rig, workshop)).toBeGreaterThan(surface + 2); // peeled off and drove clear
+    expect(world.get(rig, Velocity)!.speed).toBeGreaterThan(0);      // forward throughout — no reverse required
+  });
 });

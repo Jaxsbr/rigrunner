@@ -572,3 +572,31 @@ nearest-pick when overlapping shops become real.
 **Status:** DONE (PR #71 review follow-up) — stock seam removed, E double-open fixed, the three duplications
 promoted to `@common`; `tsc` + all tests green. The partial/unique-stock and multi-shop-arbitration ideas stay
 captured (here + the world-shops spec), not committed.
+
+## 20. The head-on "settle" speed-bleed made walls sticky — keep the rig's speed instead
+
+**Context:** Playing the collision-response slice ([`specs/collision-spec.md`](specs/collision-spec.md),
+PR #74) right after it shipped. *(Captured 2026-06-12.)*
+
+**Observation:** The spec's decided **head-on settle** — bleed the mover's `speed` toward 0 in proportion to
+how head-on the hit is, so the rig "comes to rest against the wall, wheels stop" — read as **sticky and
+unforgiving** in play: after nosing into a structure you **couldn't just steer away and drive off, you had
+to fully reverse** to get unstuck. The cause is a coupling the spec didn't see: steering is a turning-RADIUS
+model (`yaw ∝ speed` — the rig arcs like a vehicle, it *can't* pivot on the spot), so a rig bled to **0
+speed against a wall has no way to rotate off it**. Forward is pinned by the de-penetration, turning needs
+speed it no longer has → reverse is the only escape. The fix: the response now corrects **position only** and
+**leaves `speed` alone**. De-penetration still kills clip-through and gives the slide; keeping the speed lets
+a **held turn pivot the rig off the wall** and drive away. "Coming to rest" is handed back to the **existing
+coasting friction** (let off the throttle against a wall and it stops there) — the response doesn't duplicate it.
+
+**Why it matters:** Two lessons. **(a)** A mechanic that's clean in isolation can be wrong in *combination* —
+the settle and the steering model were each fine alone, but together they pinned the rig; only play surfaced
+it. **(b)** Don't make a system do a job another system already owns: decelerating is friction's job, so the
+response bleeding speed was both redundant *and* the thing that broke steering. Position-only response is the
+smaller, more composable piece. Impact "weight" (a one-time momentum loss on the contact frame, vs. the
+continuous bleed) stays **captured, not built** — it reduces to the same steady state once you keep holding
+throttle, so it didn't earn its complexity yet.
+
+**Status:** DONE (PR #74) — speed-bleed removed, response is position-only; unit test now asserts speed is
+*preserved* on a head-on hit, and an integration test guards the "steer off without reversing" recovery.
+`tsc` + all tests green; verified in-game (drive into a wall, steer away, drive off — no reverse needed).

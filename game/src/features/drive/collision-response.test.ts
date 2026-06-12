@@ -51,12 +51,14 @@ describe('collisionResponseSystem', () => {
     expect(w.get(m, Velocity)!.speed).toBe(5); // no contact, no bleed
   });
 
-  it('bleeds speed to rest on a head-on hit', () => {
+  it('preserves speed on a head-on hit so the rig can still steer off (no sticky pin)', () => {
     const w = new World();
     const m = mover(w, 0, 0, 1, 6); // driving forward (-z) into a solid dead ahead
     solid(w, 0, -2, 1.5);
     collisionResponseSystem(w);
-    expect(w.get(m, Velocity)!.speed).toBeCloseTo(0);
+    const t = w.get(m, Transform)!;
+    expect(Math.hypot(t.x - 0, t.z - -2)).toBeCloseTo(2.5); // de-penetrated to the surface
+    expect(w.get(m, Velocity)!.speed).toBeCloseTo(6);       // ...but speed kept — yaw ∝ speed can rotate it away
   });
 
   it('keeps speed on a glancing hit and still de-penetrates', () => {
