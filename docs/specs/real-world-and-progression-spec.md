@@ -112,14 +112,15 @@ load by design:* rig HP/boost heat (a reload repairs), composed parts/kits dropp
 - **Carried forward (small, deliberate):** packed-kit crates left loose in the world and mid-combat
   progress aren't checkpointed — a save is never a half-fought fight.
 
-### Phase 0.5 — World shops (split the shop UI + the first world shop) · `pending` *(precedes Phase 1)*
+### Phase 0.5 — World shops (split the shop UI + the first world shop) · ✅ first slice `shipped` *(precedes Phase 1)*
 Pulled out into **its own spec** — [`world-shops-spec.md`](world-shops-spec.md) — and sequenced **before** the
 cold-open, because the cold-open must be designed *around where you buy.* The shop leaves the workshop overlay
 (buy/sell at home is too easy, and it adds to the workshop's bulk — [`../observations.md`](../observations.md)
-#10) and becomes **world destinations themed by part tier** (rusty, iron…), with **partial/unique stock** and
-**set-completion** as a progression lever — the concrete form of the *shop-unlock lever* from the 2026-06-11
-session. **First slice (decided 2026-06-11):** the **UI split *and* the first rusty shop** (a short drive into
-the safe bowl) ship together, so it's playable immediately. Full detail + open questions live in that spec;
+#10) and becomes **world destinations themed by part tier** (rusty, iron…). **First slice (shipped, PR #71):**
+the **UI split *and* the first rusty shop** (a short drive into the safe bowl) — playable now; a shop sells the
+full catalogue at its tier, and you sell any part anywhere at a loss. **Decided 2026-06-12:** the once-planned
+**partial/unique stock + set-completion** progression lever is **parked, not built** (see the world-shops spec +
+[`../observations.md`](../observations.md) #19); the tier-themed "find shops → unlock parts" idea stays captured.
 **Phase 1 consumes its output** (the first bowl shop is the cold-open's first-purchase point).
 
 ### Phase 1 — The designed cold-open · `pending`

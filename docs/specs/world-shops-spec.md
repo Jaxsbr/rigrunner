@@ -2,15 +2,23 @@
 
 **What this is:** the plan for moving the **shop out of the workshop overlay and into the world** — buying
 parts becomes a matter of *driving to distributed, tier-themed shops*, not a free buy/sell tab at home. It
-splits the shop UI from the workshop UI, and turns "what the shop offers" into a **progression lever** (find
-shops → complete part-sets → venture further for the next ones).
+splits the shop UI from the workshop UI. *(A forward-looking "find shops → unlock parts" progression lever is
+captured as candidate direction; the once-central partial/unique-stock + set-completion framing is **parked** —
+see the 2026-06-12 decision below.)*
 
-> **Status:** ✏️ **Skeleton — candidate, not started.** Captured from the **2026-06-11** session in
-> [`../ideas.md`](../ideas.md) (read that for the voice/why). The **structural call** is firm — the shop is its
-> own phase, sequenced **before** Phase 1 of
-> [`real-world-and-progression-spec.md`](real-world-and-progression-spec.md), and its first job is to split the
-> shop UI out of the workshop. The **world-shop mechanics** below (tiers, unique stock, set-completion) are
-> **candidate direction, deliberately movable**, not yet promoted to `CLAUDE.md`.
+> **Status:** 🟡 **First slice SHIPPED** (`features/shop/`, PR #71); the rest is candidate. Captured from the
+> **2026-06-11** session in [`../ideas.md`](../ideas.md) (read that for the voice/why). The **structural call**
+> is firm and done — the shop is its own phase, sequenced **before** Phase 1 of
+> [`real-world-and-progression-spec.md`](real-world-and-progression-spec.md); the UI split + the first bowl shop
+> are built.
+>
+> **DECISION (2026-06-12): there is NO per-shop "stock".** The partial/unique-stock + stock-list-seam idea below
+> was *not* what was wanted and was **not built** (it would have been speculative complexity — "complexity earns
+> its place"). The shipped model: **a shop sells the FULL priced catalogue at its one intrinsic tier, always in
+> stock**; **selling works for any loose part at any shop, always at a loss** (the shop is a greedy buyer that
+> takes parts it doesn't sell). The remaining **forward-looking mechanics** (tier-themed shops, set-completion as
+> a progression lever) stay **captured, movable, not committed** — and partial/unique stock is **parked**, not on
+> the path. See [`../observations.md`](../observations.md) #19.
 
 ---
 
@@ -31,17 +39,19 @@ than a tab you toggle.
 
 ## The concept — shops are world destinations
 
-- **A shop is a place out in the world**, not a home tab. You **drive to it** to buy.
-- **Shops mimic part tiers** (rusty, iron, …). A tier-shop sells that tier's parts — leaning directly on the
-  tier model already being built in **MP** (`part-identity-spec.md`: rusty → iron → …).
-- **Partial, unique stock.** A rusty shop is **not guaranteed to carry every** rusty part — there may be
-  **multiple shops** to visit to find the different parts you need.
-- **Unique shops.** Some shops unlock a **higher-tier single part** you can't get elsewhere.
-- **Set-completion gates progression.** You may have to **visit all the relevant shops to complete a set of
-  parts**, which lets you **progress to the next phase / region** and **venture further** to find more shops.
-  This is the concrete form of the **"shop-unlock as a progression lever"** idea (the *outpost* thread,
-  [`../ideas.md`](../ideas.md) 2026-06-11): finding shops *is* how you unlock new parts, and new parts drive
-  progression.
+- **A shop is a place out in the world**, not a home tab. You **drive to it** to buy. *(Built.)*
+- **A shop sells the full catalogue at its tier, always in stock.** Buying is "any part the shop sells, always
+  available" — no scarcity, no per-shop subset. *(Built.)*
+- **Selling is universal and lossy.** Any loose part sells at any shop, always at a loss (the shop is greedy and
+  takes even parts it doesn't sell). *(Built.)*
+- **Shops mimic part tiers** (rusty, iron, …). A tier-shop sells that tier's parts — leaning on the tier model
+  in **MP** (`part-identity-spec.md`: rusty → iron → …). *(Captured, movable — today there is one rusty shop.)*
+
+**Parked (decided 2026-06-12 — NOT being built):** *partial/unique stock* (a rusty shop carrying only **some**
+rusty parts; **unique** higher-tier single parts), and *set-completion* gating progression on visiting all the
+relevant shops. These were the original "stock-list seam" framing; they're a captured idea, not the path. If
+partial stock is ever genuinely wanted, it reattaches as an optional `WorldShop.stock?` subset the buy list
+filters on — added then, with a real second case, not speculatively now.
 
 ## Bootstrapping the cold-open (relationship to Phase 1)
 
@@ -57,43 +67,53 @@ around* where you buy your first parts.
 ## The UI split (decouple the shop surface)
 
 - **Move the shop into its own UI surface**, separate from the workshop overlay — paying down obs #10's "the
-  Parts Shop needs work" and the buying/building weld.
-- **One reusable surface, scoped per shop.** Each world shop opens the *same* shop UI, scoped to **that shop's
-  stock** (its tier + which parts it happens to carry). The seam: the shop UI takes a **stock list** so every
-  shop — and any future home/special shop — reuses it without bespoke UI.
+  Parts Shop needs work" and the buying/building weld. *(Built — `features/shop/shop-overlay.ts`.)*
+- **One reusable surface, scoped per shop by TIER.** Each world shop opens the *same* shop UI, reading the
+  in-range shop's intrinsic **tier** and offering the full catalogue at that grade (`shopStockForTier`). One UI
+  drives every shop with a different tier — no bespoke UI, and (per the 2026-06-12 decision) no per-shop stock
+  list to scope it.
 
 ## Phases / slices
 
 `pending` / candidate / movable.
 
-### First slice — UI split + first world shop, together · `pending`
+### First slice — UI split + first world shop, together · ✅ `shipped` (PR #71)
 **Decided (2026-06-11):** the minimum first cut ships **both** at once, so the new mechanic is playable
 immediately rather than a UI refactor with nothing behind it.
-- **Split** the shop into its own UI surface (out of the workshop overlay).
-- **Place the first (rusty) world shop** a short drive into the safe bowl — a structure you drive to that opens
-  the shop UI scoped to its stock. This *is* the cold-open's first-purchase point.
-- **The stock-list seam** (per-shop stock) so tiers, unique shops, and set-completion ride on it later.
+- ✅ **Split** the shop into its own UI surface (out of the workshop overlay).
+- ✅ **Place the first (rusty) world shop** a short drive into the safe bowl — a structure you drive to that
+  opens the shop UI (the full rusty catalogue). This *is* the cold-open's first-purchase point.
+- ✅ **Buy/sell model wired:** buy the full catalogue at the shop's tier; sell any loose part at a loss.
+  *(The originally-planned "per-shop stock-list seam" was dropped — see the 2026-06-12 decision above.)*
 
-### Following slices — the world-shop mechanic proper · `pending`
-- More shops across the world, themed by **tier**; **partial/unique stock**; **unique higher-tier parts**.
-- **Set-completion → phase/region unlock** (the progression lever); reconcile with the progression spec's
-  region gate (restoration). Possibly: a cleared **camp/outpost** can *host* a shop (tie to Phase 1's outpost).
+### Following slices — the world-shop mechanic proper · `pending` *(candidate, movable)*
+- More shops across the world, themed by **tier** (each tier gets its own building GLB). The progression idea
+  ("find shops → unlock parts") stays captured.
+- **Parked:** partial/unique stock, unique higher-tier parts, and **set-completion → phase/region unlock**.
+  *(If revived: reconcile set-completion with the progression spec's restoration region gate; a cleared
+  camp/outpost possibly hosting a shop.)*
 
-## Deliverables (first slice)
+## Deliverables (first slice) — ✅ all shipped (PR #71)
 
-- **Shop UI as its own surface**, decoupled from the workshop overlay.
-- **A world "shop" entity/structure** the rig drives to, which opens the shop UI scoped to its stock.
-- **The first rusty shop placed in the safe bowl** — the cold-open's first-purchase point (hands off to Phase 1).
-- **The per-shop stock-list seam** so tier/unique/set-completion mechanics attach without reworking the UI.
+- ✅ **Shop UI as its own surface**, decoupled from the workshop overlay.
+- ✅ **A world "shop" entity/structure** the rig drives to, which opens the shop UI (full catalogue at its tier).
+- ✅ **The first rusty shop placed in the safe bowl** — the cold-open's first-purchase point (hands off to Phase 1).
+- ✅ **The buy/sell model** (buy full catalogue at tier; sell any part anywhere at a loss). *(Replaces the
+  originally-planned per-shop stock-list seam, which was decided against — see above.)*
 
 ## Open questions (resolve at build time)
 
-- **Stock definition** — explicit per-shop list vs a tier + rarity roll; how unique / higher-tier parts are marked.
-- **Set-completion tracking** — how "complete a set → unlock the next phase/region" is represented, and how it
-  **reconciles with the progression spec's restoration region-gate** (two gates, or one feeding the other?).
-- **Selling** — where you sell back parts / dump scrap now that the workshop isn't a shop (home? shops? both?).
+- ✅ **Stock definition — RESOLVED (2026-06-12):** no per-shop stock; a shop sells the full catalogue at its tier.
+  Partial/unique stock parked.
+- ✅ **Selling — RESOLVED:** you sell **any loose part at any shop, always at a loss** (`resaleValue ≈ price/2`).
+  The workshop banks/builds; it never buys or sells.
+- **Tier-themed shops** — when the second tier's shop lands, `spawnWorldShop` gains a `tier → assetId` lookup
+  (and `shop` likely renames to `shop-rusty`) — added with the real second case, not speculatively.
+- *(Parked with the partial-stock idea)* **Set-completion tracking** — how "complete a set → unlock the next
+  phase/region" would reconcile with the progression spec's restoration region-gate.
 - **Shop ↔ outpost ↔ cleared-camp relationship** — are they one family (a cleared camp hosts a shop), or distinct?
-- **Shop visual identity** — the asset/structure a world shop reads as.
+- **Shop visual identity** — ✅ the first shop reads as a busy, lived-in trade post (building + goods yard +
+  worked ground); per-tier building GLBs follow.
 
 ## Where this connects
 
