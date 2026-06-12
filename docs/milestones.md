@@ -31,6 +31,11 @@ Phase 4    onboarding / guidance / story (deliberately last)
 
 **The next 2–3 cycles, in order:**
 
+0. **Pre-Phase-1 — lightweight collision (believability).** Make the rig physically collide with solid
+   structures (piles, camps, shops, workshop, restored trees) instead of clipping through them — a small
+   push-out-and-slide response layer on top of the collision detection the game already has. Small and
+   self-contained, but it lands *before* the crafted cold-open, which has to read as believable. Spec:
+   [`collision-spec.md`](specs/collision-spec.md).
 1. **Phase 1 — the designed cold-open.** The single new bit of code is the **LOCKED-state cue**; the
    rest is the crafted bowl seed + the **outpost** (first cleared camp → forward base). A *legibility*
    phase — every verb is already built.
