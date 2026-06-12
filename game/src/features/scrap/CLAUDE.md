@@ -20,6 +20,10 @@ What's here:
   engine), `scrap-pile-animator` (the dig-slump), `scrap-pile-clear-animator` (the reclaim dissolve: sink
   the heap, rise the stump — the camp-teardown sibling), `reclaimer-animator`, and the `overlays` adapter
   (its pile disc/hint entries). `loot-overlay` is the loot-popup UI. See `docs/specs/scrap-pile-polish-spec.md`.
+- **Pickup feedback:** `floating-text` is a generic camera-facing "battle text" sprite layer (pop a
+  label at a world point, it rises + fades); `scrap-pops` is the scrap policy over it — a "+N" where each
+  piece is swept up, a debounced "NO SPACE" above the rig when a full hold drives over scrap it can't take.
+  `scrapCollectionSystem` returns a `CollectionResult` (collected spots+values, refused spots) that feeds it.
 
 Single-owner / placement rules at the point of edit:
 
@@ -30,5 +34,8 @@ Single-owner / placement rules at the point of edit:
   reads the shared `@common/components/reclaimer-working` `ReclaimerWorking` marker (promoted out of scrap
   once restoration's stump-heal became its second consumer — both deploy the same arm). Keep the animator
   here, not in mounting (which would cycle).
+- **`floating-text` is generic but stays in scrap** until a second consumer earns its promotion — the
+  day combat wants damage numbers it moves to `@common/render` (a move, not a rewrite), with `scrap-pops`
+  left behind as the scrap-specific policy. Don't pre-promote it (ADR-003 Rule of Three).
 - Cross-feature: scrap depends downhill on `storage` (`mounted-storages`) and `economy` (loot grant)
   — never the reverse. `@common`/`@core` never import scrap.
