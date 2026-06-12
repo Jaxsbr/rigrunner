@@ -105,7 +105,7 @@ the world**) are the durable spine that makes each new outing start from a highe
 
 ## 3) Restoration of the world
 
-This is the heart (the "heal the world" vision in `ideas.md` 2026-05-30; M4/M5 in `milestones.md`).
+This is the heart (the "heal the world" vision in `ideas.md` 2026-05-30; the spine's **Phase 2–3** in `milestones.md`).
 **The shape that now feels right (2026-06-10): restoration lives IN the persistent world.** Because the
 world remembers (§1), the place you heal *is* the place that stays healed — there is no separate area to
 protect from a reset, and no separate screen to go admire it on. **The world is the tracker.**
