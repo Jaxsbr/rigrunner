@@ -76,8 +76,20 @@ def _shell():
 
     # A hazard doorway frame around the opening — two corner posts + a thin top beam (kept slim so it
     # barely occludes from above) that read the front as an entrance, not just a missing wall.
-    parts.append(rr.beveled_box("post_left", (0.16, 0.16, WALL_H), "hazard_yellow", (-(HALF_W - 0.08), HALF_D - 0.08, WALL_CZ)))
-    parts.append(rr.beveled_box("post_right", (0.16, 0.16, WALL_H), "hazard_yellow", (HALF_W - 0.08, HALF_D - 0.08, WALL_CZ)))
+    #
+    # The posts stand a touch PROUD of the side walls (outward, forward, and up) and fully ENVELOP each
+    # wall's front corner, so no post face is left coplanar with the wall (or the beam top) — coincident
+    # faces between the yellow posts and the rust walls are what z-fight as the camera pans. Each post's
+    # outer/front/top faces sit just outside the wall; its back/inner/bottom half is buried inside the
+    # corner (and on the floor), where coincidences are hidden. The beam's ends bury into the posts.
+    PROUD = 0.05
+    POST_W, POST_D = 0.20, 0.22
+    post_cx = HALF_W + PROUD - POST_W / 2     # outer face proud of the wall; the post buries the wall's front cap
+    post_cy = HALF_D + PROUD - POST_D / 2     # front face proud of the opening; back buried in the wall
+    post_h = (WALL_TOP + PROUD) - FLOOR_TOP   # base on the floor; top proud above the wall + beam
+    post_cz = (FLOOR_TOP + WALL_TOP + PROUD) / 2
+    parts.append(rr.beveled_box("post_left", (POST_W, POST_D, post_h), "hazard_yellow", (-post_cx, post_cy, post_cz)))
+    parts.append(rr.beveled_box("post_right", (POST_W, POST_D, post_h), "hazard_yellow", (post_cx, post_cy, post_cz)))
     parts.append(rr.beveled_box("gantry", (W, 0.16, 0.18), "hazard_yellow", (0.0, HALF_D - 0.08, WALL_TOP - 0.09)))
 
     # The warm lamp markers — a lived-in glow that reads through shadow and from any angle. The lamp panel
