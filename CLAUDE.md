@@ -200,6 +200,13 @@ unless asked.
 git push -u origin HEAD && gh pr create --fill --base main
 ```
 
+**One PR per session by default — ask before opening another.** Before opening a *new* PR, check for
+open PRs (`gh pr list`). If one already exists that this work could reasonably join — especially within a
+single brainstorm / spec / doc session — **do not open a second. Ask Jaco** whether to fold the change
+into the existing PR (or consolidate) or open a new one. Several PRs spun up in one session, when it
+could have been one, is a real friction Jaco has hit; default to **consolidating into one PR** unless he
+says otherwise.
+
 **After merge, clean up** so branches don't go stale (the other failure mode we hit):
 
 ```sh

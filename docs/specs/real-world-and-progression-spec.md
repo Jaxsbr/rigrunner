@@ -5,11 +5,13 @@ game-someone-plays** — a persistent real world separated from a free-for-all t
 front door, a committed **progression spine**, and the onboarding that leads a player down it. It is the
 connective plan that several smaller mechanics (scrap, Reclaimer, camps, restoration) now plug into.
 
-> **Status:** ✏️ **Skeleton — candidate, not started.** Captured from the **2026-06-10** session in
-> [`../ideas.md`](../ideas.md) (read that for the voice/why). One real decision was made there — the
-> **restoration-purpose call** (§2) — but the phases below are **candidate direction, deliberately movable**
-> and **not yet promoted** into [`../milestones.md`](../milestones.md) or `CLAUDE.md`. This skeleton exists so
-> the shape isn't lost and can be cut into deliberately-minimum slices when each phase is picked up.
+> **Status:** 🟡 **In progress — this is the live roadmap.** **Phase 0 is done** (game/sandbox split +
+> menu + persistence, PR #67) and **Phase 0.5's first slice shipped** (world shops, PR #71); **Phases
+> 1–4 are pending** — Phase 1 (the designed cold-open) is **next**. The phased plan is now the spine
+> tracked at the top of [`../milestones.md`](../milestones.md). Captured from the **2026-06-10** session in
+> [`../ideas.md`](../ideas.md) (read that for the voice/why); the **restoration-purpose call** (§2) is the
+> one firm decision. Remaining phases stay **candidate direction, deliberately movable** — cut each into a
+> deliberately-minimum slice when picked up.
 
 ---
 
