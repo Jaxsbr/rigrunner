@@ -3,7 +3,6 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { seededRng } from '@common/sim/rng';
-import { softPatch } from '@common/render/ground-texture';
 import { WorldShop } from './world-shop';
 
 /**
@@ -42,6 +41,21 @@ const SCUFF = '156,134,94';    // a polished, lighter scuff — the beaten footp
 const STONES = ['150,124,86', '134,108,72', '120,96,62', '104,82,54', '86,68,46', '128,92,58'];
 const STONE_SHADOW = '40,30,18'; // the contact shadow a stone casts into the dirt
 const STONE_HILITE = '184,156,110'; // a warm sand sun-catch on a stone's crown (kept subtle, not white)
+
+/**
+ * A soft radial blot fading to transparent at its rim. NOTE: `rgb` is a DECIMAL `'r,g,b'` string (like the
+ * rest of this file's tones), NOT the `#rrggbb` hex the wasteland floor's look-alike `softPatch` takes — the
+ * two helpers share a shape but not a colour dialect, so they deliberately don't share code.
+ */
+function blot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, rgb: string, a: number): void {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${rgb},${a})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
 
 /** Walk a thin seam between the stones from (x,y), drifting and occasionally forking. */
 function crack(ctx: CanvasRenderingContext2D, rng: () => number, x: number, y: number, ang: number, len: number, depth: number): void {
@@ -96,10 +110,10 @@ function drawWornYard(seed: number): HTMLCanvasElement {
     const ang = rng() * Math.PI * 2;
     const d = Math.pow(rng(), 0.7) * 360;       // denser toward the centre
     const r = 130 + rng() * 230;
-    softPatch(ctx, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, r, PACKED, 0.1 + rng() * 0.12);
+    blot(ctx, C + Math.cos(ang) * d, FRONT + Math.sin(ang) * d, r, PACKED, 0.1 + rng() * 0.12);
   }
   for (let i = 0; i < 7; i++) {
-    softPatch(ctx, C + (rng() - 0.5) * 200, FRONT + (rng() - 0.5) * 160, 120 + rng() * 120, TRODDEN, 0.1 + rng() * 0.1);
+    blot(ctx, C + (rng() - 0.5) * 200, FRONT + (rng() - 0.5) * 160, 120 + rng() * 120, TRODDEN, 0.1 + rng() * 0.1);
   }
 
   // 2) The compacted GRAVEL/COBBLE — small stones walked into the dirt. A broad field across the worked
@@ -120,7 +134,7 @@ function drawWornYard(seed: number): HTMLCanvasElement {
   // 3) A beaten, polished footpath sheen drawn over the front approach (lighter, where feet smooth it).
   for (let i = 0; i < 9; i++) {
     const t = i / 8;
-    softPatch(ctx, C + (rng() - 0.5) * 90, t * (C - 40) + 30, 60 + rng() * 50, SCUFF, 0.05 + rng() * 0.05);
+    blot(ctx, C + (rng() - 0.5) * 90, t * (C - 40) + 30, 60 + rng() * 50, SCUFF, 0.05 + rng() * 0.05);
   }
 
   // 4) Dried seams threading between the stones — more through the worked core.
