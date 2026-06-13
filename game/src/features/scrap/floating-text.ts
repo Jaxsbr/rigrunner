@@ -7,11 +7,24 @@ import * as THREE from 'three';
  * the spirit of the stains/tracks layers — it owns only its live sprites and reads nothing from the
  * sim; destroy it and the game is unaffected.
  *
- * Generic by construction: a caller supplies the text, colour, and spot, so it carries no scrap
- * semantics of its own (the "+N" / "NO SPACE" policy lives in `scrap-pops.ts`). It sits in the scrap
- * slice because that's its only consumer today; the day combat wants damage numbers it becomes the
- * second, and this moves up to `@common/render` (ADR-003 — earn the promotion, don't pre-build it).
+ * Generic by construction: a caller supplies the text, colour, spot, and an optional icon, so it
+ * carries no scrap semantics of its own (the "+N" / "NO SPACE" policy and the scrap chip live in
+ * `scrap-pops.ts`). It sits in the scrap slice because that's its only consumer today; the day combat
+ * wants damage numbers it becomes the second, and this moves up to `@common/render` (ADR-003 — earn
+ * the promotion, don't pre-build it).
  */
+
+/**
+ * A small picture to float beside the text — a chip of the thing being collected, so a pickup reads at
+ * a glance ("+1" with a scrap chip). The caller paints it into a square box, so icon and text share ONE
+ * sprite and drift in unison. `key` identifies the icon for the label-texture cache (the icon set is
+ * small and reused). Generic: any collectible supplies its own chip via this seam.
+ */
+export interface FloatingIcon {
+  key: string;
+  /** Paint the icon filling the square `(x, y, size)` box on the label canvas. */
+  draw(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void;
+}
 
 /** How long a label lives, in seconds — long enough to read a couple of glyphs, gone before it nags. */
 const LIFE = 0.8;
@@ -42,9 +55,12 @@ export class FloatingText {
 
   constructor(private readonly scene: THREE.Scene) {}
 
-  /** Pop a label reading `text` (in `color`) at world `(x, y, z)`; it rises and fades on its own. */
-  spawn(text: string, color: string, x: number, y: number, z: number): void {
-    const glyph = this.glyph(text, color);
+  /**
+   * Pop a label reading `text` (in `color`) at world `(x, y, z)`; it rises and fades on its own. An
+   * optional `icon` floats to its left on the same sprite (e.g. a chip of the collected item).
+   */
+  spawn(text: string, color: string, x: number, y: number, z: number, icon?: FloatingIcon): void {
+    const glyph = this.glyph(text, color, icon);
     const sprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: glyph.texture,
@@ -80,12 +96,12 @@ export class FloatingText {
     (f.sprite.material as THREE.Material).dispose(); // glyph textures are cached + shared, not freed here
   }
 
-  /** The texture for a `text`+`color` label, drawn once and cached (the string set is tiny: "+1", "NO SPACE"). */
-  private glyph(text: string, color: string): Glyph {
-    const key = `${text}|${color}`;
+  /** The texture for a label (icon + `text` + `color`), drawn once and cached (the variant set is tiny). */
+  private glyph(text: string, color: string, icon?: FloatingIcon): Glyph {
+    const key = `${icon?.key ?? '-'}|${text}|${color}`;
     const cached = this.glyphs.get(key);
     if (cached) return cached;
-    const canvas = drawLabel(text, color);
+    const canvas = drawLabel(text, color, icon);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
@@ -96,33 +112,41 @@ export class FloatingText {
 }
 
 /**
- * Render `text` to a tightly-sized canvas: a heavy dark outline under a `color` fill, so the label
- * stays legible over the bright ground or a dark rig alike. The canvas is sized to the measured text
- * so the sprite's aspect comes out right.
+ * Render an optional `icon` followed by `text` onto a tightly-sized canvas: a heavy dark outline under a
+ * `color` text fill, so the label stays legible over the bright ground or a dark rig alike. The icon
+ * sits within the text's line height to its left, and the canvas is sized to both so the sprite's aspect
+ * comes out right.
  */
-function drawLabel(text: string, color: string): HTMLCanvasElement {
+function drawLabel(text: string, color: string, icon?: FloatingIcon): HTMLCanvasElement {
   const FONT_PX = 96;
   const PAD = 24;
+  const GAP = 18; // space between the icon and the text
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
   const font = `bold ${FONT_PX}px sans-serif`;
 
   ctx.font = font;
-  canvas.width = Math.ceil(ctx.measureText(text).width) + PAD * 2;
+  const textW = Math.ceil(ctx.measureText(text).width);
+  const iconSize = icon ? FONT_PX : 0; // the icon fills the text line height
+  const iconGap = icon ? GAP : 0;
+  canvas.width = PAD + iconSize + iconGap + textW + PAD;
   canvas.height = FONT_PX + PAD * 2;
 
-  // Sizing the canvas clears it — restore the font, then draw centred.
+  // Sizing the canvas clears it — restore the font, then draw icon (left) and text after it.
   ctx.font = font;
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  const cx = canvas.width / 2;
   const cy = canvas.height / 2;
+
+  if (icon) icon.draw(ctx, PAD, cy - iconSize / 2, iconSize);
+
+  const textX = PAD + iconSize + iconGap;
   ctx.lineWidth = FONT_PX * 0.18;
   ctx.strokeStyle = 'rgba(18,19,21,0.92)'; // dark_metal-ish outline for contrast on any background
-  ctx.strokeText(text, cx, cy);
+  ctx.strokeText(text, textX, cy);
   ctx.fillStyle = color;
-  ctx.fillText(text, cx, cy);
+  ctx.fillText(text, textX, cy);
 
   return canvas;
 }

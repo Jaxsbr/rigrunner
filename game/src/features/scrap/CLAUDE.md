@@ -21,9 +21,11 @@ What's here:
   the heap, rise the stump — the camp-teardown sibling), `reclaimer-animator`, and the `overlays` adapter
   (its pile disc/hint entries). `loot-overlay` is the loot-popup UI. See `docs/specs/scrap-pile-polish-spec.md`.
 - **Pickup feedback:** `floating-text` is a generic camera-facing "battle text" sprite layer (pop a
-  label at a world point, it rises + fades); `scrap-pops` is the scrap policy over it — a "+N" where each
-  piece is swept up, a debounced "NO SPACE" above the rig when a full hold drives over scrap it can't take.
-  `scrapCollectionSystem` returns a `CollectionResult` (collected spots+values, refused spots) that feeds it.
+  label — text + an optional `FloatingIcon` chip — at a world point, it rises + fades); `scrap-pops` is the
+  scrap policy over it — a "+N" with a scrap chip where each piece is swept up, a debounced "NO SPACE"
+  above the rig when a full hold drives over scrap it can't take. The chip is the seam for future
+  collectible kinds (each ships its own `FloatingIcon`). `scrapCollectionSystem` returns a
+  `CollectionResult` (collected spots+values, refused spots+ids) that feeds it.
 
 Single-owner / placement rules at the point of edit:
 
