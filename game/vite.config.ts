@@ -54,6 +54,11 @@ function mapWriteEndpoint(): Plugin {
 
 export default defineConfig({
   plugins: [mapWriteEndpoint()],
+  // The editor writes the committed map back to disk on Save; that file is an imported module, so a
+  // naive watcher would HMR-reload the page mid-save (aborting the Save fetch → "failed to fetch", and
+  // wiping the editor session). Ignore the maps dir: the editor already holds the grid in memory, and
+  // the game picks up a new map on its next (manual) launch.
+  server: { watch: { ignored: [`${MAPS_DIR}/**`] } },
   resolve: {
     alias: {
       '@core': r('./src/core'),
