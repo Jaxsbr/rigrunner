@@ -3,6 +3,7 @@ import type { EntityId } from '@core/types';
 import { Mount } from '@common/components/mount';
 import { MountGrid } from '@common/components/mount-grid';
 import { Storage } from '@common/components/storage';
+import { Transform } from '@common/components/transform';
 import { Collectible } from '@features/scrap/collectible';
 import type { CollisionPair } from '@common/sim/collision';
 import { mountedStorages } from '@features/storage/mounted-storages';
@@ -32,6 +33,41 @@ function rigOf(world: World, e: EntityId): EntityId | null {
 }
 
 
+/** A piece that landed in storage this frame — its world spot + value, for the "+N" pickup pop. */
+export interface CollectedPiece {
+  x: number;
+  z: number;
+  value: number;
+}
+
+/**
+ * A piece a full / storage-less rig drove over but couldn't take — its entity id + world spot, for the
+ * "no space" warning. The id lets the warning tell one stuck piece from the next, so a rig parked on a
+ * single uncollectable piece warns once rather than nagging every frame.
+ */
+export interface RefusedPiece {
+  id: EntityId;
+  x: number;
+  z: number;
+}
+
+/**
+ * What collection produced this frame: the pieces swept into storage and the pieces a full (or
+ * storage-less) rig drove over but had to leave. The composition root turns these into floating
+ * feedback (a "+N" pop per collected piece, a debounced "NO SPACE" when any was refused); tests
+ * assert them directly. The system owns no view state — this is just the report of what it did.
+ */
+export interface CollectionResult {
+  collected: CollectedPiece[];
+  refused: RefusedPiece[];
+}
+
+/** The world spot of a scrap entity (loose scrap always carries a Transform; default to origin if not). */
+function spotOf(world: World, scrap: EntityId): { x: number; z: number } {
+  const t = world.get(scrap, Transform);
+  return { x: t?.x ?? 0, z: t?.z ?? 0 };
+}
+
 /**
  * Try to add `value` to the first non-full container on the rig. Returns true if it landed
  * somewhere (the piece is collected), false if every container is full / there are none.
@@ -48,11 +84,15 @@ function depositIntoRig(world: World, rig: EntityId, value: number): boolean {
 }
 
 /**
- * Consume this frame's collision pairs, collecting any scrap that touched a rig. Returns the
- * collectibles actually collected (handy for tests and, later, feedback FX).
+ * Consume this frame's collision pairs, collecting any scrap that touched a rig. Returns what
+ * happened (see `CollectionResult`): each piece swept into storage with its world spot + value, and
+ * each piece a full / storage-less rig drove over but had to leave. A piece's spot is read BEFORE it
+ * is destroyed, so a "+N" pop can be placed exactly where it was picked up.
  */
-export function scrapCollectionSystem(world: World, pairs: CollisionPair[]): EntityId[] {
-  const collected = new Set<EntityId>();
+export function scrapCollectionSystem(world: World, pairs: CollisionPair[]): CollectionResult {
+  const taken = new Set<EntityId>();
+  const refusedIds = new Set<EntityId>();
+  const collected: CollectedPiece[] = [];
 
   for (const { a, b } of pairs) {
     // One side must be a Collectible and the other a rig/mounted-part collector.
@@ -62,18 +102,29 @@ export function scrapCollectionSystem(world: World, pairs: CollisionPair[]): Ent
 
     const scrap = aIsScrap ? a : b;
     const collector = aIsScrap ? b : a;
-    if (collected.has(scrap)) continue; // already taken this frame via another contact
+    if (taken.has(scrap)) continue; // already taken this frame via another contact
 
     const rig = rigOf(world, collector);
     if (rig === null) continue; // collector is a loose part / scenery — not a collector
 
     const value = world.get(scrap, Collectible)!.value;
     if (depositIntoRig(world, rig, value)) {
-      collected.add(scrap);
+      taken.add(scrap);
+      refusedIds.delete(scrap); // a later container had room after an earlier full one refused it
+      const { x, z } = spotOf(world, scrap);
+      collected.push({ x, z, value });
       world.destroyEntity(scrap);
+    } else {
+      refusedIds.add(scrap); // every container full / none mounted → left in the world for later
     }
-    // else: every container full / none mounted → leave the scrap in the world untouched
   }
 
-  return [...collected];
+  // A piece refused by one contact may have been collected by another this frame — report only the
+  // ones that ended up left behind, each once, at its world spot.
+  const refused: RefusedPiece[] = [];
+  for (const id of refusedIds) {
+    if (!taken.has(id)) refused.push({ id, ...spotOf(world, id) });
+  }
+
+  return { collected, refused };
 }

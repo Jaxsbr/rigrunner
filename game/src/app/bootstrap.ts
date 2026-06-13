@@ -11,6 +11,7 @@ import { boostSystem } from '@features/boost/boost';
 import { Boost } from '@common/components/boost';
 import { collisionSystem } from '@common/sim/collision';
 import { scrapCollectionSystem } from '@features/scrap/scrap-collection';
+import { ScrapPops } from '@features/scrap/scrap-pops';
 import { scrapPileSystem, scrapRummageSystem, pileClearSystem } from '@features/scrap/scrap-pile-system';
 import { workshopZoneSystem } from '@features/workshop/workshop-zone-system';
 import { workshopDrainSystem } from '@features/workshop/workshop-drain-system';
@@ -157,6 +158,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
   const treeGrower = new TreeGrower();
   // Fading tread trails pressed into the ground by everything that drives (the rig + camp guards).
   const tracks = new TrackMarks(view.scene);
+  // Floating pickup feedback: a "+N" pops where each scrap piece is swept up, and a "NO SPACE" warning
+  // rides above the rig when a full hold drives over scrap it can't take (debounced inside ScrapPops).
+  const scrapPops = new ScrapPops(view.scene);
 
   // Four overlays can each freeze the simulation: the workshop interface, the world-shop interface, the
   // loot popup, and the disarm puzzle. We own one `paused` flag that is the OR of all four, so whichever
@@ -365,7 +369,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // (drive-over sweep into storage) and combat (projectile hits + ram). Pure pair list in, each
       // consumer decides what a pair means.
       const pairs = collisionSystem(world);
-      scrapCollectionSystem(world, pairs);
+      // Collection reports what it swept up and what a full hold had to leave; turn that into floating
+      // feedback anchored to the active rig (the "NO SPACE" warning rides above it).
+      scrapPops.emit(scrapCollectionSystem(world, pairs), world.get(activeRig, Transform)!, dt);
       combatSystem(world, activeRig, pairs);
 
       // camps: advance each camp's state machine — all guards down → DISARMABLE. The second transition
@@ -478,6 +484,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       animateScrapPile(view.entityViews, world, dt);
       animateWeapons(view.entityViews, world, dt);
       animateTrapArm(view.entityViews, world, dt);
+      // pickup pops climb + fade on sim time, so they freeze (rather than drift off unseen) behind a
+      // loot popup or the workshop, then resume with play.
+      scrapPops.update(dt);
     }
     view.render();
 

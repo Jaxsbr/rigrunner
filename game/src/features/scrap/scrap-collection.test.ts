@@ -33,9 +33,9 @@ function container(
   return e;
 }
 
-function scrap(world: World, value = 1): EntityId {
+function scrap(world: World, value = 1, x = 0, z = 0): EntityId {
   const e = world.createEntity();
-  world.add(e, Transform, { x: 0, z: 0, rotationY: 0 });
+  world.add(e, Transform, { x, z, rotationY: 0 });
   world.add(e, Collectible, { value });
   return e;
 }
@@ -49,11 +49,24 @@ describe('scrapCollectionSystem', () => {
     const c = container(world, r, 0, 0);
     const s = scrap(world);
 
-    const collected = scrapCollectionSystem(world, [pair(r, s)]);
+    const result = scrapCollectionSystem(world, [pair(r, s)]);
 
-    expect(collected).toEqual([s]);
+    expect(result.collected).toEqual([{ x: 0, z: 0, value: 1 }]);
+    expect(result.refused).toEqual([]);
     expect(world.isAlive(s)).toBe(false);
     expect(world.get(c, Storage)!.amount).toBe(1);
+  });
+
+  it('reports each collected piece at its world spot with its value (for the "+N" pop)', () => {
+    const world = new World();
+    const r = rig(world);
+    container(world, r, 0, 0);
+    const s = scrap(world, 2, 3, -2); // value 2, sitting at (3, -2)
+
+    const result = scrapCollectionSystem(world, [pair(r, s)]);
+
+    // The spot is captured BEFORE the scrap is destroyed, so the pop lands where it was picked up.
+    expect(result.collected).toEqual([{ x: 3, z: -2, value: 2 }]);
   });
 
   it('collects when scrap touches a MOUNTED PART (not just the chassis)', () => {
@@ -99,20 +112,24 @@ describe('scrapCollectionSystem', () => {
     const r = rig(world);
     container(world, r, 0, 0, 4, 4);
     container(world, r, 1, 0, 4, 4);
-    const s = scrap(world);
+    const s = scrap(world, 1, 5, 5);
 
-    const collected = scrapCollectionSystem(world, [pair(r, s)]);
+    const result = scrapCollectionSystem(world, [pair(r, s)]);
 
-    expect(collected).toEqual([]);
+    expect(result.collected).toEqual([]);
+    expect(result.refused).toEqual([{ id: s, x: 5, z: 5 }]); // reported (id + spot) for the "NO SPACE" cue
     expect(world.isAlive(s)).toBe(true); // still there to pick up later
   });
 
-  it('leaves scrap in the world when the rig has no storage mounted', () => {
+  it('leaves — and reports as refused — scrap when the rig has no storage mounted', () => {
     const world = new World();
     const r = rig(world);
-    const s = scrap(world);
+    const s = scrap(world, 1, -4, 7);
 
-    scrapCollectionSystem(world, [pair(r, s)]);
+    const result = scrapCollectionSystem(world, [pair(r, s)]);
+
+    expect(result.collected).toEqual([]);
+    expect(result.refused).toEqual([{ id: s, x: -4, z: 7 }]);
     expect(world.isAlive(s)).toBe(true);
   });
 
@@ -132,11 +149,27 @@ describe('scrapCollectionSystem', () => {
     const s = scrap(world);
 
     // Same scrap overlaps the chassis AND both containers this frame.
-    scrapCollectionSystem(world, [pair(r, s), pair(c0, s), pair(c1, s)]);
+    const result = scrapCollectionSystem(world, [pair(r, s), pair(c0, s), pair(c1, s)]);
 
     const total = world.get(c0, Storage)!.amount + world.get(c1, Storage)!.amount;
     expect(total).toBe(1); // exactly one unit collected, not three
+    expect(result.collected).toHaveLength(1); // and reported once, not once per contact
     expect(world.isAlive(s)).toBe(false);
+  });
+
+  it('reports a piece refused by one rig but taken by another as collected, not refused', () => {
+    const world = new World();
+    const full = rig(world);
+    container(world, full, 0, 0, 4, 4); // this rig has no room
+    const roomy = rig(world);
+    container(world, roomy, 0, 0, 4, 0); // this one does
+    const s = scrap(world);
+
+    // The same piece touches the full rig first (refused) then the roomy one (taken) in one frame.
+    const result = scrapCollectionSystem(world, [pair(full, s), pair(roomy, s)]);
+
+    expect(result.collected).toHaveLength(1);
+    expect(result.refused).toEqual([]); // not double-reported as both taken and left behind
   });
 
   it('ignores a loose container (not mounted) as a collector', () => {
@@ -157,8 +190,9 @@ describe('scrapCollectionSystem', () => {
     const world = new World();
     const s1 = scrap(world);
     const s2 = scrap(world);
-    const collected = scrapCollectionSystem(world, [pair(s1, s2)]);
-    expect(collected).toEqual([]);
+    const result = scrapCollectionSystem(world, [pair(s1, s2)]);
+    expect(result.collected).toEqual([]);
+    expect(result.refused).toEqual([]);
     expect(world.isAlive(s1)).toBe(true);
     expect(world.isAlive(s2)).toBe(true);
   });
