@@ -26,8 +26,8 @@ export interface FloatingIcon {
   draw(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void;
 }
 
-/** How long a label lives, in seconds — long enough to read a couple of glyphs, gone before it nags. */
-const LIFE = 0.8;
+/** How long a label lives, in seconds — long enough to clock the pickup before it drifts off and fades. */
+const LIFE = 3.0;
 /** How far it climbs over its life, in world units — a clear upward drift away from the pickup. */
 const RISE = 1.2;
 /** Fraction of the life spent fully opaque before it starts fading — holds, then dissolves. */
