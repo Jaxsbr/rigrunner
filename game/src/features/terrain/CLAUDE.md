@@ -14,6 +14,15 @@ What's here:
 - **`world-bounds`** (`worldBoundsSystem`) — the world-end: clamps the rig back inside a circular
   boundary just inside the floor disc's rim, so it can't drive off into the black void beyond the map.
 
+**Known limitation (interim — the collider ring is on its way out).** The barrier is a ring of circles
+approximating an irregular mesh silhouette, so it's wrong in both directions at once: circles bulge into
+the gaps (a visible exit is partly walled), and fall short of the mesh's outward bulges (you can drive
+*into* the rock where it juts past the ring). Camp guards also ignore it (only the rig runs collision
+response). A smooth primitive can't trace a jagged edge — so this ring is **replaced**, not tuned, by the
+painted-collision grid in [`docs/specs/map-editor-spec.md`](../../../../docs/specs/map-editor-spec.md):
+the grid *is* the silhouette (gaps exactly drivable, rock exactly solid) and one query blocks the rig and
+enemies alike. Until that lands, treat the gap navigation as approximate.
+
 Single-owner / placement rules at the point of edit:
 
 - **GEOMETRY CONTRACT.** `MOUNTAIN_RING_RADIUS` + the gap angles MUST match the values baked into
