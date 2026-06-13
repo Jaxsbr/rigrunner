@@ -47,7 +47,7 @@ export function startEditor(): void {
 
   const paint = new PaintController(
     canvas, picker, grid, wash,
-    (worldPos, radius) => brush.set(worldPos, radius),
+    (rect) => brush.set(rect),
     () => ui.setBrush(paint.brushRadius),
   );
   ui.setBrush(paint.brushRadius);

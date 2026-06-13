@@ -41,7 +41,7 @@ export class EditorUI {
     panel.append(title, actions, brushRow, this.status, hints);
     document.body.append(panel);
 
-    this.setBrush(2);
+    this.setBrush(1);
     this.setStatus('Loaded the committed map. Bake to (re)derive the wall, then paint to refine.');
   }
 
@@ -49,8 +49,8 @@ export class EditorUI {
     this.status.textContent = msg;
   }
 
-  setBrush(radiusCells: number): void {
-    this.brush.textContent = `brush: ${radiusCells} cell${radiusCells === 1 ? '' : 's'}`;
+  setBrush(sideCells: number): void {
+    this.brush.textContent = `brush: ${sideCells}×${sideCells}`;
   }
 
   private row(...children: HTMLElement[]): HTMLElement {

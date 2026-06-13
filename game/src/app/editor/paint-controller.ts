@@ -1,15 +1,16 @@
 import type { CollisionGrid } from '@features/terrain/collision-grid';
 import type { Picker } from '@common/render/picker';
 import type { PaintOverlay } from './paint-overlay';
+import type { BrushRect } from './brush-cursor';
 
 /**
  * Direct cell painting: LEFT-drag paints blocked collision, RIGHT-drag erases. Strokes interpolate along
- * the drag path so a freehand line is continuous, not dotted. The brush is a disc of `brushCells` radius,
- * sized on demand ([ ] keys or the toolbar), and its footprint is shown live by the brush-tip cursor
- * (fed the cursor position + radius through `onCursor`, so you always see exactly where paint will land).
+ * the drag path so a freehand line is continuous, not dotted. The brush is a SQUARE of `brushSize` cells
+ * per side — **size 1 is a single cell**, the smallest mark you can place — set on demand ([ ] keys or the
+ * toolbar). Its footprint is shown live by the brush-tip cursor, snapped to the exact cells it will paint.
  */
 export class PaintController {
-  private brushCells = 2; // brush radius in cells
+  private brushSize = 1; // square side in cells; 1 = a single cell
   private painting = false;
   private erasing = false;
   private last: { x: number; z: number } | null = null;
@@ -19,8 +20,8 @@ export class PaintController {
     private readonly picker: Picker,
     private readonly grid: CollisionGrid,
     private readonly overlay: PaintOverlay,
-    /** Show the brush footprint: the ground point under the cursor (or null when off-canvas) + its world radius. */
-    private readonly onCursor: (world: { x: number; z: number } | null, radiusWorld: number) => void,
+    /** Show the brush footprint: the cell-snapped rect under the cursor (or null when off-canvas). */
+    private readonly onCursor: (rect: BrushRect | null) => void,
     private readonly onChange: () => void = () => {},
   ) {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // right-drag erases, no menu
@@ -41,27 +42,40 @@ export class PaintController {
       else if (e.button === 2) this.erasing = false;
       this.last = null;
     });
-    canvas.addEventListener('pointerleave', () => this.onCursor(null, this.radiusWorld()));
+    canvas.addEventListener('pointerleave', () => this.onCursor(null));
     window.addEventListener('keydown', (e) => {
-      if (e.key === '[') this.setBrush(this.brushCells - 1);
-      else if (e.key === ']') this.setBrush(this.brushCells + 1);
+      if (e.key === '[') this.setBrush(this.brushSize - 1);
+      else if (e.key === ']') this.setBrush(this.brushSize + 1);
     });
   }
 
   get brushRadius(): number {
-    return this.brushCells;
+    return this.brushSize; // the side length (kept name for the toolbar wiring)
   }
   setBrush(n: number): void {
-    this.brushCells = Math.min(60, Math.max(0, n));
+    this.brushSize = Math.min(64, Math.max(1, n)); // never below a single cell
     this.onChange();
   }
-  private radiusWorld(): number {
-    return (this.brushCells + 0.5) * this.grid.cellSize; // the painted disc's true world radius
+
+  /** The cell range a square brush centred on a ground point covers. */
+  private cells(x: number, z: number): { minCol: number; minRow: number; maxCol: number; maxRow: number } {
+    const half = Math.floor(this.brushSize / 2);
+    const minCol = this.grid.colOf(x) - half;
+    const minRow = this.grid.rowOf(z) - half;
+    return { minCol, minRow, maxCol: minCol + this.brushSize - 1, maxRow: minRow + this.brushSize - 1 };
   }
 
-  /** Report the cursor's ground position + brush radius so the brush-tip cursor can track it. */
+  /** Report the cell-snapped world rect under the cursor so the brush-tip cursor can outline it. */
   private moveCursor(clientX: number, clientY: number): void {
-    this.onCursor(this.picker.raycastPlane(clientX, clientY, 0), this.radiusWorld());
+    const hit = this.picker.raycastPlane(clientX, clientY, 0);
+    if (!hit) { this.onCursor(null); return; }
+    const r = this.cells(hit.x, hit.z);
+    this.onCursor({
+      minX: this.grid.originX + r.minCol * this.grid.cellSize,
+      minZ: this.grid.originZ + r.minRow * this.grid.cellSize,
+      maxX: this.grid.originX + (r.maxCol + 1) * this.grid.cellSize,
+      maxZ: this.grid.originZ + (r.maxRow + 1) * this.grid.cellSize,
+    });
   }
 
   /** Extend the stroke to the cursor, stamping the brush along the line from the last point (continuous). */
@@ -83,15 +97,11 @@ export class PaintController {
     this.overlay.redraw();
   }
 
-  /** Paint (or erase) a disc of cells centred on a ground point. */
+  /** Paint (or erase) a square of cells centred on a ground point. */
   private stamp(x: number, z: number, blocked: boolean): void {
-    const col0 = this.grid.colOf(x);
-    const row0 = this.grid.rowOf(z);
-    const r = this.brushCells;
-    for (let dr = -r; dr <= r; dr++) {
-      for (let dc = -r; dc <= r; dc++) {
-        if (dc * dc + dr * dr <= r * r) this.grid.setBlocked(col0 + dc, row0 + dr, blocked);
-      }
+    const r = this.cells(x, z);
+    for (let row = r.minRow; row <= r.maxRow; row++) {
+      for (let col = r.minCol; col <= r.maxCol; col++) this.grid.setBlocked(col, row, blocked);
     }
   }
 }

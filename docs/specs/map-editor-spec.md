@@ -54,8 +54,9 @@ blocking** — the hand-authored map silhouette (mountains now; walls, shop foot
    world disc; each cell is *blocked* or *clear*. Movement = "you may not enter a blocked cell."
 2. **The grid is painted directly in an in-game editor** — a launch mode of the game itself, not a
    separate app (it rides the real game world: stage, camera, asset registry). LEFT-drag paints rock,
-   RIGHT erases; a brush-tip ring shows the exact disc that will paint, and the brush radius is set on
-   demand. (A vector-spline authoring layer was tried and dropped — it just re-rasterised into the same
+   RIGHT erases; a cell-snapped brush-tip square shows the exact cells that will paint, and the brush
+   size is set on demand (size 1 = a single cell). (A vector-spline authoring layer was tried and dropped
+   — it just re-rasterised into the same
    cells, adding indirection without real precision, and was less direct to use than the brush.)
 3. **The same grid blocks the rig and enemies**, via one query in their shared movement path — so
    "enemies pass through" dissolves for free.
@@ -137,8 +138,9 @@ walls/edges) move to the grid.
 - **View:** a top-down ORTHOGRAPHIC camera over the map (a `T` tilt toggle swings oblique to read the
   art's relief), with the real ground + mountain mesh visible underneath so you paint *against the art*.
 - **Paint:** LEFT-drag paints blocked cells, RIGHT-drag erases; strokes interpolate along the drag so a
-  freehand line is continuous, not dotted. A **brush-tip ring** on the ground shows the exact disc the
-  brush will paint and follows the cursor; the brush radius is set on demand (`[ ]` or the toolbar). A
+  freehand line is continuous, not dotted. A cell-snapped **brush-tip square** on the ground shows the
+  exact cells the brush will paint and follows the cursor; the brush is an **N×N square** of cells, sized
+  on demand (`[ ]` or the toolbar) — **size 1 is a single cell**, the smallest mark you can place. A
   translucent **red wash** over blocked cells shows the collision live as you paint.
 - **Save/load — the one real design question.** A browser can't write the repo directly. Options, in
   preference order:
