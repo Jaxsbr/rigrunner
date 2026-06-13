@@ -28,9 +28,9 @@ const ZONE_RADIUS = 3.5;   // metres from centre the rig must reach to activate 
 // zone so the rig still parks in build range (stops ≈ radius + rig collider out from centre). Tunable.
 const SOLID_RADIUS = 1.7;
 
-export function spawnWorkshop(world: World, x = 0, z = 0): EntityId {
+export function spawnWorkshop(world: World, x = 0, z = 0, rotationY = 0): EntityId {
   const e = world.createEntity();
-  world.add(e, Transform, { x, z, rotationY: 0 });
+  world.add(e, Transform, { x, z, rotationY });
   world.add(e, MountGrid, { cols: 3, rows: 3, cellSize: 1, deckY: 0.2 });
   world.add(e, WorkshopZone, { radius: ZONE_RADIUS, active: false });
   world.add(e, WorkshopDrain, { elapsed: 0 });

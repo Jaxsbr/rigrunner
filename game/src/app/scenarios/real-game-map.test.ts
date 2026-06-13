@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CollisionGrid, type CollisionMap } from '@features/terrain/collision-grid';
 import { EXIT_GAPS } from './real-game';
+import { placementKind, type WorldMap } from '../world-map/placement';
 import realGameMap from './maps/real-game.map.json';
 
 /**
@@ -40,5 +41,40 @@ describe('committed real-game collision map', () => {
     for (const [x, z] of [[0, 0], [0, 8], [12, -12], [36, -37]] as const) {
       expect(grid.isBlocked(x, z)).toBe(false);
     }
+  });
+});
+
+/**
+ * Pins the AUTHORED LAYOUT the map now carries (the positions that used to be hard-coded in the scenario):
+ * the home structures sit where the scenario placed them, and the camps still line up with the exit gaps
+ * they guard — a drift between a camp and its gap fails here, the same guarantee the in-code derivation gave.
+ */
+describe('committed real-game layout', () => {
+  const placements = (realGameMap as WorldMap).placements ?? [];
+  const angularDist = (a: number, b: number): number => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+
+  it('places the workshop and the world shop at their home positions', () => {
+    const workshop = placements.find((p) => p.kind === 'workshop');
+    const shop = placements.find((p) => p.kind === 'shop');
+    expect(workshop && [workshop.x, workshop.z]).toEqual([0, 8]);
+    expect(shop && [shop.x, shop.z]).toEqual([36, -37]);
+  });
+
+  it('only names kinds the catalog knows', () => {
+    for (const p of placements) expect(placementKind(p.kind), p.kind).toBeDefined();
+  });
+
+  it('seeds three camps, each guarding an exit gap', () => {
+    const camps = placements.filter((p) => p.kind.startsWith('camp'));
+    expect(camps).toHaveLength(3);
+    for (const c of camps) {
+      const angle = Math.atan2(c.z, c.x);
+      const guardsAGap = EXIT_GAPS.some((g) => angularDist(angle, g.angle) < 0.1);
+      expect(guardsAGap, `camp at angle ${angle.toFixed(3)} guards no gap`).toBe(true);
+    }
+  });
+
+  it('seeds the four starting scrap piles', () => {
+    expect(placements.filter((p) => p.kind === 'scrap-pile')).toHaveLength(4);
   });
 });

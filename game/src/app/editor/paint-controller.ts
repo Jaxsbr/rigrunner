@@ -8,11 +8,17 @@ import type { BrushRect } from './brush-cursor';
  * the drag path so a freehand line is continuous, not dotted. The brush is a SQUARE of `brushSize` cells
  * per side — **size 1 is a single cell**, the smallest mark you can place — set on demand ([ ] keys or the
  * toolbar). Its footprint is shown live by the brush-tip cursor, snapped to the exact cells it will paint.
+ *
+ * Two-grid paint: strokes edit `grid` (the EFFECTIVE collision shown by the wash) and, when a `base` grid
+ * is given, mirror into it. `base` is the editor's persistent hand-painted layer — placement footprints
+ * are unioned on top of it, so a stroke that lands in `base` survives the next recompute. The brush only
+ * responds while its mode is active, so it never fights the place tool over the same click (`setActive`).
  */
 export class PaintController {
   private brushSize = 1; // square side in cells; 1 = a single cell
   private painting = false;
   private erasing = false;
+  private active = true;
   private last: { x: number; z: number } | null = null;
 
   constructor(
@@ -23,9 +29,12 @@ export class PaintController {
     /** Show the brush footprint: the cell-snapped rect under the cursor (or null when off-canvas). */
     private readonly onCursor: (rect: BrushRect | null) => void,
     private readonly onChange: () => void = () => {},
+    /** The persistent hand-painted base layer to mirror strokes into (omitted = single-grid paint). */
+    private readonly base?: CollisionGrid,
   ) {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // right-drag erases, no menu
     canvas.addEventListener('pointerdown', (e) => {
+      if (!this.active) return;
       if (e.button === 0) this.painting = true;
       else if (e.button === 2) this.erasing = true;
       else return;
@@ -34,6 +43,7 @@ export class PaintController {
       this.stroke(e.clientX, e.clientY);
     });
     canvas.addEventListener('pointermove', (e) => {
+      if (!this.active) return;
       this.moveCursor(e.clientX, e.clientY);
       if (this.painting || this.erasing) this.stroke(e.clientX, e.clientY);
     });
@@ -44,9 +54,21 @@ export class PaintController {
     });
     canvas.addEventListener('pointerleave', () => this.onCursor(null));
     window.addEventListener('keydown', (e) => {
+      if (!this.active) return;
       if (e.key === '[') this.setBrush(this.brushSize - 1);
       else if (e.key === ']') this.setBrush(this.brushSize + 1);
     });
+  }
+
+  /** Enter/leave paint mode. Leaving hides the brush cursor and ends any stroke in progress. */
+  setActive(active: boolean): void {
+    this.active = active;
+    if (!active) {
+      this.painting = false;
+      this.erasing = false;
+      this.last = null;
+      this.onCursor(null);
+    }
   }
 
   get brushRadius(): number {
@@ -97,11 +119,14 @@ export class PaintController {
     this.overlay.redraw();
   }
 
-  /** Paint (or erase) a square of cells centred on a ground point. */
+  /** Paint (or erase) a square of cells centred on a ground point — into the effective grid and the base. */
   private stamp(x: number, z: number, blocked: boolean): void {
     const r = this.cells(x, z);
     for (let row = r.minRow; row <= r.maxRow; row++) {
-      for (let col = r.minCol; col <= r.maxCol; col++) this.grid.setBlocked(col, row, blocked);
+      for (let col = r.minCol; col <= r.maxCol; col++) {
+        this.grid.setBlocked(col, row, blocked);
+        this.base?.setBlocked(col, row, blocked);
+      }
     }
   }
 }
