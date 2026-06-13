@@ -18,13 +18,16 @@ import { ScrapPile } from '@features/scrap/scrap-pile';
  * collection loop M1 already owns.
  */
 const SCRAP_RADIUS = 0.4;  // forgiving pickup footprint — easy to sweep up while driving
-const SCRAP_VALUE = 1;     // each piece adds 1 to storage (cap 4 ⇒ 4 pieces fill a container)
+// Each piece is worth a chunky, randomised 2–6, rolled when it's swept up (see Collectible). Fewer,
+// fatter pickups than a flat 1: a sweep is a small variable-reward pull, and ~3–4 fill a container.
+export const SCRAP_VALUE_MIN = 2;
+export const SCRAP_VALUE_MAX = 6;
 
 /** Spawn one piece of loose scrap at a world position, facing a (cosmetic) yaw. */
 export function spawnScrap(world: World, x: number, z: number, rotationY = 0): EntityId {
   const e = world.createEntity();
   world.add(e, Transform, { x, z, rotationY });
-  world.add(e, Collectible, { value: SCRAP_VALUE });
+  world.add(e, Collectible, { value: 0, valueMin: SCRAP_VALUE_MIN, valueMax: SCRAP_VALUE_MAX });
   world.add(e, Collider, { radius: SCRAP_RADIUS });
   world.add(e, Renderable, { shape: 'model', assetId: 'loose-scrap' });
   return e;

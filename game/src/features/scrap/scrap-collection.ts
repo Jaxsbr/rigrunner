@@ -14,10 +14,12 @@ import { mountedStorages } from '@features/storage/mounted-storages';
  * collected into that rig's storage and removed from the world.
  *
  * Deposit rule (agreed): scan the rig's mounted Storage by cell, front-to-back then left-to-right
- * (row, then col), and drop the whole piece into the FIRST container with room. A piece is atomic —
- * it never splits across containers. If every container is full, or none is mounted, the scrap is
- * NOT collected: it stays in the world (the build→run gate — "bolt on more storage"). Each piece is
- * collected at most once per frame even if it touches several of the rig's colliders at once.
+ * (row, then col), and drop the whole piece into the FIRST container with room for ALL of it. A piece
+ * is atomic — it lands whole or not at all: it never splits across containers, and it never partially
+ * fills then wastes the rest. If no container has room for the whole piece (or none is mounted) the
+ * scrap is NOT collected: it stays in the world and the rig gets a NO SPACE cue (the build→run gate —
+ * "bank now, or bolt on more storage"). Each piece is collected at most once per frame even if it
+ * touches several of the rig's colliders at once.
  *
  * Pure over the World apart from the two mutations collection IS: incrementing a container's amount
  * and destroying the consumed scrap. It reads the pair list produced by collisionSystem and assigns
@@ -69,14 +71,15 @@ function spotOf(world: World, scrap: EntityId): { x: number; z: number } {
 }
 
 /**
- * Try to add `value` to the first non-full container on the rig. Returns true if it landed
- * somewhere (the piece is collected), false if every container is full / there are none.
+ * Try to drop the WHOLE `value` into the first container with room for all of it. Returns true if it
+ * landed (the piece is collected), false if no container can take the whole piece / there are none —
+ * the piece is left in the world (NO SPACE), never partially deposited.
  */
 function depositIntoRig(world: World, rig: EntityId, value: number): boolean {
   for (const c of mountedStorages(world, rig)) {
     const s = world.get(c, Storage)!;
-    if (s.amount < s.capacity) {
-      s.amount = Math.min(s.capacity, s.amount + value); // atomic, clamped — never overfills
+    if (s.amount + value <= s.capacity) { // the whole piece must fit — no split, no overfill
+      s.amount += value;
       return true;
     }
   }
@@ -84,12 +87,29 @@ function depositIntoRig(world: World, rig: EntityId, value: number): boolean {
 }
 
 /**
+ * What a Collectible is worth when swept up: a fixed `value`, or — for a rolled collectible (loose
+ * scrap) — a fresh uniform roll in `[valueMin, valueMax]` decided HERE, at the moment of collection.
+ */
+function collectibleValue(c: Collectible, rng: () => number): number {
+  if (c.valueMin !== undefined && c.valueMax !== undefined) {
+    return c.valueMin + Math.floor(rng() * (c.valueMax - c.valueMin + 1));
+  }
+  return c.value;
+}
+
+/**
  * Consume this frame's collision pairs, collecting any scrap that touched a rig. Returns what
  * happened (see `CollectionResult`): each piece swept into storage with its world spot + value, and
  * each piece a full / storage-less rig drove over but had to leave. A piece's spot is read BEFORE it
- * is destroyed, so a "+N" pop can be placed exactly where it was picked up.
+ * is destroyed, so a "+N" pop can be placed exactly where it was picked up. `rng` rolls a rolled
+ * collectible's worth (loose scrap's 2–6) at collection; it defaults to `Math.random` and is injected
+ * in tests for a deterministic value.
  */
-export function scrapCollectionSystem(world: World, pairs: CollisionPair[]): CollectionResult {
+export function scrapCollectionSystem(
+  world: World,
+  pairs: CollisionPair[],
+  rng: () => number = Math.random,
+): CollectionResult {
   const taken = new Set<EntityId>();
   const refusedIds = new Set<EntityId>();
   const collected: CollectedPiece[] = [];
@@ -107,7 +127,7 @@ export function scrapCollectionSystem(world: World, pairs: CollisionPair[]): Col
     const rig = rigOf(world, collector);
     if (rig === null) continue; // collector is a loose part / scenery — not a collector
 
-    const value = world.get(scrap, Collectible)!.value;
+    const value = collectibleValue(world.get(scrap, Collectible)!, rng);
     if (depositIntoRig(world, rig, value)) {
       taken.add(scrap);
       refusedIds.delete(scrap); // a later container had room after an earlier full one refused it

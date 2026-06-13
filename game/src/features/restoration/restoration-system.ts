@@ -38,7 +38,7 @@ const GROW_DURATION = 6.0;                // seconds of holding to grow a stump 
 const TREE_SOLID_RADIUS = 0.8;
 
 /** The HEALING Reclaimer mounted on `rig` (a Reclaimer whose head is the stump-healer), or null. */
-function mountedHealer(world: World, rig: EntityId): EntityId | null {
+export function mountedHealer(world: World, rig: EntityId): EntityId | null {
   for (const p of world.query(Part, Mount, Transform)) {
     if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === 'reclaimer'
         && reclaimerHeadPartId(world, p) === 'stump-healer') return p;

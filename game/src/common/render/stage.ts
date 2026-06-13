@@ -2,6 +2,14 @@ import * as THREE from 'three';
 import { createGroundTexture } from './ground-texture';
 
 /**
+ * The textured playable floor is a `GROUND_SIZE`-square centred on the origin; past its edge the
+ * scene background (the dusty horizon) takes over. The mountain ring that bounds the world is placed
+ * off this — at the square's corner radius (`GROUND_SIZE/2 · √2`), see `features/terrain` — so the
+ * worked ground sits inside a circle of peaks. Shared so the floor and that ring can't drift apart.
+ */
+export const GROUND_SIZE = 160;
+
+/**
  * The stage: the scene, renderer, fixed lighting and ground that everything else draws into.
  * It owns the shared `scene` (collaborators add their meshes to it) and the WebGL surface, and
  * does the actual draw. It knows nothing about entities, the camera state, or game truth — it is
@@ -59,7 +67,7 @@ export class Stage {
     // sandy base so loose scrap (grey/rust) reads against it. Near-matte: it catches the sun with a
     // faint sheen and receives the rig's and scrap's cast shadows.
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(80, 80),
+      new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE),
       new THREE.MeshStandardMaterial({
         map: createGroundTexture(this.renderer.capabilities.getMaxAnisotropy()),
         roughness: 0.92,

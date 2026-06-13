@@ -9,10 +9,10 @@ import * as THREE from 'three';
  * scrap/camp stains and tread marks.
  */
 
-// One tile is repeated REPEAT times across the 80-unit ground plane, so a tile spans 80 / REPEAT
-// world units (~10). TILE_PX is its resolution.
+// One tile is repeated REPEAT times across the 160-unit ground plane (GROUND_SIZE), so a tile spans
+// 160 / REPEAT world units (~10) — the density is kept constant as the floor scales. TILE_PX is its resolution.
 const TILE_PX = 512;
-const REPEAT = 8;
+const REPEAT = 16;
 
 // On-palette dirt tones, carried as literals like the rest of the render layer. BASE is a warm
 // sun-baked sandy tan (so loose scrap still reads against it); the others mottle around it —

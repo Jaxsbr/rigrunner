@@ -91,6 +91,11 @@ export const MODEL_ASSETS: Record<string, string> = {
   'debris-crate': '/assets/debris-crate.glb',
   'debris-heap': '/assets/debris-heap.glb',
   'camp-firepit': '/assets/camp-firepit.glb',
+
+  // ⛰ Terrain — a craggy rock massif tiled into the ring of peaks that bounds the world (the bowl
+  // wall): rotated + scaled copies ring the worked floor and physically block the way out except at
+  // the exit gaps (features/terrain/mountain-ring). Scenery, not a part (no tier matrix).
+  'mountain': '/assets/mountain.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

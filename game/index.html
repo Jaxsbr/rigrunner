@@ -125,6 +125,15 @@
          informational (rummaging is the held E key), so only the tab gets the click affordance. */
       #workshop-tab { cursor: pointer; }
       #workshop-tab:hover { background: rgba(28, 40, 34, 0.96); }
+      /* The LOCKED hint — the dim-grey sibling of the green prompts, shown when the rig is in reach of
+         an interactive object it lacks the tool for ("🔒 Needs Reclaimer"). Same slot + shape,
+         recoloured grey, so the three states (inert / locked / live) read as one family. It carries no
+         <kbd> — there's no key to press yet — and yields the slot to any green cue, so they never
+         coincide. (Recolour only; the slide/fade hide rides the shared `.hud-prompt`/`.hidden`.) */
+      #locked-prompt {
+        border-color: rgba(150, 156, 164, 0.5);
+        color: #aab0b8;
+      }
       /* Transient notification toast, top-centre. Unlike the bottom-centre .hud-prompt cues (which
          track a live gate and hold while it's lit) and the modal overlays (which freeze the game), a
          toast announces a one-off event — e.g. a chassis deploy refused at the field cap — then
@@ -1064,6 +1073,7 @@
     <div id="pack-prompt" class="hud-prompt hidden">📦 Pack up chassis · Press<kbd>E</kbd></div>
     <div id="disarm-prompt" class="hud-prompt hidden">🧰 Disarm Trap · Press<kbd>E</kbd></div>
     <div id="heal-prompt" class="hud-prompt hidden">🌱 Grow Stump · Hold<kbd>E</kbd></div>
+    <div id="locked-prompt" class="hud-prompt hidden">🔒 Needs Reclaimer</div>
     <div id="cap-toast" class="hidden"></div>
     <div id="death-overlay" class="hidden">DESTROYED — resetting…</div>
     <div id="workshop-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workshop">

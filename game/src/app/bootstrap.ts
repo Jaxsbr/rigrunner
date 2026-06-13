@@ -39,6 +39,7 @@ import { animateScrapPileClear } from '@features/scrap/scrap-pile-clear-animator
 import { ScrapPileStains } from '@features/scrap/scrap-pile-stains';
 import { StatsHud } from '@features/hud/stats-hud';
 import { Toast } from '@features/hud/toast';
+import { LockedPrompt } from '@features/hud/locked-prompt';
 import { WalletHud } from '@features/economy/wallet-hud';
 import { WorkshopOverlay } from '@features/workshop/workshop-overlay';
 import { LootOverlay } from '@features/scrap/loot-overlay';
@@ -236,6 +237,13 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
   // Reclaimer aimed at a not-yet-grown stump. Mirrors the scrap prompt (a held-E interaction).
   const healPrompt = new HealPrompt(document.querySelector<HTMLElement>('#heal-prompt')!);
 
+  // The LOCKED hint, sharing that bottom-centre slot: the dim-grey "Needs X…" sibling of the green
+  // prompts, shown when the rig is in reach of an interactive object it lacks the tool for (a pile
+  // without a Reclaimer, a stump without a stump-healer, a disarmable camp without a trap arm). Fed
+  // the same disc list the proximity rings render from; picks the nearest locked one, yields to any
+  // green cue so the shared slot never double-stacks.
+  const lockedPrompt = new LockedPrompt(document.querySelector<HTMLElement>('#locked-prompt')!);
+
   /** True while the rig is parked in any workshop zone — drives the tab's visibility. */
   function anyZoneActive(): boolean {
     for (const w of world.query(WorkshopZone)) {
@@ -402,7 +410,8 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     // the pack-up prompt shares the slot: shown only while the sim runs, away from any workshop OR shop
     // zone, and when the controlled chassis is empty with a backup to fall back to (`canPackUp`). Read
     // fresh from getActiveRig so the frame a pack-up happens it reflects the backup (not the just-packed crate).
-    packPrompt.sync(!paused && !anyZoneActive() && shopInRange === null && canPackUp(world, getActiveRig(world)!));
+    const packVisible = !paused && !anyZoneActive() && shopInRange === null && canPackUp(world, getActiveRig(world)!);
+    packPrompt.sync(packVisible);
 
     // the disarm gate: is the active rig parked with a mounted trap arm in reach of a DISARMABLE camp?
     // Push it (and the head tier that sets the puzzle difficulty) into the overlay, then advance the
@@ -415,7 +424,7 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     // the heal prompt: shown while the sim runs and some healable stump's gate is lit (a stump-healer aimed
     // at a not-yet-grown stump). Computed once and reused by the proximity discs below, so the ring and the
     // prompt read the same gate and appear together.
-    const healZones = healDiscs(world);
+    const healZones = healDiscs(world, activeRig);
     healPrompt.sync(!paused && !dying && healZones.some((d) => d.active));
 
     // the loot popup opens itself the frame a rummaged-empty pile queues a LootDrop (and freezes the
@@ -444,7 +453,17 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
     // fixed bottom-centre HUD element (the workshop tab + the scrap prompt), kept in screen space so it
     // never sits over the deck or the heap. Runs always (even paused) so the discs stay put behind an
     // overlay rather than popping on resume.
-    zones.sync([...workshopZoneDiscs(world), ...shopZoneDiscs(world), ...scrapPileDiscs(world), ...campDiscs(world, activeRig), ...healZones], dt);
+    const discEntries = [
+      ...workshopZoneDiscs(world),
+      ...shopZoneDiscs(world),
+      ...scrapPileDiscs(world, activeRig),
+      ...campDiscs(world, activeRig),
+      ...healZones,
+    ];
+    zones.sync(discEntries, dt);
+    // The LOCKED hint reads the SAME disc list: of the dim-grey (locked) discs in reach, the nearest
+    // one's "Needs X…" is shown — unless a green cue or the pack prompt already owns the shared slot.
+    lockedPrompt.sync(discEntries, world.get(activeRig, Transform) ?? null, !paused && !dying && !packVisible);
     // seepage stains under loose scrap fade IN as pieces spawn (pollution) and OUT as they're collected
     // (cleaning); runs always so an in-progress fade finishes smoothly rather than freezing behind an overlay.
     stains.sync(world, dt);
