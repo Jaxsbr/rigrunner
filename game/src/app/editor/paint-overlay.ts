@@ -11,12 +11,14 @@ export class PaintOverlay {
   private readonly canvas = document.createElement('canvas');
   private readonly ctx: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
+  private readonly img: ImageData; // reused each redraw — no per-stroke reallocation at fine resolutions
   readonly mesh: THREE.Mesh;
 
   constructor(scene: THREE.Scene, private readonly grid: CollisionGrid) {
     this.canvas.width = grid.width;
     this.canvas.height = grid.height;
     this.ctx = this.canvas.getContext('2d')!;
+    this.img = this.ctx.createImageData(grid.width, grid.height);
 
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.magFilter = THREE.NearestFilter; // crisp cell edges, not a blur
@@ -42,20 +44,18 @@ export class PaintOverlay {
     this.redraw();
   }
 
-  /** Repaint the wash from the grid's current cells. Cheap (one canvas per stroke). */
+  /** Repaint the wash from the grid's current cells into the reused buffer. */
   redraw(): void {
-    const img = this.ctx.createImageData(this.grid.width, this.grid.height);
-    for (let row = 0; row < this.grid.height; row++) {
-      for (let col = 0; col < this.grid.width; col++) {
-        const blocked = this.grid.cells[row * this.grid.width + col] === 1;
-        const p = (row * this.grid.width + col) * 4;
-        img.data[p] = 230;       // r
-        img.data[p + 1] = 60;    // g
-        img.data[p + 2] = 60;    // b
-        img.data[p + 3] = blocked ? 150 : 0; // only blocked cells are visible
-      }
+    const data = this.img.data;
+    const cells = this.grid.cells;
+    for (let i = 0; i < cells.length; i++) {
+      const p = i * 4;
+      data[p] = 230;     // r
+      data[p + 1] = 60;  // g
+      data[p + 2] = 60;  // b
+      data[p + 3] = cells[i] === 1 ? 150 : 0; // only blocked cells are visible
     }
-    this.ctx.putImageData(img, 0, 0);
+    this.ctx.putImageData(this.img, 0, 0);
     this.texture.needsUpdate = true;
   }
 }

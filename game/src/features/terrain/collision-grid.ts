@@ -32,20 +32,27 @@ export interface CollisionMap {
   /** World position of cell (col 0, row 0)'s minimum corner — the grid's lower-left in x/z. */
   originX: number;
   originZ: number;
-  /** Base64 of a `width·height` `Uint8Array`, row-major: 1 = blocked, 0 = clear. */
+  /**
+   * Base64 of a BIT-PACKED `width·height` bitmap (8 cells per byte, row-major, LSB first): bit set =
+   * blocked. Packing keeps the committed file small even at a fine cell size (a 580² grid is ~56 kB, not
+   * ~450 kB) so authored detail stays cheap to store and bundle.
+   */
   blocked: string;
 }
 
-/** base64 ↔ bytes via the platform `btoa`/`atob` (present in browsers and modern Node, so dev + tests agree). */
+// base64 ↔ a bit-packed cell array, via the platform `btoa`/`atob` (present in browsers and modern Node,
+// so dev + tests agree). In memory cells stay one byte each (fast to read/paint); only the wire form packs.
 function encodeCells(cells: Uint8Array): string {
+  const bytes = new Uint8Array(Math.ceil(cells.length / 8));
+  for (let i = 0; i < cells.length; i++) if (cells[i]) bytes[i >> 3]! |= 1 << (i & 7);
   let bin = '';
-  for (let i = 0; i < cells.length; i++) bin += String.fromCharCode(cells[i]!);
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
   return btoa(bin);
 }
 function decodeCells(b64: string, length: number): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(length);
-  for (let i = 0; i < bin.length && i < length; i++) out[i] = bin.charCodeAt(i);
+  for (let i = 0; i < length; i++) out[i] = (bin.charCodeAt(i >> 3) >> (i & 7)) & 1;
   return out;
 }
 

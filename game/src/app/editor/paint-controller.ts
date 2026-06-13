@@ -9,9 +9,10 @@ import type { PaintOverlay } from './paint-overlay';
  * stroke it asks the overlay to repaint, so the red wash tracks the paint live.
  */
 export class PaintController {
-  private brushCells = 2; // brush radius in cells
+  private brushCells = 1; // brush radius in cells — small by default, for tracing fine detail
   private painting = false;
   private erasing = false;
+  private last: { x: number; z: number } | null = null; // previous stroke point, for continuous lines
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -26,6 +27,7 @@ export class PaintController {
       else if (e.button === 2) this.erasing = true;
       else return;
       canvas.setPointerCapture(e.pointerId);
+      this.last = null; // a fresh stroke — the first dab stands alone, no line back to the last stroke
       this.stroke(e.clientX, e.clientY);
     });
     canvas.addEventListener('pointermove', (e) => {
@@ -34,6 +36,7 @@ export class PaintController {
     canvas.addEventListener('pointerup', (e) => {
       if (e.button === 0) this.painting = false;
       else if (e.button === 2) this.erasing = false;
+      this.last = null;
     });
     window.addEventListener('keydown', (e) => {
       if (e.key === '[') this.setBrush(this.brushCells - 1);
@@ -46,23 +49,42 @@ export class PaintController {
   }
 
   private setBrush(n: number): void {
-    this.brushCells = Math.min(20, Math.max(0, n));
+    this.brushCells = Math.min(40, Math.max(0, n));
     this.onChange();
   }
 
-  /** Paint (or erase) a disc of cells centred on the ground point under the cursor. */
+  /**
+   * Extend the stroke to the ground point under the cursor: stamp the brush ALONG the line from the last
+   * point to this one (sub-cell steps), so a fast freehand drag draws a smooth continuous line instead of
+   * a trail of separate dabs.
+   */
   private stroke(clientX: number, clientY: number): void {
     const hit = this.picker.raycastPlane(clientX, clientY, 0);
     if (!hit) return;
     const blocked = this.painting; // left = paint, right = erase
-    const col0 = this.grid.colOf(hit.x);
-    const row0 = this.grid.rowOf(hit.z);
+    if (this.last) {
+      const dist = Math.hypot(hit.x - this.last.x, hit.z - this.last.z);
+      const steps = Math.max(1, Math.ceil(dist / (this.grid.cellSize * 0.5)));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        this.stamp(this.last.x + (hit.x - this.last.x) * t, this.last.z + (hit.z - this.last.z) * t, blocked);
+      }
+    } else {
+      this.stamp(hit.x, hit.z, blocked);
+    }
+    this.last = hit;
+    this.overlay.redraw();
+  }
+
+  /** Paint (or erase) a disc of cells centred on a ground point. */
+  private stamp(x: number, z: number, blocked: boolean): void {
+    const col0 = this.grid.colOf(x);
+    const row0 = this.grid.rowOf(z);
     const r = this.brushCells;
     for (let dr = -r; dr <= r; dr++) {
       for (let dc = -r; dc <= r; dc++) {
         if (dc * dc + dr * dr <= r * r) this.grid.setBlocked(col0 + dc, row0 + dr, blocked);
       }
     }
-    this.overlay.redraw();
   }
 }

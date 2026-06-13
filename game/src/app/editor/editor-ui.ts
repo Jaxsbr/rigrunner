@@ -40,7 +40,7 @@ export class EditorUI {
     panel.append(title, buttons, this.brush, this.status, hints);
     document.body.append(panel);
 
-    this.setBrush(2);
+    this.setBrush(1);
     this.setStatus('Loaded the committed map. Bake to (re)derive the wall from the mountain.');
   }
 

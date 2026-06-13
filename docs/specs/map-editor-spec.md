@@ -78,12 +78,12 @@ A 2-D occupancy grid covering the playable disc:
 
 - **Extent:** a square that bounds the world disc — `[-WORLD_RADIUS, +WORLD_RADIUS]` on x and z
   (`WORLD_RADIUS = 145`, from `stage.ts`).
-- **Cell size:** a build-time dial, target **~2 world units/cell** → a ~145×145 grid (~21k cells). Fine
-  enough to trace the ridge's irregular foot and a ~6-unit gap mouth cleanly; coarse enough to paint fast
-  and query trivially.
-- **Storage:** a flat `Uint8Array` (1 = blocked). Serialized compactly in the JSON — **base64 of the
-  raw bytes**, or run-length — with `width`, `height`, `cellSize`, `originX/originZ` alongside so the
-  loader needs no magic constants. Tens of kB; negligible.
+- **Cell size:** a build-time dial, **0.5 world units/cell** → a 580×580 grid (~336k cells). Fine enough
+  to hand-trace detail and smooth, thin collision lines (a coarser ~2-u grid only paints blocky 2-unit
+  squares — too chunky to draw with); still cheap to paint and query.
+- **Storage:** in memory a flat `Uint8Array` (1 = blocked, one byte/cell, fast to read + paint). On the
+  wire **BIT-PACKED** (8 cells/byte) and base64'd — so even the fine grid is ~55 kB, not ~450 kB — with
+  `width`, `height`, `cellSize`, `originX/originZ` alongside so the loader needs no magic constants.
 - **World ↔ cell mapping** (the only math): `col = floor((x - originX) / cellSize)`,
   `row = floor((z - originZ) / cellSize)`; a cell's centre maps back the same way. Out-of-grid = blocked
   (that subsumes the world-end clamp — see below).
@@ -191,8 +191,8 @@ serialize/load spine.
 
 ## Open questions / dials
 
-- **Cell size** (~2 u): finer traces the gap mouth better but costs paint time + bytes. Tune in the
-  editor against the real ridge.
+- **Cell size** (0.5 u): finer hand-drawing vs paint/redraw cost + bytes. 0.5 draws smoothly; going
+  finer (0.25) quadruples the cells — re-bake the committed map if it changes.
 - **Mover sampling** — how many points around the collision radius to sample per step (centre-only
   corner-clips a wide rig; an 8-point ring is safe and still cheap).
 - **Save mechanism** — endpoint vs download vs localStorage (above); pick when Phase A starts.

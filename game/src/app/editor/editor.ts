@@ -48,6 +48,7 @@ export function startEditor(): void {
   });
 
   const paint = new PaintController(canvas, picker, grid, overlay, () => ui.setBrush(paint.brushRadius));
+  ui.setBrush(paint.brushRadius); // reflect the controller's actual default brush
 
   window.addEventListener('resize', () => {
     stage.resize();
