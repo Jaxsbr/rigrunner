@@ -4,12 +4,12 @@ import { createGroundTexture } from './ground-texture';
 /**
  * The textured playable floor is a finite DISC of radius `WORLD_RADIUS` centred on the origin; past
  * its edge there is only the black void (the scene background) — the hand-authored map has an end, and
- * the rig is held inside it by `worldBoundsSystem` (features/terrain). The disc extends BEYOND the
- * bounding mountain ridge (`MOUNTAIN_RING_RADIUS`, ~95), so worked ground shows under and past the
- * peaks rather than dropping to void at them. Shared so the floor, the world-end clamp, and the ridge
- * can't drift apart.
+ * the rig is held inside it by `worldBoundsSystem` (features/terrain). The disc reaches WELL beyond the
+ * bounding mountain ridge (whose feet are ~r117), so a clear band of worked ground shows past the peaks
+ * (the ridge emerges from the floor, the void is far behind it — not right at its back). Shared so the
+ * floor, the world-end clamp, and the ridge can't drift apart.
  */
-export const WORLD_RADIUS = 128;
+export const WORLD_RADIUS = 145;
 
 /**
  * The stage: the scene, renderer, fixed lighting and ground that everything else draws into.

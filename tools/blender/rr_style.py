@@ -92,6 +92,11 @@ def material(name: str):
         bsdf.inputs["Emission Strength"].default_value = _PAL[name].get("emissive_strength", 3.0)
         bsdf.inputs["Metallic"].default_value = 0.0
         bsdf.inputs["Roughness"].default_value = 0.4
+    elif "metallic" in _PAL[name]:
+        # A palette entry can pin its own metalness/roughness — used by the matte rock/cliff tones, which
+        # must read as dry stone (non-metal), not the 0.9-metallic finish the wasteland metals carry.
+        bsdf.inputs["Metallic"].default_value = _PAL[name]["metallic"]
+        bsdf.inputs["Roughness"].default_value = _PAL[name].get("roughness", 0.9)
     elif name == "rig_blue":
         bsdf.inputs["Metallic"].default_value = 0.2   # painted, not bare metal
         bsdf.inputs["Roughness"].default_value = 0.5

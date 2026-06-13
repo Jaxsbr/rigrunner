@@ -11,17 +11,25 @@ import { Solid } from '@common/components/solid';
  * Visual and barrier are deliberately SEPARATE:
  *  - the VISUAL is ONE continuous, noise-displaced ridge mesh placed once at the origin (so the range
  *    reads as a connected wall, with no object-to-object seams — it is not a row of tiled props);
- *  - the BARRIER is an invisible ring of Solid colliders along the ridge centreline, spaced to OVERLAP
- *    into one unbroken wall, skipping only the gap arcs. Collision stays circle-based while the mesh
- *    stays continuous, so the only place the rig can pass is a real, visible gap.
+ *  - the BARRIER is an invisible ring of Solid colliders at the ridge's inner BASE (pulled inside the
+ *    centreline so the rig stops where the rock meets the floor, not deep up the slope), spaced to
+ *    OVERLAP into one unbroken wall, skipping only the gap arcs. Collision stays circle-based while the
+ *    mesh stays continuous, so the only place the rig can pass is a real, visible gap.
  *
  * GEOMETRY CONTRACT: `MOUNTAIN_RING_RADIUS` and the caller's gap angles must match the values baked
  * into `mountain-range.glb` (`tools/blender/assets/mountain_range.py`) — the visual ridge, this
  * collider ring, and the camps that guard the gaps all line up off them.
  */
 
-/** The ridge centreline radius — matches `R_WALL` baked into `mountain-range.glb`. */
+/** The ridge centreline radius — matches `R_WALL` baked into `mountain-range.glb` (the visual peak line). */
 export const MOUNTAIN_RING_RADIUS = 95;
+
+/**
+ * The radius the BLOCKER ring sits on — pulled INSIDE the centreline so the rig is stopped at the ridge's
+ * inner BASE (where the rock surfaces from the floor, ~r76), not deep up the slope. A collider of radius
+ * `COLLIDER_RADIUS` here blocks a (rig-radius ~1) rig at ~`COLLIDER_RING_RADIUS - COLLIDER_RADIUS - 1`.
+ */
+export const COLLIDER_RING_RADIUS = 86;
 
 /** A drivable exit cut into the ring: no collider sits within `halfWidth` of `angle` (radians). */
 export interface MountainGap {
@@ -59,8 +67,8 @@ export function spawnMountainRing(world: World, gaps: MountainGap[] = []): void 
     if (gaps.some((g) => angularDistance(angle, g.angle) < g.halfWidth)) continue; // a gap — leave it open
     const e = world.createEntity();
     world.add(e, Transform, {
-      x: Math.cos(angle) * MOUNTAIN_RING_RADIUS,
-      z: Math.sin(angle) * MOUNTAIN_RING_RADIUS,
+      x: Math.cos(angle) * COLLIDER_RING_RADIUS,
+      z: Math.sin(angle) * COLLIDER_RING_RADIUS,
       rotationY: 0,
     });
     world.add(e, Collider, { radius: COLLIDER_RADIUS });

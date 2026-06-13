@@ -4,7 +4,7 @@ import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
 import { Solid } from '@common/components/solid';
 import { Renderable } from '@common/components/renderable';
-import { spawnMountainRing, MOUNTAIN_RING_RADIUS, type MountainGap } from './mountain-ring';
+import { spawnMountainRing, COLLIDER_RING_RADIUS, type MountainGap } from './mountain-ring';
 import { worldBoundsSystem } from './world-bounds';
 import { WORLD_RADIUS } from '@common/render/stage';
 
@@ -42,7 +42,7 @@ describe('spawnMountainRing', () => {
     expect(colliders.length).toBeGreaterThan(20); // a real barrier, not a handful
     for (const c of colliders) {
       const t = world.get(c, Transform)!;
-      expect(Math.hypot(t.x, t.z)).toBeCloseTo(MOUNTAIN_RING_RADIUS, 5); // all on the ring
+      expect(Math.hypot(t.x, t.z)).toBeCloseTo(COLLIDER_RING_RADIUS, 5); // all on the blocker ring (the inner base)
       expect(world.has(c, Renderable)).toBe(false); // invisible — the mesh is the visual
     }
   });

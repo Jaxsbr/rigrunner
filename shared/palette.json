@@ -8,5 +8,8 @@
   "glow_warm":     { "hex": "#E8B45C", "use": "warm lamp light — habitation, a sign of life", "emissive": true, "emissive_strength": 1.3 },
   "nature_green":  { "hex": "#50A336", "use": "restoration — foliage, regrowth" },
   "leaf_green":    { "hex": "#6F8A3F", "use": "muted sage foliage — sits in the sun-baked palette (matches restored-tree leaves)" },
-  "bone_white":    { "hex": "#CDC6B8", "use": "bleached structures, old plastic" }
+  "bone_white":    { "hex": "#CDC6B8", "use": "bleached structures, old plastic" },
+  "cliff_low":     { "hex": "#4E4031", "use": "wasteland rock — shadowed base/crevices (matte, non-metal)", "metallic": 0.0, "roughness": 0.96 },
+  "cliff_mid":     { "hex": "#70583E", "use": "wasteland rock — the cliff face (matte, non-metal)", "metallic": 0.0, "roughness": 0.95 },
+  "cliff_high":    { "hex": "#9A8157", "use": "wasteland rock — sun-bleached crests (matte, non-metal)", "metallic": 0.0, "roughness": 0.93 }
 }
