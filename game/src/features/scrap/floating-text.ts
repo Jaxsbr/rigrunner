@@ -27,11 +27,11 @@ export interface FloatingIcon {
 }
 
 /** How long a label lives, in seconds — long enough to clock the pickup before it drifts off and fades. */
-const LIFE = 2.5;
+const LIFE = 1.5;
 /** How far it climbs over its life, in world units — a clear upward drift away from the pickup. */
 const RISE = 1.2;
-/** Fraction of the life spent fully opaque before it starts fading — holds, then dissolves. */
-const FADE_FROM = 0.4;
+/** Fraction of the life spent fully opaque before it fades — holds most of its life, then vanishes crisply. */
+const FADE_FROM = 0.6;
 /** On-screen height of a label, in world units (its width follows the glyph's aspect). */
 const WORLD_HEIGHT = 0.55;
 /** A burst could spawn many at once; cap the live count so it can't grow without bound (oldest dropped). */
