@@ -75,6 +75,9 @@ import { ShopStains } from '@features/shop/shop-stains';
 import { ShopGround } from '@features/shop/shop-ground';
 import { WorldShop } from '@features/shop/world-shop';
 import { worldBoundsSystem } from '@features/terrain/world-bounds';
+import { gridBlockSystem } from '@features/terrain/collision-grid';
+import { getWorldGrid } from '@features/terrain/world-grid';
+import { Enemy } from '@features/camps/enemy';
 
 /** Per-launch configuration for the engine — what differs between the real game and the sandbox. */
 export interface BootCfg {
@@ -104,6 +107,10 @@ export interface BootCfg {
  */
 export function bootstrap(world: World, cfg: BootCfg = {}): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
+
+  // The world's static collision grid (the real game's painted bowl wall; null in the sandbox). Read once
+  // — it's fixed scenery — and sampled each frame to push the rig and the camp guards out of the ridge.
+  const worldGrid = getWorldGrid(world);
 
   const input = createDriveInput();
   const cameraInput = createCameraInput(canvas);
@@ -332,6 +339,10 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // parts ride to their cells (so they follow the corrected position) and before the proximity gates
       // recompute against the rig's settled spot.
       collisionResponseSystem(world);
+      // Push the rig out of the painted static world (the bowl wall) — same de-penetration feel as the
+      // circle response above (slide, keep speed). Runs before mounted parts ride, so they follow the
+      // corrected position. The guards are clamped after their AI moves them (below).
+      if (worldGrid) gridBlockSystem(world, worldGrid, [activeRig]);
       // Hold the rig inside the world-end (the floor disc's rim) after collision but before mounted
       // parts ride to their cells, so they follow the clamped position.
       worldBoundsSystem(world, activeRig);
@@ -374,6 +385,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // camps combat: enemies act, the rig's weapon fires, then all shots travel — all BEFORE the one
       // collision pass below, so this frame's positions are what hits resolve against.
       enemyAiSystem(world, activeRig, dt);
+      // Guards move by direct Transform stepping (no drivetrain), so clamp them out of the painted wall
+      // right after their AI moves them — a pursuing guard can't walk through the ridge.
+      if (worldGrid) gridBlockSystem(world, worldGrid, world.query(Enemy, Transform));
       weaponFireSystem(world, activeRig, dt);
       projectileMoveSystem(world, dt);
 

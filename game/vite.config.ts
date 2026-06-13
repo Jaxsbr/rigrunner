@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { writeFileSync } from 'node:fs';
+import { basename } from 'node:path';
+import { defineConfig, type Plugin } from 'vitest/config';
 
 /**
  * The game is its own Vite app (root = `game/`). The path aliases here are the import convention
@@ -18,7 +20,40 @@ import { defineConfig } from 'vitest/config';
  */
 const r = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url));
 
+/**
+ * Dev-only write endpoint for the map editor (`npm run dev:editor`). The editor POSTs `{ file, data }`
+ * to `/__map`; this writes `data` (the collision map JSON) to that file under the committed maps dir.
+ * The filename is reduced to its basename, so a POST can only ever write inside `maps/` — never escape
+ * it. `apply: 'serve'` keeps it out of the production build entirely.
+ */
+const MAPS_DIR = r('./src/app/scenarios/maps');
+function mapWriteEndpoint(): Plugin {
+  return {
+    name: 'rr-map-write',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__map', (req, res, next) => {
+        if (req.method !== 'POST') return next();
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          try {
+            const { file, data } = JSON.parse(body) as { file: string; data: unknown };
+            writeFileSync(`${MAPS_DIR}/${basename(file)}`, JSON.stringify(data));
+            res.statusCode = 200;
+            res.end('ok');
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(String(e));
+          }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
+  plugins: [mapWriteEndpoint()],
   resolve: {
     alias: {
       '@core': r('./src/core'),

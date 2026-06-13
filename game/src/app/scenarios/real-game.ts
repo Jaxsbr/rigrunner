@@ -14,18 +14,28 @@ import { mountPart } from '@features/mounting/mounting';
 import { markOwned, setActiveRig } from '@features/chassis/ownership';
 import { spawnCamp } from '@features/camps/camp-spawn';
 import { spawnWorldShop } from '@features/shop/world-shop-spawn';
-import { spawnMountainRing, type MountainGap } from '@features/terrain/mountain-ring';
+import { spawnMountainRange } from '@features/terrain/mountain-mesh';
+import { CollisionGrid, type CollisionMap } from '@features/terrain/collision-grid';
+import { setWorldGrid } from '@features/terrain/world-grid';
+import realGameMap from './maps/real-game.map.json';
 
-// The exit gaps cut into the bounding mountain ridge — the only drivable mouths out of the safe bowl.
-// Shared by the ring (which leaves them open) and the camps below (which guard them), so a gap and its
-// guards line up. Angle convention: 0 = +x, increasing counter-clockwise; angles match the gaps baked
-// into `mountain-range.glb`. `halfWidth` matches that baked flat-gap width, so the cleared collider
-// corridor lines up with the visual opening and blocks right where the ridge starts rising — a tight
-// ~9 m choke (point of feedback: the old gaps were far too wide).
-const EXIT_GAPS: MountainGap[] = [
-  { angle: 0, halfWidth: 0.075 },   // east — the main exit, guarded by a pair of camps at its mouth
-  { angle: 2.3, halfWidth: 0.075 }, // north-west — single-guarded
-  { angle: 4.2, halfWidth: 0.075 }, // south-west — the lightly-held escape (unguarded for now)
+/** A drivable mouth in the bounding ridge: the camps guarding it line up off `angle`. */
+interface ExitGap {
+  /** Gap centre angle (radians; 0 = +x, increasing counter-clockwise — the mapping the camps use). */
+  angle: number;
+  /** The baked gap-mouth half-width (radians) — documents the opening the camps flank; a tight ~9 m choke. */
+  halfWidth: number;
+}
+
+// The exit gaps cut into the bounding mountain ridge — the only drivable mouths out of the safe bowl. The
+// camps below guard them, lining up off these angles. These are the gaps' WORLD-SPACE centre angles,
+// measured from the baked collision footprint — NOT the authoring angles in `mountain_range.py`: the
+// GLB's `export_yup` negates the Blender angle (world ≈ 2π − authored), so a gap authored at 2.3 rad
+// surfaces in-world at ≈3.98. Angle convention: 0 = +x, counter-clockwise.
+export const EXIT_GAPS: ExitGap[] = [
+  { angle: 0, halfWidth: 0.075 },     // east — the main exit, guarded by a pair of camps at its mouth
+  { angle: 2.083, halfWidth: 0.075 }, // single-guarded
+  { angle: 3.983, halfWidth: 0.075 }, // the lightly-held escape (unguarded for now)
 ];
 
 /** A point at (`angle`, `radius`) in world space — to line camps up with the gap mouth they guard. */
@@ -67,11 +77,16 @@ export function seedStaticWorld(world: World): void {
   // placed strategically (one for now); buying lives in the world, not a workshop tab.
   spawnWorldShop(world, 36, -37);
 
-  // The bounding mountain range — the bowl wall: one continuous ridge mesh, walled by an invisible
-  // collider ring that blocks the way out save the three EXIT_GAPS. The camps at the gaps are what make
-  // leaving cost; the ridge draws the edge and funnels you to the mouths. Static scenery (deterministic),
-  // so New Game and Continue raise the same wall.
-  spawnMountainRing(world, EXIT_GAPS);
+  // The bounding mountain range — the bowl wall. The ridge MESH is the visual; the physical wall is the
+  // painted collision grid loaded just below (baked from this mesh's footprint), which traces the
+  // irregular silhouette exactly — so the gaps are exactly drivable and the rock exactly solid. The camps
+  // at the gaps make leaving cost; the ridge funnels you to the mouths.
+  spawnMountainRange(world);
+
+  // The static collision grid — the committed map authored in the editor (`app/editor`). It walls the rig
+  // and the camp guards alike off the painted ridge. Static scenery (deterministic), so New Game and
+  // Continue raise the same wall; it is NOT part of the save.
+  setWorldGrid(world, CollisionGrid.fromMap(realGameMap as CollisionMap));
 
   // The assembly bench — a singleton: the role slots the workshop interface drops parts into while
   // composing the active recipe's output. Starts on the engine recipe, empty.

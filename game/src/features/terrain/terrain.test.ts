@@ -4,71 +4,25 @@ import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
 import { Solid } from '@common/components/solid';
 import { Renderable } from '@common/components/renderable';
-import { spawnMountainRing, COLLIDER_RING_RADIUS, type MountainGap } from './mountain-ring';
+import { spawnMountainRange } from './mountain-mesh';
 import { worldBoundsSystem } from './world-bounds';
 import { WORLD_RADIUS } from '@common/render/stage';
 
-const GAPS: MountainGap[] = [
-  { angle: 0, halfWidth: 0.075 },
-  { angle: 2.3, halfWidth: 0.075 },
-  { angle: 4.2, halfWidth: 0.075 },
-];
-
-const angle = (x: number, z: number): number => Math.atan2(z, x);
-const angularDistance = (a: number, b: number): number => {
-  const d = Math.abs(a - b) % (Math.PI * 2);
-  return d > Math.PI ? Math.PI * 2 - d : d;
-};
-
-describe('spawnMountainRing', () => {
-  it('places ONE continuous ridge mesh at the origin — a visual with no collider of its own', () => {
+describe('spawnMountainRange', () => {
+  it('places ONE ridge mesh at the origin — a pure visual with no collider (the grid does the blocking)', () => {
     const world = new World();
-    spawnMountainRing(world, GAPS);
+    spawnMountainRange(world);
 
-    const meshes = world.query(Renderable, Transform).filter(
-      (e) => { const r = world.get(e, Renderable)!; return r.shape === 'model' && r.assetId === 'mountain-range'; },
-    );
+    const meshes = world.query(Renderable, Transform).filter((e) => {
+      const r = world.get(e, Renderable)!;
+      return r.shape === 'model' && r.assetId === 'mountain-range';
+    });
     expect(meshes).toHaveLength(1);
     const t = world.get(meshes[0]!, Transform)!;
-    expect([t.x, t.z]).toEqual([0, 0]);     // one mesh, at the origin
-    expect(world.has(meshes[0]!, Solid)).toBe(false); // the mesh blocks nothing — the collider ring does
-  });
-
-  it('lays an overlapping ring of Solid colliders along the ridge centreline', () => {
-    const world = new World();
-    spawnMountainRing(world, GAPS);
-
-    const colliders = world.query(Solid, Collider, Transform);
-    expect(colliders.length).toBeGreaterThan(20); // a real barrier, not a handful
-    for (const c of colliders) {
-      const t = world.get(c, Transform)!;
-      expect(Math.hypot(t.x, t.z)).toBeCloseTo(COLLIDER_RING_RADIUS, 5); // all on the blocker ring (the inner base)
-      expect(world.has(c, Renderable)).toBe(false); // invisible — the mesh is the visual
-    }
-  });
-
-  it('leaves the exit gaps open — no blocker sits within a gap', () => {
-    const world = new World();
-    spawnMountainRing(world, GAPS);
-
-    for (const c of world.query(Solid, Transform)) {
-      const t = world.get(c, Transform)!;
-      const a = angle(t.x, t.z);
-      for (const g of GAPS) {
-        expect(angularDistance(a, g.angle)).toBeGreaterThanOrEqual(g.halfWidth); // never inside a gap
-      }
-    }
-  });
-
-  it('still blocks BETWEEN the gaps (the barrier is continuous, not all gap)', () => {
-    const world = new World();
-    spawnMountainRing(world, GAPS);
-    // A direction with no gap (≈ π) must carry a blocker near it.
-    const near = world.query(Solid, Transform).some((c) => {
-      const t = world.get(c, Transform)!;
-      return angularDistance(angle(t.x, t.z), Math.PI) < 0.2;
-    });
-    expect(near).toBe(true);
+    expect([t.x, t.z]).toEqual([0, 0]);
+    // The mesh blocks nothing itself — the painted collision grid is the physical wall.
+    expect(world.has(meshes[0]!, Solid)).toBe(false);
+    expect(world.has(meshes[0]!, Collider)).toBe(false);
   });
 });
 
