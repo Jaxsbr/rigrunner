@@ -27,7 +27,7 @@ export interface FloatingIcon {
 }
 
 /** How long a label lives, in seconds — long enough to clock the pickup before it drifts off and fades. */
-const LIFE = 3.0;
+const LIFE = 2.5;
 /** How far it climbs over its life, in world units — a clear upward drift away from the pickup. */
 const RISE = 1.2;
 /** Fraction of the life spent fully opaque before it starts fading — holds, then dissolves. */
