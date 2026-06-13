@@ -1,12 +1,13 @@
-# RIGRUNNER — Map editor & authored collision (spec)
+# RIGRUNNER — Map editor & painted collision (spec)
 
 **What this is:** the design + plan for an in-game **map editor** in which the world's **static
-collision is authored as vector shapes** (smooth spline paths you draw and bend) that **compile into a
-collision grid** — rather than approximated by primitive colliders — plus the **decoration placement**
-that the same editor grows into. It replaces the circle-collider ring that walls the Phase 1 bowl — a
-smooth primitive can't trace the authored mountain silhouette, so it's wrong in both directions at once
-(see "Why this exists"). The compiled grid *is* the silhouette, so the gaps are exactly drivable and the
-rock is exactly solid, and the same query blocks the rig **and** enemies uniformly.
+collision is painted by hand** onto a grid (LEFT-drag paints, RIGHT erases, with a visible brush-tip
+cursor and on-demand brush size) — rather than approximated by primitive colliders — plus the
+**decoration placement** that the same editor grows into. It replaces the circle-collider ring that
+walls the Phase 1 bowl — a smooth primitive can't trace the authored mountain silhouette, so it's wrong
+in both directions at once (see "Why this exists"). The painted grid *is* the silhouette, so the gaps are
+exactly drivable and the rock is exactly solid, and the same query blocks the rig **and** enemies
+uniformly.
 
 > **Status:** 🟡 **Specced, not built** — the committed follow-up to PR #76 (Phase 1 cold-open). Phase 1
 > lands with the interim circle-collider ring documented as a known limitation
@@ -49,12 +50,13 @@ blocking** — the hand-authored map silhouette (mountains now; walls, shop foot
 
 ## The decision (committed direction)
 
-1. **Static world collision is an occupancy grid at runtime**, not primitive colliders. A 2D raster over
-   the world disc; each cell is *blocked* or *clear*. Movement = "you may not enter a blocked cell."
-2. **The grid is authored as VECTOR shapes in an in-game editor** — a launch mode of the game itself, not
-   a separate app (it rides the real game world: stage, camera, asset registry). You draw smooth spline
-   paths (open walls / closed regions, add / carve) and bend them by dragging points; they **compile into
-   the grid**. Authoring is resolution-independent; the grid is just the compiled result.
+1. **Static world collision is a painted occupancy grid**, not primitive colliders. A 2D raster over the
+   world disc; each cell is *blocked* or *clear*. Movement = "you may not enter a blocked cell."
+2. **The grid is painted directly in an in-game editor** — a launch mode of the game itself, not a
+   separate app (it rides the real game world: stage, camera, asset registry). LEFT-drag paints rock,
+   RIGHT erases; a brush-tip ring shows the exact disc that will paint, and the brush radius is set on
+   demand. (A vector-spline authoring layer was tried and dropped — it just re-rasterised into the same
+   cells, adding indirection without real precision, and was less direct to use than the brush.)
 3. **The same grid blocks the rig and enemies**, via one query in their shared movement path — so
    "enemies pass through" dissolves for free.
 4. **The editor grows into a decoration tool** (Phase B): the same place-and-serialize machinery, with an
@@ -68,11 +70,7 @@ blocking** — the hand-authored map silhouette (mountains now; walls, shop foot
 A single **versioned, hand-authored map document**, loaded by the real-game scenario at seed time and
 written by the editor. JSON, committed to the repo (it's authored content, like an asset). It carries:
 
-- the **compiled collision raster** (`blocked`) — what the GAME loads (Phase A), and
-- an editable **`source`** — what the EDITOR re-opens: the `bakedFromMesh` base flag + the **vector
-  shapes** drawn on top. The game ignores it; on save the editor recompiles `blocked` from the source
-  (mesh-baked base, then the shapes). A map never opened in the editor simply has no `source`, and the
-  editor then treats its loaded grid as the base.
+- the **collision raster** (`blocked`) — the painted grid the game loads (Phase A), and
 - a **decoration instance list** (Phase B).
 
 Location: `game/src/app/scenarios/maps/<name>.map.json` (next to the scenario that loads it). One map
@@ -137,16 +135,11 @@ walls/edges) move to the grid.
   **game** (`features/map` + an `app/` editor bootstrap), **not** a sibling app (reaching across apps
   would break the clean-separation rule; the editor needs full game context).
 - **View:** a top-down ORTHOGRAPHIC camera over the map (a `T` tilt toggle swings oblique to read the
-  art's relief), with the real ground + mountain mesh visible underneath so you author *against the art*.
-- **Authoring is VECTOR, not raster.** You draw collision as **spline paths** — drop control points
-  (Draw mode), then **drag any point to bend the curve** (Edit mode); the path renders as a smooth
-  Catmull-Rom curve through the points. A path is **open** (a wall of adjustable thickness) or **closed**
-  (a filled region), and each either **adds** collision or **carves** it (to refine the baked mountain).
-  Resolution-independent — you draw real curves, not stamp cells. Painting cells directly was tried and
-  rejected: even fine cells can't make a smooth curve and pixel-perfecting a whole map is untenable.
-- **Compile + preview:** the shapes compile into the grid live (the same `compileCollision`: mesh-baked
-  base, then each shape filled/stroked/carved); a translucent **red wash** shows the compiled collision
-  under the crisp shape lines + draggable handles.
+  art's relief), with the real ground + mountain mesh visible underneath so you paint *against the art*.
+- **Paint:** LEFT-drag paints blocked cells, RIGHT-drag erases; strokes interpolate along the drag so a
+  freehand line is continuous, not dotted. A **brush-tip ring** on the ground shows the exact disc the
+  brush will paint and follows the cursor; the brush radius is set on demand (`[ ]` or the toolbar). A
+  translucent **red wash** over blocked cells shows the collision live as you paint.
 - **Save/load — the one real design question.** A browser can't write the repo directly. Options, in
   preference order:
   1. **Dev-server write endpoint** (recommended): a small Vite dev-middleware plugin that accepts a

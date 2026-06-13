@@ -1,38 +1,15 @@
-import type { EditorMode } from './shape-tool';
-
-/** The toolbar's live state, pushed in on every change so the labels track the tool. */
-export interface EditorUIState {
-  mode: EditorMode;
-  carve: boolean;
-  thickness: number;
-  shapes: number;
-}
-
 /**
- * The editor's on-screen toolbar — vector authoring controls (mode, add/carve, wall thickness, delete)
- * plus Bake / Save, a live status line, and mode-specific hints. Plain DOM injected over the canvas
- * (dev tooling, not the player HUD), styled inline.
+ * The editor's on-screen toolbar — Bake / Save, an on-demand brush-size control, a live status line, and
+ * the control hints. Plain DOM injected over the canvas (dev tooling, not the player HUD), styled inline.
  */
 export class EditorUI {
   private readonly status: HTMLElement;
-  private readonly modeBtn: HTMLButtonElement;
-  private readonly carveBtn: HTMLButtonElement;
-  private readonly thickEl: HTMLElement;
-  private readonly hints: HTMLElement;
-  private readonly count: HTMLElement;
+  private readonly brush: HTMLElement;
 
-  constructor(opts: {
-    onBake: () => void;
-    onSave: () => void;
-    onToggleMode: () => void;
-    onToggleCarve: () => void;
-    onThicker: () => void;
-    onThinner: () => void;
-    onDelete: () => void;
-  }) {
+  constructor(opts: { onBake: () => void; onSave: () => void; onThicker: () => void; onThinner: () => void }) {
     const panel = document.createElement('div');
     panel.style.cssText = [
-      'position:fixed', 'top:12px', 'left:12px', 'z-index:10', 'width:250px',
+      'position:fixed', 'top:12px', 'left:12px', 'z-index:10', 'width:240px',
       'font:13px/1.5 system-ui,sans-serif', 'color:#e8e2d4',
       'background:rgba(20,18,14,0.85)', 'border:1px solid rgba(180,150,90,0.4)',
       'border-radius:8px', 'padding:10px 12px', 'user-select:none',
@@ -42,46 +19,38 @@ export class EditorUI {
     title.textContent = 'RIGRUNNER · map editor';
     title.style.cssText = 'font-weight:600;color:#f0c870;margin-bottom:8px';
 
-    this.modeBtn = this.button('Mode: Draw', opts.onToggleMode);
-    this.carveBtn = this.button('Add', opts.onToggleCarve);
-    const modeRow = this.row(this.modeBtn, this.carveBtn);
+    const actions = this.row(this.button('Bake from mesh', opts.onBake), this.button('Save', opts.onSave));
 
-    const minus = this.button('–', opts.onThinner);
-    const plus = this.button('+', opts.onThicker);
-    this.thickEl = document.createElement('div');
-    this.thickEl.style.cssText = 'flex:1;text-align:center;align-self:center';
-    const delBtn = this.button('Delete', opts.onDelete);
-    const thickRow = this.row(minus, this.thickEl, plus, delBtn);
+    this.brush = document.createElement('div');
+    this.brush.style.cssText = 'flex:1;text-align:center;align-self:center';
+    const brushRow = this.row(
+      this.button('– brush', opts.onThinner),
+      this.brush,
+      this.button('brush +', opts.onThicker),
+    );
 
-    const actionRow = this.row(this.button('Bake from mesh', opts.onBake), this.button('Save', opts.onSave));
-
-    this.count = document.createElement('div');
-    this.count.style.cssText = 'color:#aaa29080;font-size:12px;margin-top:6px';
     this.status = document.createElement('div');
     this.status.style.cssText = 'color:#9fd09f;min-height:1.4em';
-    this.hints = document.createElement('div');
-    this.hints.style.cssText = 'color:#aaa29080;margin-top:6px;font-size:12px';
 
-    panel.append(title, modeRow, thickRow, actionRow, this.count, this.status, this.hints);
+    const hints = document.createElement('div');
+    hints.style.cssText = 'color:#aaa29080;margin-top:6px;font-size:12px';
+    hints.innerHTML =
+      'L-drag <b>paint</b> · R-drag <b>erase</b> · <b>[ ]</b> brush size<br>' +
+      'WASD/arrows pan · wheel zoom · mid-drag pan · <b>T</b> tilt';
+
+    panel.append(title, actions, brushRow, this.status, hints);
     document.body.append(panel);
 
-    this.setStatus('Loaded. Draw collision paths over the baked wall; Save compiles + writes the map.');
-  }
-
-  /** Push the tool's current state into the labels + hints. */
-  refresh(s: EditorUIState): void {
-    this.modeBtn.textContent = `Mode: ${s.mode === 'draw' ? 'Draw' : 'Edit'}`;
-    this.carveBtn.textContent = s.carve ? 'Carve' : 'Add';
-    this.carveBtn.style.background = s.carve ? '#e07a3d' : '#39a7c8';
-    this.thickEl.textContent = `wall ⌀ ${s.thickness}`;
-    this.count.textContent = `${s.shapes} shape${s.shapes === 1 ? '' : 's'}`;
-    this.hints.innerHTML = s.mode === 'draw'
-      ? 'Click to drop points · click the <b>start</b> to close a region<br><b>Enter</b> finish wall · <b>Esc</b> cancel · WASD/wheel/<b>T</b> view'
-      : 'Drag a point to bend · dbl-click a path to add a point<br><b>Delete</b> remove · click a path to select · WASD/wheel/<b>T</b> view';
+    this.setBrush(2);
+    this.setStatus('Loaded the committed map. Bake to (re)derive the wall, then paint to refine.');
   }
 
   setStatus(msg: string): void {
     this.status.textContent = msg;
+  }
+
+  setBrush(radiusCells: number): void {
+    this.brush.textContent = `brush: ${radiusCells} cell${radiusCells === 1 ? '' : 's'}`;
   }
 
   private row(...children: HTMLElement[]): HTMLElement {
