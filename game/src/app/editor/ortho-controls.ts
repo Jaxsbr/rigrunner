@@ -81,4 +81,9 @@ export class OrthoControls {
   resize(): void {
     this.applyFrustum();
   }
+
+  /** World units per screen pixel at the current zoom — for screen-constant pick radii / hit tests. */
+  get worldPerPixel(): number {
+    return (this.viewSize * 2) / window.innerHeight;
+  }
 }

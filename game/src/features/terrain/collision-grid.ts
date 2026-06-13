@@ -2,6 +2,7 @@ import type { World } from '@core/world';
 import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Collider } from '@common/components/collider';
+import type { CollisionShape } from './collision-shapes';
 
 /**
  * Static world collision as a painted occupancy grid — the technique that retires the primitive collider
@@ -22,8 +23,8 @@ import { Collider } from '@common/components/collider';
 
 /** Serialized, committed form of a collision grid — a small JSON document loaded at seed time. */
 export interface CollisionMap {
-  /** Bumped if the on-disk shape ever changes, so a loader can refuse an incompatible file. */
-  version: 1;
+  /** Bumped when the on-disk shape changes (2 added the editable `source`). */
+  version: number;
   /** Cells across x / down z. */
   width: number;
   height: number;
@@ -35,9 +36,20 @@ export interface CollisionMap {
   /**
    * Base64 of a BIT-PACKED `width·height` bitmap (8 cells per byte, row-major, LSB first): bit set =
    * blocked. Packing keeps the committed file small even at a fine cell size (a 580² grid is ~56 kB, not
-   * ~450 kB) so authored detail stays cheap to store and bundle.
+   * ~450 kB) so authored detail stays cheap to store and bundle. This is what the GAME loads.
    */
   blocked: string;
+  /**
+   * The editable authoring source the EDITOR re-loads to keep refining — the game ignores it. `blocked`
+   * is recompiled from this on save (the mesh-baked base layer, then the vector shapes). Absent on a map
+   * never opened in the editor.
+   */
+  source?: {
+    /** Whether the mountain-mesh footprint forms the base layer under the shapes. */
+    bakedFromMesh: boolean;
+    /** The vector collision shapes drawn on top. */
+    shapes: CollisionShape[];
+  };
 }
 
 // base64 ↔ a bit-packed cell array, via the platform `btoa`/`atob` (present in browsers and modern Node,
