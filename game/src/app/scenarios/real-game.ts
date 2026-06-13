@@ -1,11 +1,9 @@
 import { World } from '@core/world';
 import { spawnRig } from '@features/mounting/rig';
 import { engineParts } from '@features/engine/engines';
-import { spawnWorkshop } from '@features/workshop/workshop';
 import { scatterScrap, scatterScrapAround, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
 import { createPlayerStore } from '@features/economy/player-store';
-import { Bench, emptyBenchSlots } from '@features/workshop/bench';
 import { ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE } from '@common/parts/recipes';
 import { partDef } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
@@ -13,10 +11,9 @@ import { placeProductInWorld } from '@features/workshop/assembly';
 import { mountPart } from '@features/mounting/mounting';
 import { markOwned, setActiveRig } from '@features/chassis/ownership';
 import { spawnCamp } from '@features/camps/camp-spawn';
-import { spawnWorldShop } from '@features/shop/world-shop-spawn';
-import { spawnMountainRange } from '@features/terrain/mountain-mesh';
 import { CollisionGrid, type CollisionMap } from '@features/terrain/collision-grid';
 import { setWorldGrid } from '@features/terrain/world-grid';
+import { seedStaticStructures } from './static-structures';
 import realGameMap from './maps/real-game.map.json';
 
 /** A drivable mouth in the bounding ridge: the camps guarding it line up off `angle`. */
@@ -66,35 +63,14 @@ export function seedRealGameWorld(world: World): void {
 
 /** The fixed, non-progress scaffolding both New Game and Continue lay down first. */
 export function seedStaticWorld(world: World): void {
-  // The workshop — home base, a short drive up +Z from spawn, near the centre of the bowl. Park the rig
-  // in its proximity zone to open the workshop interface (build/assemble parts) and drain full
-  // containers into the wallet. Buying is NOT here — that's the world shop, out at the rim.
-  spawnWorkshop(world, 0, 8);
-
-  // The one (rusty) world shop — out toward the bowl's southern rim, a real drive from home but still
-  // inside the safe zone (the danger is far past it, at the wall). Reaching it is the cold-open's first
-  // expedition; its Reclaimer entry answers the "Needs Reclaimer" the on-path pile planted. Shops are
-  // placed strategically (one for now); buying lives in the world, not a workshop tab.
-  spawnWorldShop(world, 36, -37);
-
-  // The bounding mountain range — the bowl wall. The ridge MESH is the visual; the physical wall is the
-  // painted collision grid loaded just below (baked from this mesh's footprint), which traces the
-  // irregular silhouette exactly — so the gaps are exactly drivable and the rock exactly solid. The camps
-  // at the gaps make leaving cost; the ridge funnels you to the mouths.
-  spawnMountainRange(world);
+  // The map-free structures (workshop, world shop, mountain mesh, bench) — shared with the editor.
+  seedStaticStructures(world);
 
   // The static collision grid — the committed map authored in the editor (`app/editor`). It walls the rig
   // and the camp guards alike off the painted ridge. Static scenery (deterministic), so New Game and
-  // Continue raise the same wall; it is NOT part of the save.
+  // Continue raise the same wall; it is NOT part of the save. The game loads it from the bundled map; the
+  // editor reads/writes the same file fresh over the dev endpoint (so it never sees a stale copy).
   setWorldGrid(world, CollisionGrid.fromMap(realGameMap as CollisionMap));
-
-  // The assembly bench — a singleton: the role slots the workshop interface drops parts into while
-  // composing the active recipe's output. Starts on the engine recipe, empty.
-  const bench = world.createEntity();
-  world.add(bench, Bench, {
-    recipeId: ELECTRIC_ENGINE_RECIPE.id,
-    slots: emptyBenchSlots(ELECTRIC_ENGINE_RECIPE.slots.map((s) => s.slot)),
-  });
 }
 
 /** The starting progress a New Game begins with — everything the save would later carry. */

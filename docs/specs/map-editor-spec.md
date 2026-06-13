@@ -142,16 +142,17 @@ walls/edges) move to the grid.
   exact cells the brush will paint and follows the cursor; the brush is an **N×N square** of cells, sized
   on demand (`[ ]` or the toolbar) — **size 1 is a single cell**, the smallest mark you can place. A
   translucent **red wash** over blocked cells shows the collision live as you paint.
-- **Save/load — the one real design question.** A browser can't write the repo directly. Options, in
-  preference order:
-  1. **Dev-server write endpoint** (recommended): a small Vite dev-middleware plugin that accepts a
-     `POST` of the map JSON and writes it to `…/maps/<name>.map.json`. Dev-only; one "Save" button, no
-     manual file shuffling. Cleanest authoring loop.
-  2. **Download + commit:** the editor offers the JSON as a file download; Jaco drops it into the repo.
-     Zero server code, clunkier loop.
-  3. **localStorage for iteration + an Export button** for the canonical save. Good for fast trial; still
-     needs (1) or (2) to land.
-  The painted map then becomes the seed the **real game** loads.
+- **Save/load — a dev endpoint, both ways.** A Vite dev-middleware plugin (`apply: 'serve'`) handles
+  `GET /__map` (read the committed file fresh from disk) and `POST /__map` (write it); filenames are
+  basename-only, so it can only touch `maps/`. The editor **loads via GET and saves via POST — it never
+  imports the map as a bundled module.** That decoupling is load-bearing: if the editor imported the map,
+  saving it would trip Vite's HMR into a full reload (which aborts the Save fetch → "failed to fetch" and
+  wipes the session), and any naive watcher workaround leaves a stale cached map served until restart
+  (apparent data loss). Reading fresh from disk sidesteps both: Save persists with no reload, and a
+  re-opened editor always reflects the last Save. The **game** keeps the bundled import (a fresh game
+  process reads the file fresh); to keep the editor's module graph map-free, `main.ts` imports the
+  real-game scenario only in the game branch, and the structures the editor shares live in a map-free
+  `static-structures.ts`.
 
 ---
 

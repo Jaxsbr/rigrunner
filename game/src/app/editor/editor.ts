@@ -2,8 +2,8 @@ import { World } from '@core/world';
 import { Stage } from '@common/render/stage';
 import { EntityViews } from '@common/render/entity-views';
 import { Picker } from '@common/render/picker';
-import { seedStaticWorld } from '../scenarios/real-game';
-import { getWorldGrid } from '@features/terrain/world-grid';
+import { seedStaticStructures } from '../scenarios/static-structures';
+import { CollisionGrid, type CollisionMap } from '@features/terrain/collision-grid';
 import { OrthoControls } from './ortho-controls';
 import { PaintOverlay } from './paint-overlay';
 import { PaintController } from './paint-controller';
@@ -14,17 +14,20 @@ import { bakeMountainFootprint } from './mesh-bake';
 const MAP_FILE = 'real-game.map.json';
 
 /**
- * The map editor — `npm run dev:editor`. It seeds the real game's static world as a backdrop, then lets
- * you paint the collision grid directly against it from a top-down ortho view: LEFT-drag paints, RIGHT
- * erases, the brush-tip cursor shows where, and Bake fills the wall from the mountain mesh. Save writes
- * the grid straight to the committed map. No driving sim runs. (`docs/specs/map-editor-spec.md`.)
+ * The map editor — `npm run dev:editor`. It seeds the real game's static structures as a backdrop and
+ * loads the collision map FRESH FROM DISK over the dev endpoint (never a bundled import), so it always
+ * sees the latest map and saving it doesn't HMR-reload the editor. LEFT-drag paints, RIGHT erases, the
+ * brush-tip square shows where; Bake fills the wall from the mountain mesh; Save writes the grid straight
+ * to the committed file. No driving sim runs. (`docs/specs/map-editor-spec.md`.)
  */
-export function startEditor(): void {
+export async function startEditor(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 
   const world = new World();
-  seedStaticWorld(world);
-  const grid = getWorldGrid(world)!; // the committed map, loaded into a WorldGrid — exactly what we edit
+  seedStaticStructures(world); // workshop, world shop, mountain mesh, bench — the backdrop, map-free
+
+  // The grid we paint: fetched live from disk, so a re-opened editor reflects the last Save.
+  const grid = CollisionGrid.fromMap(await loadMap());
 
   const stage = new Stage(canvas);
   const views = new EntityViews(stage.scene);
@@ -65,7 +68,13 @@ export function startEditor(): void {
   }
   requestAnimationFrame(frame);
 
-  /** POST the painted grid to the dev write-endpoint, which writes the committed map file. */
+  /** Read the committed map fresh from disk via the dev GET endpoint. */
+  async function loadMap(): Promise<CollisionMap> {
+    const res = await fetch(`/__map?file=${MAP_FILE}`);
+    return (await res.json()) as CollisionMap;
+  }
+
+  /** POST the painted grid to the dev endpoint, which writes the committed map file. */
   async function saveMap(): Promise<void> {
     ui.setStatus('Saving…');
     try {

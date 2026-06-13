@@ -2,7 +2,6 @@ import { World } from '@core/world';
 import { bootstrap } from './app/bootstrap';
 import { showMenu } from './app/menu';
 import { seedSandboxWorld } from './app/scenarios/sandbox';
-import { seedRealGameWorld, seedStaticWorld } from './app/scenarios/real-game';
 import { captureSnapshot, restoreSnapshot } from './app/snapshot';
 import { hasSave, loadGame, saveGame } from './app/persistence';
 import { startEditor } from './app/editor/editor';
@@ -25,33 +24,39 @@ import { startEditor } from './app/editor/editor';
  * file only routes.
  */
 if (import.meta.env.MODE === 'editor') {
-  // The map editor (`npm run dev:editor`): paint the static collision grid against the real world, no
-  // menu and no driving sim — authoring, not play. It saves straight to the committed map file.
-  startEditor();
+  // The map editor (`npm run dev:editor`): paint the collision grid against the real world, no menu and
+  // no driving sim — authoring, not play. It reads + writes the committed map fresh over the dev endpoint.
+  startEditor().catch((e) => console.error('editor failed to start', e));
 } else if (import.meta.env.MODE === 'sandbox') {
   const world = new World();
   seedSandboxWorld(world);
   bootstrap(world, { dev: true }); // dev affordances on; the sandbox never persists
 } else {
-  showMenu({
-    canContinue: hasSave(),
-    onChoose: (choice) => {
-      const world = new World();
-      // Continue loads the save; a missing/corrupt slot (it can vanish between the menu rendering and
-      // the click) falls through to a fresh cold-open, exactly like New Game.
-      const snapshot = choice.kind === 'continue' ? loadGame() : null;
-      if (snapshot) {
-        seedStaticWorld(world);
-        restoreSnapshot(world, snapshot);
-      } else {
-        seedRealGameWorld(world);
-      }
-      bootstrap(world, {
-        dev: false,
-        camera: snapshot?.camera, // resume the saved view pose; undefined opens at the default
-        // World state via captureSnapshot; the camera pose (view state) rides along off the view.
-        onPersist: (view) => saveGame({ ...captureSnapshot(world), camera: view.cameraPose() }),
-      });
-    },
+  // Import the real-game scenario (which bundles the committed collision map) ONLY in the game branch, so
+  // the editor never pulls the map module into its graph — that's what lets the editor read/write the map
+  // fresh from disk without Save HMR-reloading it, and what kept a stale cached map from being served. A
+  // `.then` (not top-level await) keeps the production build target unconstrained.
+  void import('./app/scenarios/real-game').then(({ seedRealGameWorld, seedStaticWorld }) => {
+    showMenu({
+      canContinue: hasSave(),
+      onChoose: (choice) => {
+        const world = new World();
+        // Continue loads the save; a missing/corrupt slot (it can vanish between the menu rendering and
+        // the click) falls through to a fresh cold-open, exactly like New Game.
+        const snapshot = choice.kind === 'continue' ? loadGame() : null;
+        if (snapshot) {
+          seedStaticWorld(world);
+          restoreSnapshot(world, snapshot);
+        } else {
+          seedRealGameWorld(world);
+        }
+        bootstrap(world, {
+          dev: false,
+          camera: snapshot?.camera, // resume the saved view pose; undefined opens at the default
+          // World state via captureSnapshot; the camera pose (view state) rides along off the view.
+          onPersist: (view) => saveGame({ ...captureSnapshot(world), camera: view.cameraPose() }),
+        });
+      },
+    });
   });
 }
