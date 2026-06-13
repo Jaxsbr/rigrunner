@@ -42,7 +42,7 @@ const BURST_MAX_R = 3.5;         // outer radius (these you nudge the rig over t
  * not a scoop, so swapping it in dismantles the rig's ability to rummage. A reclaimer with no resolvable
  * head (the bare arm, or a headless test fixture) still digs — only the explicit stump-healer is excluded.
  */
-function mountedReclaimer(world: World, rig: EntityId): EntityId | null {
+export function mountedReclaimer(world: World, rig: EntityId): EntityId | null {
   for (const p of world.query(Part, Mount, Transform)) {
     if (world.get(p, Mount)!.rig === rig && world.get(p, Part)!.kind === 'reclaimer'
         && reclaimerHeadPartId(world, p) !== 'stump-healer') return p;

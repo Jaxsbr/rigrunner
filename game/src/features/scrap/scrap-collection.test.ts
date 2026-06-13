@@ -133,12 +133,44 @@ describe('scrapCollectionSystem', () => {
     expect(world.isAlive(s)).toBe(true);
   });
 
-  it('never overfills a container (atomic deposit clamps at capacity)', () => {
+  it('refuses a piece that does not fully fit — no partial deposit (NO SPACE)', () => {
     const world = new World();
     const r = rig(world);
-    const c = container(world, r, 0, 0, 4, 3);
-    scrapCollectionSystem(world, [pair(r, scrap(world, 5))]); // value 5 into room-for-1
-    expect(world.get(c, Storage)!.amount).toBe(4);
+    const c = container(world, r, 0, 0, 4, 3); // room for only 1 more
+    const s = scrap(world, 5, 2, 2);           // worth 5 — too big for the leftover room
+
+    const result = scrapCollectionSystem(world, [pair(r, s)]);
+
+    expect(world.get(c, Storage)!.amount).toBe(3);  // untouched — NOT topped up to 4
+    expect(result.collected).toEqual([]);
+    expect(result.refused).toEqual([{ id: s, x: 2, z: 2 }]); // reported for the NO SPACE cue
+    expect(world.isAlive(s)).toBe(true);            // left in the world to pick up once there's room
+  });
+
+  it('skips a container without room for the WHOLE piece, filling a later one that fits', () => {
+    const world = new World();
+    const r = rig(world);
+    const near = container(world, r, 0, 0, 4, 3);  // room for 1 — too tight for a 3
+    const roomy = container(world, r, 1, 0, 4, 0); // room for 4 — fits the whole 3
+
+    scrapCollectionSystem(world, [pair(r, scrap(world, 3))]);
+
+    expect(world.get(near, Storage)!.amount).toBe(3);  // untouched (no partial fill)
+    expect(world.get(roomy, Storage)!.amount).toBe(3); // took the whole piece
+  });
+
+  it('rolls a rolled collectible\'s worth in [valueMin, valueMax] at collection', () => {
+    const world = new World();
+    const r = rig(world);
+    const c = container(world, r, 0, 0, 16, 0);
+    const s = world.createEntity();
+    world.add(s, Transform, { x: 1, z: 1, rotationY: 0 });
+    world.add(s, Collectible, { value: 0, valueMin: 2, valueMax: 6 }); // worth a 2–6 roll, not a fixed value
+
+    const result = scrapCollectionSystem(world, [pair(r, s)], () => 0.999); // rng top → 6
+
+    expect(world.get(c, Storage)!.amount).toBe(6);
+    expect(result.collected).toEqual([{ x: 1, z: 1, value: 6 }]); // the "+N" pop shows the rolled worth
   });
 
   it('collects a piece only once even if it touches several rig colliders', () => {

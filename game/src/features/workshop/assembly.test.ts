@@ -90,15 +90,15 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
   it('a rusty (tier-1) part resolves to exactly its base — the multiplier is an identity', () => {
     const w = setup();
     const shell = placeOnSlotAtTier(w, 'container-shell', 'rusty');
-    // base shell: weight 3 / capacity 3 (mult 1)
-    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 3, capacity: 3 });
+    // base shell: weight 3 / capacity 12 (mult 1)
+    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 3, capacity: 12 });
   });
 
   it('an iron part resolves up — base × 1.6, rounded', () => {
     const w = setup();
     const shell = placeOnSlotAtTier(w, 'container-shell', 'iron');
-    // base capacity 3 × 1.6 = 4.8 → 5; base weight 3 × 1.6 = 4.8 → 5
-    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 5, capacity: 5 });
+    // base capacity 12 × 1.6 = 19.2 → 19; base weight 3 × 1.6 = 4.8 → 5
+    expect(sumPartStats(w, [shell])).toMatchObject({ weight: 5, capacity: 19 });
   });
 
   it('a rusty-shell + iron-rim container is a valid mid-value between all-rusty and all-iron', () => {
@@ -114,13 +114,13 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
       spawnCatalogPart(w, partDef('container-rim')!, 'iron'),
     ]);
     const mixed = sumPartStats(w, [
-      spawnCatalogPart(w, partDef('container-shell')!, 'rusty'), // 3
-      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(1 × 1.6) = 2
+      spawnCatalogPart(w, partDef('container-shell')!, 'rusty'), // 12
+      spawnCatalogPart(w, partDef('container-rim')!, 'iron'),    // round(4 × 1.6) = 6
     ]);
 
-    expect(rusty.capacity).toBe(4);  // 3 + 1 — the tier-1 CONTAINER_CAPACITY
-    expect(iron.capacity).toBe(7);   // 5 + 2 — the jump that "iron holds more" is felt as (eased mult)
-    expect(mixed.capacity).toBe(5);  // 3 + 2 — strictly between, no special blending logic
+    expect(rusty.capacity).toBe(16); // 12 + 4 — the tier-1 CONTAINER_CAPACITY
+    expect(iron.capacity).toBe(25);  // 19 + 6 — the jump that "iron holds more" is felt as (eased mult)
+    expect(mixed.capacity).toBe(18); // 12 + 6 — strictly between, no special blending logic
     expect(rusty.capacity).toBeLessThan(mixed.capacity!);
     expect(mixed.capacity).toBeLessThan(iron.capacity!);
   });
@@ -132,8 +132,8 @@ describe('assembly — tiers scale resolved stats (the per-part additive axis)',
     placeOnSlotAtTier(w, 'container-rim', 'iron');
 
     const container = assemble(w, STORAGE_RECIPE)!;
-    expect(w.get(container, Storage)).toEqual({ amount: 0, capacity: 7 });
-    // The mixed/rusty baseline is CONTAINER_CAPACITY (4), so the iron one still clearly holds more.
+    expect(w.get(container, Storage)).toEqual({ amount: 0, capacity: 25 });
+    // The mixed/rusty baseline is CONTAINER_CAPACITY (16), so the iron one still clearly holds more.
     expect(w.get(container, Storage)!.capacity).toBeGreaterThan(CONTAINER_CAPACITY);
   });
 });

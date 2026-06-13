@@ -91,6 +91,12 @@ export const MODEL_ASSETS: Record<string, string> = {
   'debris-crate': '/assets/debris-crate.glb',
   'debris-heap': '/assets/debris-heap.glb',
   'camp-firepit': '/assets/camp-firepit.glb',
+
+  // ⛰ Terrain — the world's bounding wall as ONE continuous, noise-displaced ridge mesh (not tiled
+  // props): a jagged annular range that rings the playable disc, ramping to ground at the exit gaps.
+  // Placed once at the origin (the visual wall); an invisible collider ring does the blocking
+  // (features/terrain/mountain-ring). Scenery, not a part (no tier matrix).
+  'mountain-range': '/assets/mountain-range.glb',
 };
 
 /** Resolve an assetId to its URL, or `undefined` if it isn't registered. */

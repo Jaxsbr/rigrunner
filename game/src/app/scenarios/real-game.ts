@@ -2,7 +2,7 @@ import { World } from '@core/world';
 import { spawnRig } from '@features/mounting/rig';
 import { engineParts } from '@features/engine/engines';
 import { spawnWorkshop } from '@features/workshop/workshop';
-import { scatterScrap, spawnScrapPile } from '@features/scrap/scrap';
+import { scatterScrap, scatterScrapAround, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
 import { createPlayerStore } from '@features/economy/player-store';
 import { Bench, emptyBenchSlots } from '@features/workshop/bench';
@@ -14,6 +14,24 @@ import { mountPart } from '@features/mounting/mounting';
 import { markOwned, setActiveRig } from '@features/chassis/ownership';
 import { spawnCamp } from '@features/camps/camp-spawn';
 import { spawnWorldShop } from '@features/shop/world-shop-spawn';
+import { spawnMountainRing, type MountainGap } from '@features/terrain/mountain-ring';
+
+// The exit gaps cut into the bounding mountain ridge — the only drivable mouths out of the safe bowl.
+// Shared by the ring (which leaves them open) and the camps below (which guard them), so a gap and its
+// guards line up. Angle convention: 0 = +x, increasing counter-clockwise; angles match the gaps baked
+// into `mountain-range.glb`. `halfWidth` matches that baked flat-gap width, so the cleared collider
+// corridor lines up with the visual opening and blocks right where the ridge starts rising — a tight
+// ~9 m choke (point of feedback: the old gaps were far too wide).
+const EXIT_GAPS: MountainGap[] = [
+  { angle: 0, halfWidth: 0.075 },   // east — the main exit, guarded by a pair of camps at its mouth
+  { angle: 2.3, halfWidth: 0.075 }, // north-west — single-guarded
+  { angle: 4.2, halfWidth: 0.075 }, // south-west — the lightly-held escape (unguarded for now)
+];
+
+/** A point at (`angle`, `radius`) in world space — to line camps up with the gap mouth they guard. */
+function at(angle: number, radius: number): readonly [number, number] {
+  return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+}
 
 /**
  * The **real game** scenario — the world a player plays, launched by `npm run dev:game`. It is split at
@@ -26,9 +44,10 @@ import { spawnWorldShop } from '@features/shop/world-shop-spawn';
  *    wallet) — the stuff a save later carries. Only New Game runs it; Continue instead rebuilds that
  *    progress from the snapshot (`restoreSnapshot`).
  *
- * `seedRealGameWorld` (a brand-new game) is the two together. The cold-open is **provisional** —
- * Phase 1 of `real-world-and-progression-spec.md` crafts the designed opening in earnest. What
- * matters now is that the real game stands on its own, free of the sandbox's scaffolding.
+ * `seedRealGameWorld` (a brand-new game) is the two together. This is Phase 1's designed cold-open
+ * (`real-world-and-progression-spec.md`): a safe bowl walled by a ring of mountains, the home hub near
+ * its centre, a shop out at the rim, and the danger (camps) guarding the exits. Coordinates are tuned by
+ * play — the shape is what's fixed.
  */
 export function seedRealGameWorld(world: World): void {
   seedStaticWorld(world);
@@ -37,15 +56,22 @@ export function seedRealGameWorld(world: World): void {
 
 /** The fixed, non-progress scaffolding both New Game and Continue lay down first. */
 export function seedStaticWorld(world: World): void {
-  // The workshop — home base, a short drive up +Z from spawn. Park the rig in its proximity zone to
-  // open the workshop interface (build/assemble parts) and to drain full containers into the wallet.
+  // The workshop — home base, a short drive up +Z from spawn, near the centre of the bowl. Park the rig
+  // in its proximity zone to open the workshop interface (build/assemble parts) and drain full
+  // containers into the wallet. Buying is NOT here — that's the world shop, out at the rim.
   spawnWorkshop(world, 0, 8);
 
-  // The first (rusty) world shop — a short drive from home, the cold-open's first-purchase point (the
-  // Reclaimer is bought here, not at the workshop). Buying lives in the world now, not a workshop tab;
-  // this shop carries the full rusty stock so no buying capability was lost in the move. Higher-tier,
-  // partial-stock shops out in the danger come in later slices. Placed clear of the workshop's own zone.
-  spawnWorldShop(world, 9, 5);
+  // The one (rusty) world shop — out toward the bowl's southern rim, a real drive from home but still
+  // inside the safe zone (the danger is far past it, at the wall). Reaching it is the cold-open's first
+  // expedition; its Reclaimer entry answers the "Needs Reclaimer" the on-path pile planted. Shops are
+  // placed strategically (one for now); buying lives in the world, not a workshop tab.
+  spawnWorldShop(world, 36, -37);
+
+  // The bounding mountain range — the bowl wall: one continuous ridge mesh, walled by an invisible
+  // collider ring that blocks the way out save the three EXIT_GAPS. The camps at the gaps are what make
+  // leaving cost; the ridge draws the edge and funnels you to the mouths. Static scenery (deterministic),
+  // so New Game and Continue raise the same wall.
+  spawnMountainRing(world, EXIT_GAPS);
 
   // The assembly bench — a singleton: the role slots the workshop interface drops parts into while
   // composing the active recipe's output. Starts on the engine recipe, empty.
@@ -76,15 +102,32 @@ export function seedNewGameContent(world: World): void {
     placeProductInWorld(world, storage, rigT.x, rigT.z);
     mountPart(world, storage, player, 0, 0); // end deck cell
   }
-  // A modest loose-scrap field — the New-Game starter (not re-laid on Continue, so a reload can't farm
-  // it). A few rummageable piles and one reachable level-1 camp teach the spine: sweep scrap → buy a
-  // Reclaimer → work a pile → buy a weapon → clear the camp.
-  scatterScrap(world, 48, 5, 26);
-  for (const [x, z] of [[-10, 2], [12, -4], [6, -14]] as const) {
+  // Loose scrap — the New-Game starter field (not re-laid on Continue, so a reload can't farm it). A
+  // DENSE ring hugs the spawn so the very first movement sweeps a piece in (rung 0 self-teaches: "I
+  // collect by driving"), with a sparser scatter across the bowl beyond. Pieces are chunky + randomised
+  // (2–6 each), so a handful funds the first Reclaimer.
+  scatterScrapAround(world, rigT.x, rigT.z, 12, 4, 13); // the dense home ring
+  scatterScrap(world, 12, 16, 48);                      // the sparser field across the bowl
+
+  // Scrap piles. ONE sits on the path from spawn toward the shop — you pass it before you own a tool, so
+  // its LOCKED "Needs Reclaimer" cue plants the question the shop then answers. The rest are scattered to
+  // work once you've bought the Reclaimer. (No Reclaimer is given — buying it is the spine's first rung.)
+  spawnScrapPile(world, 12, -12); // on the spawn → shop path: the LOCKED teacher
+  for (const [x, z] of [[-26, 14], [22, 26], [-16, -32]] as const) {
     spawnScrapPile(world, x, z);
   }
-  spawnCamp(world, 26, 22, 1);
-  // The player store (wallet + inventory): a small starting stake; the inventory starts empty (every
-  // build sub-part is bought).
-  createPlayerStore(world, 100);
+
+  // Camps guard the exit gaps — the danger that makes leaving the bowl hard (no roaming enemies; the
+  // threat is concentrated at the mouths). A PAIR flanks the east gap close together (a level-1 and a
+  // tougher level-2, ~7 m apart — a contested choke you must clear to slip out); a single level-1 holds
+  // the north-west gap. All sit just inside the ridge, right in the gap corridor (`GUARD_R`), so the
+  // player meets them exactly where they'd leave.
+  const GUARD_R = 74;
+  spawnCamp(world, ...at(EXIT_GAPS[0]!.angle - 0.05, GUARD_R), 1); // east gap — left of the mouth
+  spawnCamp(world, ...at(EXIT_GAPS[0]!.angle + 0.05, GUARD_R), 2); // east gap — right of the mouth (tougher)
+  spawnCamp(world, ...at(EXIT_GAPS[1]!.angle, GUARD_R), 1);        // north-west gap
+
+  // The player store (wallet + inventory): starts BROKE, so collecting loose scrap is a required first
+  // step (rung 0) before the Reclaimer is affordable — the opening can't be skipped. Inventory empty.
+  createPlayerStore(world, 0);
 }

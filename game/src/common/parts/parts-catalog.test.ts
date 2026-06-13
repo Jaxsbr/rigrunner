@@ -26,9 +26,9 @@ describe('parts catalog', () => {
     expect(storage.every((p) => p.type === undefined)).toBe(true);
     expect(storage.map((p) => p.slot).sort()).toEqual(['rim', 'shell']);
     // Storage parts carry the `capacity` axis (Shell holds the bulk, Rim a little). A rusty (tier-1)
-    // container sums to 4 — the same CONTAINER_CAPACITY a directly-spawned one carries — so the tier
+    // container sums to 16 — the same CONTAINER_CAPACITY a directly-spawned one carries — so the tier
     // multiplier is what makes an iron container hold more. Other categories never carry capacity.
-    expect(storage.reduce((n, p) => n + (p.attributes.capacity ?? 0), 0)).toBe(4);
+    expect(storage.reduce((n, p) => n + (p.attributes.capacity ?? 0), 0)).toBe(16);
     expect(PARTS_CATALOG.filter((p) => p.category !== 'storage').every((p) => p.attributes.capacity === undefined)).toBe(true);
   });
 

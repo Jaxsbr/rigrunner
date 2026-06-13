@@ -2,6 +2,16 @@ import * as THREE from 'three';
 import { createGroundTexture } from './ground-texture';
 
 /**
+ * The textured playable floor is a finite DISC of radius `WORLD_RADIUS` centred on the origin; past
+ * its edge there is only the black void (the scene background) — the hand-authored map has an end, and
+ * the rig is held inside it by `worldBoundsSystem` (features/terrain). The disc reaches WELL beyond the
+ * bounding mountain ridge (whose feet are ~r117), so a clear band of worked ground shows past the peaks
+ * (the ridge emerges from the floor, the void is far behind it — not right at its back). Shared so the
+ * floor, the world-end clamp, and the ridge can't drift apart.
+ */
+export const WORLD_RADIUS = 145;
+
+/**
  * The stage: the scene, renderer, fixed lighting and ground that everything else draws into.
  * It owns the shared `scene` (collaborators add their meshes to it) and the WebGL surface, and
  * does the actual draw. It knows nothing about entities, the camera state, or game truth — it is
@@ -13,9 +23,9 @@ export class Stage {
   private readonly sun: THREE.DirectionalLight;
 
   constructor(canvas: HTMLCanvasElement) {
-    // A warm dusty-haze horizon, not a dead black void — the wasteland reaches past the ground plane
-    // rather than dropping into a pit at the edges.
-    this.scene.background = new THREE.Color(0x6a5942);
+    // The void beyond the map's edge: black. The world is a hand-authored finite disc (not procedurally
+    // endless), so past the worked ground there is nothing — a hard world-end the rig can't cross.
+    this.scene.background = new THREE.Color(0x000000);
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -59,7 +69,7 @@ export class Stage {
     // sandy base so loose scrap (grey/rust) reads against it. Near-matte: it catches the sun with a
     // faint sheen and receives the rig's and scrap's cast shadows.
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(80, 80),
+      new THREE.CircleGeometry(WORLD_RADIUS, 128),
       new THREE.MeshStandardMaterial({
         map: createGroundTexture(this.renderer.capabilities.getMaxAnisotropy()),
         roughness: 0.92,

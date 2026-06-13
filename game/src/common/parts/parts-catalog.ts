@@ -108,10 +108,10 @@ const PART_ATTRIBUTES: Record<string, PartAttributes> = {
   's-throttle': { power: 3, torque: 4, weight: 1, durability: 2, burst: 3 },
 
   // 📦 Storage — weight/durability AND `capacity` (the scrap the container holds). power/torque/burst
-  // stay 0 since a container does no engine work. A rusty (tier-1) container sums to capacity 4 — the
+  // stay 0 since a container does no engine work. A rusty (tier-1) container sums to capacity 16 — the
   // same CONTAINER_CAPACITY a directly-spawned one carries — and the tier multiplier makes iron hold more.
-  'container-shell': { power: 0, torque: 0, weight: 3, durability: 6, burst: 0, capacity: 3 },
-  'container-rim': { power: 0, torque: 0, weight: 1, durability: 3, burst: 0, capacity: 1 },
+  'container-shell': { power: 0, torque: 0, weight: 3, durability: 6, burst: 0, capacity: 12 },
+  'container-rim': { power: 0, torque: 0, weight: 1, durability: 3, burst: 0, capacity: 4 },
 
   // 🦾 Reclaimer — a heavy tool the drive must haul; its only stat in PR3 is the WEIGHT it adds. The
   // arm GLB is the articulated `reclaimer-arm` (the render layer parents the bucket onto its wrist

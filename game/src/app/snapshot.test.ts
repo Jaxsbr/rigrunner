@@ -73,10 +73,10 @@ describe('game snapshot round-trip', () => {
 
     const b = continueFrom(captureSnapshot(a));
 
-    // The world content: three piles still standing (one dug to 3), the camp, and the healed stump.
-    expect(b.query(ScrapPile).length).toBe(3);
+    // The world content: four piles still standing (one dug to 3), the three exit-guard camps, and the healed stump.
+    expect(b.query(ScrapPile).length).toBe(4);
     expect(b.query(ScrapPile).map((p) => b.get(p, ScrapPile)!.remaining)).toContain(3);
-    expect(b.query(Camp).length).toBe(1);
+    expect(b.query(Camp).length).toBe(3);
 
     const stumps = b.query(RestorableSite);
     expect(stumps.length).toBe(1);
@@ -177,7 +177,7 @@ describe('game snapshot round-trip', () => {
   });
 
   it('omits a fully-rummaged pile but keeps the stump it left', () => {
-    const a = seedRealGame(); // 3 piles
+    const a = seedRealGame(); // 4 piles
     // Empty one pile (the post-rummage state: depleted, mid-dissolve) — its stump already stands.
     const spent = a.query(ScrapPile)[0]!;
     const st = a.get(spent, Transform)!;
@@ -187,7 +187,7 @@ describe('game snapshot round-trip', () => {
 
     const b = continueFrom(captureSnapshot(a));
 
-    expect(b.query(ScrapPile).length).toBe(2);     // the spent heap is gone for good
+    expect(b.query(ScrapPile).length).toBe(3);     // the spent heap is gone for good (4 seeded − 1 emptied)
     expect(b.query(RestorableSite).length).toBe(1); // its stump survives, healable
   });
 
