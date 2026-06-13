@@ -1,11 +1,9 @@
 import { World } from '@core/world';
 import { spawnRig } from '@features/mounting/rig';
 import { engineParts } from '@features/engine/engines';
-import { spawnWorkshop } from '@features/workshop/workshop';
 import { scatterScrap, scatterScrapAround, spawnScrapPile } from '@features/scrap/scrap';
 import { Transform } from '@common/components/transform';
 import { createPlayerStore } from '@features/economy/player-store';
-import { Bench, emptyBenchSlots } from '@features/workshop/bench';
 import { ELECTRIC_ENGINE_RECIPE, STORAGE_RECIPE } from '@common/parts/recipes';
 import { partDef } from '@common/parts/parts-catalog';
 import { composeProduct } from '@common/sim/assembly';
@@ -13,19 +11,28 @@ import { placeProductInWorld } from '@features/workshop/assembly';
 import { mountPart } from '@features/mounting/mounting';
 import { markOwned, setActiveRig } from '@features/chassis/ownership';
 import { spawnCamp } from '@features/camps/camp-spawn';
-import { spawnWorldShop } from '@features/shop/world-shop-spawn';
-import { spawnMountainRing, type MountainGap } from '@features/terrain/mountain-ring';
+import { CollisionGrid, type CollisionMap } from '@features/terrain/collision-grid';
+import { setWorldGrid } from '@features/terrain/world-grid';
+import { seedStaticStructures } from './static-structures';
+import realGameMap from './maps/real-game.map.json';
 
-// The exit gaps cut into the bounding mountain ridge — the only drivable mouths out of the safe bowl.
-// Shared by the ring (which leaves them open) and the camps below (which guard them), so a gap and its
-// guards line up. Angle convention: 0 = +x, increasing counter-clockwise; angles match the gaps baked
-// into `mountain-range.glb`. `halfWidth` matches that baked flat-gap width, so the cleared collider
-// corridor lines up with the visual opening and blocks right where the ridge starts rising — a tight
-// ~9 m choke (point of feedback: the old gaps were far too wide).
-const EXIT_GAPS: MountainGap[] = [
-  { angle: 0, halfWidth: 0.075 },   // east — the main exit, guarded by a pair of camps at its mouth
-  { angle: 2.3, halfWidth: 0.075 }, // north-west — single-guarded
-  { angle: 4.2, halfWidth: 0.075 }, // south-west — the lightly-held escape (unguarded for now)
+/** A drivable mouth in the bounding ridge: the camps guarding it line up off `angle`. */
+interface ExitGap {
+  /** Gap centre angle (radians; 0 = +x, increasing counter-clockwise — the mapping the camps use). */
+  angle: number;
+  /** The baked gap-mouth half-width (radians) — documents the opening the camps flank; a tight ~9 m choke. */
+  halfWidth: number;
+}
+
+// The exit gaps cut into the bounding mountain ridge — the only drivable mouths out of the safe bowl. The
+// camps below guard them, lining up off these angles. These are the gaps' WORLD-SPACE centre angles,
+// measured from the baked collision footprint — NOT the authoring angles in `mountain_range.py`: the
+// GLB's `export_yup` negates the Blender angle (world ≈ 2π − authored), so a gap authored at 2.3 rad
+// surfaces in-world at ≈3.98. Angle convention: 0 = +x, counter-clockwise.
+export const EXIT_GAPS: ExitGap[] = [
+  { angle: 0, halfWidth: 0.075 },     // east — the main exit, guarded by a pair of camps at its mouth
+  { angle: 2.083, halfWidth: 0.075 }, // single-guarded
+  { angle: 3.983, halfWidth: 0.075 }, // the lightly-held escape (unguarded for now)
 ];
 
 /** A point at (`angle`, `radius`) in world space — to line camps up with the gap mouth they guard. */
@@ -56,30 +63,14 @@ export function seedRealGameWorld(world: World): void {
 
 /** The fixed, non-progress scaffolding both New Game and Continue lay down first. */
 export function seedStaticWorld(world: World): void {
-  // The workshop — home base, a short drive up +Z from spawn, near the centre of the bowl. Park the rig
-  // in its proximity zone to open the workshop interface (build/assemble parts) and drain full
-  // containers into the wallet. Buying is NOT here — that's the world shop, out at the rim.
-  spawnWorkshop(world, 0, 8);
+  // The map-free structures (workshop, world shop, mountain mesh, bench) — shared with the editor.
+  seedStaticStructures(world);
 
-  // The one (rusty) world shop — out toward the bowl's southern rim, a real drive from home but still
-  // inside the safe zone (the danger is far past it, at the wall). Reaching it is the cold-open's first
-  // expedition; its Reclaimer entry answers the "Needs Reclaimer" the on-path pile planted. Shops are
-  // placed strategically (one for now); buying lives in the world, not a workshop tab.
-  spawnWorldShop(world, 36, -37);
-
-  // The bounding mountain range — the bowl wall: one continuous ridge mesh, walled by an invisible
-  // collider ring that blocks the way out save the three EXIT_GAPS. The camps at the gaps are what make
-  // leaving cost; the ridge draws the edge and funnels you to the mouths. Static scenery (deterministic),
-  // so New Game and Continue raise the same wall.
-  spawnMountainRing(world, EXIT_GAPS);
-
-  // The assembly bench — a singleton: the role slots the workshop interface drops parts into while
-  // composing the active recipe's output. Starts on the engine recipe, empty.
-  const bench = world.createEntity();
-  world.add(bench, Bench, {
-    recipeId: ELECTRIC_ENGINE_RECIPE.id,
-    slots: emptyBenchSlots(ELECTRIC_ENGINE_RECIPE.slots.map((s) => s.slot)),
-  });
+  // The static collision grid — the committed map authored in the editor (`app/editor`). It walls the rig
+  // and the camp guards alike off the painted ridge. Static scenery (deterministic), so New Game and
+  // Continue raise the same wall; it is NOT part of the save. The game loads it from the bundled map; the
+  // editor reads/writes the same file fresh over the dev endpoint (so it never sees a stale copy).
+  setWorldGrid(world, CollisionGrid.fromMap(realGameMap as CollisionMap));
 }
 
 /** The starting progress a New Game begins with — everything the save would later carry. */

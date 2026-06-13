@@ -1,12 +1,13 @@
 # RIGRUNNER — Map editor & painted collision (spec)
 
 **What this is:** the design + plan for an in-game **map editor** in which the world's **static
-collision is painted by hand** onto a grid (rather than approximated by primitive colliders), plus the
+collision is painted by hand** onto a grid (LEFT-drag paints, RIGHT erases, with a visible brush-tip
+cursor and on-demand brush size) — rather than approximated by primitive colliders — plus the
 **decoration placement** that the same editor grows into. It replaces the circle-collider ring that
-currently walls the Phase 1 bowl — a smooth primitive can't trace the authored mountain silhouette, so
-it's wrong in both directions at once (see "Why this exists"). The painted grid *is* the silhouette, so
-the gaps are exactly drivable and the rock is exactly solid, and the same query blocks the rig **and**
-enemies uniformly.
+walls the Phase 1 bowl — a smooth primitive can't trace the authored mountain silhouette, so it's wrong
+in both directions at once (see "Why this exists"). The painted grid *is* the silhouette, so the gaps are
+exactly drivable and the rock is exactly solid, and the same query blocks the rig **and** enemies
+uniformly.
 
 > **Status:** 🟡 **Specced, not built** — the committed follow-up to PR #76 (Phase 1 cold-open). Phase 1
 > lands with the interim circle-collider ring documented as a known limitation
@@ -49,11 +50,14 @@ blocking** — the hand-authored map silhouette (mountains now; walls, shop foot
 
 ## The decision (committed direction)
 
-1. **Static world collision is a painted occupancy grid**, not primitive colliders. A coarse 2D raster
-   over the world disc; each cell is *blocked* or *clear*. Movement = "you may not enter a blocked cell."
-2. **The grid is authored in an in-game editor** — a launch mode of the game itself, not a separate app.
-   It rides the real game world (stage, camera, asset registry) with a painting overlay. Brush cells
-   on/off; the gap is the cells you leave unpainted; the rock edge is where you stop painting.
+1. **Static world collision is a painted occupancy grid**, not primitive colliders. A 2D raster over the
+   world disc; each cell is *blocked* or *clear*. Movement = "you may not enter a blocked cell."
+2. **The grid is painted directly in an in-game editor** — a launch mode of the game itself, not a
+   separate app (it rides the real game world: stage, camera, asset registry). LEFT-drag paints rock,
+   RIGHT erases; a cell-snapped brush-tip square shows the exact cells that will paint, and the brush
+   size is set on demand (size 1 = a single cell). (A vector-spline authoring layer was tried and dropped
+   — it just re-rasterised into the same
+   cells, adding indirection without real precision, and was less direct to use than the brush.)
 3. **The same grid blocks the rig and enemies**, via one query in their shared movement path — so
    "enemies pass through" dissolves for free.
 4. **The editor grows into a decoration tool** (Phase B): the same place-and-serialize machinery, with an
@@ -67,7 +71,7 @@ blocking** — the hand-authored map silhouette (mountains now; walls, shop foot
 A single **versioned, hand-authored map document**, loaded by the real-game scenario at seed time and
 written by the editor. JSON, committed to the repo (it's authored content, like an asset). It carries:
 
-- a **collision raster** (Phase A), and
+- the **collision raster** (`blocked`) — the painted grid the game loads (Phase A), and
 - a **decoration instance list** (Phase B).
 
 Location: `game/src/app/scenarios/maps/<name>.map.json` (next to the scenario that loads it). One map
@@ -78,12 +82,12 @@ A 2-D occupancy grid covering the playable disc:
 
 - **Extent:** a square that bounds the world disc — `[-WORLD_RADIUS, +WORLD_RADIUS]` on x and z
   (`WORLD_RADIUS = 145`, from `stage.ts`).
-- **Cell size:** a build-time dial, target **~2 world units/cell** → a ~145×145 grid (~21k cells). Fine
-  enough to trace the ridge's irregular foot and a ~6-unit gap mouth cleanly; coarse enough to paint fast
-  and query trivially.
-- **Storage:** a flat `Uint8Array` (1 = blocked). Serialized compactly in the JSON — **base64 of the
-  raw bytes**, or run-length — with `width`, `height`, `cellSize`, `originX/originZ` alongside so the
-  loader needs no magic constants. Tens of kB; negligible.
+- **Cell size:** a build-time dial, **0.5 world units/cell** → a 580×580 grid (~336k cells). Fine enough
+  to hand-trace detail and smooth, thin collision lines (a coarser ~2-u grid only paints blocky 2-unit
+  squares — too chunky to draw with); still cheap to paint and query.
+- **Storage:** in memory a flat `Uint8Array` (1 = blocked, one byte/cell, fast to read + paint). On the
+  wire **BIT-PACKED** (8 cells/byte) and base64'd — so even the fine grid is ~55 kB, not ~450 kB — with
+  `width`, `height`, `cellSize`, `originX/originZ` alongside so the loader needs no magic constants.
 - **World ↔ cell mapping** (the only math): `col = floor((x - originX) / cellSize)`,
   `row = floor((z - originZ) / cellSize)`; a cell's centre maps back the same way. Out-of-grid = blocked
   (that subsumes the world-end clamp — see below).
@@ -131,21 +135,24 @@ walls/edges) move to the grid.
   `?editor` flag. It must reuse the game's stage, camera, world, and asset registry — so it lives in the
   **game** (`features/map` + an `app/` editor bootstrap), **not** a sibling app (reaching across apps
   would break the clean-separation rule; the editor needs full game context).
-- **View:** a top-down (or steep-angled) camera over the map, with the real ground + mountain mesh
-  visible underneath so you paint *against the art*.
-- **Paint:** brush to set/clear blocked cells; adjustable brush size; an eraser. A translucent **red wash
-  over blocked cells** + an optional grid overlay shows the collision as you paint (reuse the spirit of
-  the existing collision-debug overlay).
-- **Save/load — the one real design question.** A browser can't write the repo directly. Options, in
-  preference order:
-  1. **Dev-server write endpoint** (recommended): a small Vite dev-middleware plugin that accepts a
-     `POST` of the map JSON and writes it to `…/maps/<name>.map.json`. Dev-only; one "Save" button, no
-     manual file shuffling. Cleanest authoring loop.
-  2. **Download + commit:** the editor offers the JSON as a file download; Jaco drops it into the repo.
-     Zero server code, clunkier loop.
-  3. **localStorage for iteration + an Export button** for the canonical save. Good for fast trial; still
-     needs (1) or (2) to land.
-  The painted map then becomes the seed the **real game** loads.
+- **View:** a top-down ORTHOGRAPHIC camera over the map (a `T` tilt toggle swings oblique to read the
+  art's relief), with the real ground + mountain mesh visible underneath so you paint *against the art*.
+- **Paint:** LEFT-drag paints blocked cells, RIGHT-drag erases; strokes interpolate along the drag so a
+  freehand line is continuous, not dotted. A cell-snapped **brush-tip square** on the ground shows the
+  exact cells the brush will paint and follows the cursor; the brush is an **N×N square** of cells, sized
+  on demand (`[ ]` or the toolbar) — **size 1 is a single cell**, the smallest mark you can place. A
+  translucent **red wash** over blocked cells shows the collision live as you paint.
+- **Save/load — a dev endpoint, both ways.** A Vite dev-middleware plugin (`apply: 'serve'`) handles
+  `GET /__map` (read the committed file fresh from disk) and `POST /__map` (write it); filenames are
+  basename-only, so it can only touch `maps/`. The editor **loads via GET and saves via POST — it never
+  imports the map as a bundled module.** That decoupling is load-bearing: if the editor imported the map,
+  saving it would trip Vite's HMR into a full reload (which aborts the Save fetch → "failed to fetch" and
+  wipes the session), and any naive watcher workaround leaves a stale cached map served until restart
+  (apparent data loss). Reading fresh from disk sidesteps both: Save persists with no reload, and a
+  re-opened editor always reflects the last Save. The **game** keeps the bundled import (a fresh game
+  process reads the file fresh); to keep the editor's module graph map-free, `main.ts` imports the
+  real-game scenario only in the game branch, and the structures the editor shares live in a map-free
+  `static-structures.ts`.
 
 ---
 
@@ -191,8 +198,8 @@ serialize/load spine.
 
 ## Open questions / dials
 
-- **Cell size** (~2 u): finer traces the gap mouth better but costs paint time + bytes. Tune in the
-  editor against the real ridge.
+- **Cell size** (0.5 u): finer hand-drawing vs paint/redraw cost + bytes. 0.5 draws smoothly; going
+  finer (0.25) quadruples the cells — re-bake the committed map if it changes.
 - **Mover sampling** — how many points around the collision radius to sample per step (centre-only
   corner-clips a wide rig; an 8-point ring is safe and still cheap).
 - **Save mechanism** — endpoint vs download vs localStorage (above); pick when Phase A starts.
