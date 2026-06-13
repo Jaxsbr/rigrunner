@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { createGroundTexture } from './ground-texture';
 
 /**
- * The textured playable floor is a `GROUND_SIZE`-square centred on the origin; past its edge the
- * scene background (the dusty horizon) takes over. The mountain ring that bounds the world is placed
- * off this — at the square's corner radius (`GROUND_SIZE/2 · √2`), see `features/terrain` — so the
- * worked ground sits inside a circle of peaks. Shared so the floor and that ring can't drift apart.
+ * The textured playable floor is a finite DISC of radius `WORLD_RADIUS` centred on the origin; past
+ * its edge there is only the black void (the scene background) — the hand-authored map has an end, and
+ * the rig is held inside it by `worldBoundsSystem` (features/terrain). The disc extends BEYOND the
+ * bounding mountain ridge (`MOUNTAIN_RING_RADIUS`, ~95), so worked ground shows under and past the
+ * peaks rather than dropping to void at them. Shared so the floor, the world-end clamp, and the ridge
+ * can't drift apart.
  */
-export const GROUND_SIZE = 160;
+export const WORLD_RADIUS = 128;
 
 /**
  * The stage: the scene, renderer, fixed lighting and ground that everything else draws into.
@@ -21,9 +23,9 @@ export class Stage {
   private readonly sun: THREE.DirectionalLight;
 
   constructor(canvas: HTMLCanvasElement) {
-    // A warm dusty-haze horizon, not a dead black void — the wasteland reaches past the ground plane
-    // rather than dropping into a pit at the edges.
-    this.scene.background = new THREE.Color(0x6a5942);
+    // The void beyond the map's edge: black. The world is a hand-authored finite disc (not procedurally
+    // endless), so past the worked ground there is nothing — a hard world-end the rig can't cross.
+    this.scene.background = new THREE.Color(0x000000);
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -67,7 +69,7 @@ export class Stage {
     // sandy base so loose scrap (grey/rust) reads against it. Near-matte: it catches the sun with a
     // faint sheen and receives the rig's and scrap's cast shadows.
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE),
+      new THREE.CircleGeometry(WORLD_RADIUS, 128),
       new THREE.MeshStandardMaterial({
         map: createGroundTexture(this.renderer.capabilities.getMaxAnisotropy()),
         roughness: 0.92,

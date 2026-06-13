@@ -16,20 +16,21 @@ import { spawnCamp } from '@features/camps/camp-spawn';
 import { spawnWorldShop } from '@features/shop/world-shop-spawn';
 import { spawnMountainRing, type MountainGap } from '@features/terrain/mountain-ring';
 
-// The exit gaps cut into the bounding mountain ring — the only drivable mouths out of the safe bowl.
+// The exit gaps cut into the bounding mountain ridge — the only drivable mouths out of the safe bowl.
 // Shared by the ring (which leaves them open) and the camps below (which guard them), so a gap and its
-// guards line up. Angle convention: 0 = +x, increasing counter-clockwise. Two are guarded in + outside
-// to make leaving costly; the third (south-west) is the lightly-held escape.
+// guards line up. Angle convention: 0 = +x, increasing counter-clockwise; angles match the gaps baked
+// into `mountain-range.glb`. `halfWidth` matches that baked flat-gap width, so the cleared collider
+// corridor lines up with the visual opening and blocks right where the ridge starts rising — a tight
+// ~9 m choke (point of feedback: the old gaps were far too wide).
 const EXIT_GAPS: MountainGap[] = [
-  { angle: 0, halfWidth: 0.22 },   // east — the main exit, double-guarded (a camp inside AND outside)
-  { angle: 2.3, halfWidth: 0.22 }, // north-west — single-guarded
-  { angle: 4.2, halfWidth: 0.22 }, // south-west — the lightly-held escape (unguarded for now)
+  { angle: 0, halfWidth: 0.075 },   // east — the main exit, guarded by a pair of camps at its mouth
+  { angle: 2.3, halfWidth: 0.075 }, // north-west — single-guarded
+  { angle: 4.2, halfWidth: 0.075 }, // south-west — the lightly-held escape (unguarded for now)
 ];
 
-/** A point at `radius` along an exit gap's angle — to line a camp up with the mouth it guards. */
-function onGap(gapIndex: number, radius: number): readonly [number, number] {
-  const a = EXIT_GAPS[gapIndex]!.angle;
-  return [Math.cos(a) * radius, Math.sin(a) * radius];
+/** A point at (`angle`, `radius`) in world space — to line camps up with the gap mouth they guard. */
+function at(angle: number, radius: number): readonly [number, number] {
+  return [Math.cos(angle) * radius, Math.sin(angle) * radius];
 }
 
 /**
@@ -66,11 +67,11 @@ export function seedStaticWorld(world: World): void {
   // placed strategically (one for now); buying lives in the world, not a workshop tab.
   spawnWorldShop(world, 36, -37);
 
-  // The bounding mountain ring — the bowl wall. The worked floor sits inside a circle of solid peaks
-  // that physically block the way out, save the three EXIT_GAPS. The danger beyond (camps at the gaps)
-  // is what makes leaving cost; the wall just draws the edge and funnels you to the mouths. Static
-  // scenery (placed deterministically), so New Game and Continue raise the same ring.
-  spawnMountainRing(world, { gaps: EXIT_GAPS });
+  // The bounding mountain range — the bowl wall: one continuous ridge mesh, walled by an invisible
+  // collider ring that blocks the way out save the three EXIT_GAPS. The camps at the gaps are what make
+  // leaving cost; the ridge draws the edge and funnels you to the mouths. Static scenery (deterministic),
+  // so New Game and Continue raise the same wall.
+  spawnMountainRing(world, EXIT_GAPS);
 
   // The assembly bench — a singleton: the role slots the workshop interface drops parts into while
   // composing the active recipe's output. Starts on the engine recipe, empty.
@@ -117,12 +118,14 @@ export function seedNewGameContent(world: World): void {
   }
 
   // Camps guard the exit gaps — the danger that makes leaving the bowl hard (no roaming enemies; the
-  // threat is concentrated at the mouths). The east gap is double-guarded (a level-1 camp just inside,
-  // a tougher level-2 just outside the wall); the north-west gap has a single level-1 camp. Each lines
-  // up with its gap (`onGap`) so the player meets guards exactly where they'd slip out.
-  spawnCamp(world, ...onGap(0, 96), 1);   // inside the east gap
-  spawnCamp(world, ...onGap(0, 124), 2);  // outside the east gap — the frontier step up
-  spawnCamp(world, ...onGap(1, 96), 1);   // inside the north-west gap
+  // threat is concentrated at the mouths). A PAIR flanks the east gap close together (a level-1 and a
+  // tougher level-2, ~7 m apart — a contested choke you must clear to slip out); a single level-1 holds
+  // the north-west gap. All sit just inside the ridge, right in the gap corridor (`GUARD_R`), so the
+  // player meets them exactly where they'd leave.
+  const GUARD_R = 74;
+  spawnCamp(world, ...at(EXIT_GAPS[0]!.angle - 0.05, GUARD_R), 1); // east gap — left of the mouth
+  spawnCamp(world, ...at(EXIT_GAPS[0]!.angle + 0.05, GUARD_R), 2); // east gap — right of the mouth (tougher)
+  spawnCamp(world, ...at(EXIT_GAPS[1]!.angle, GUARD_R), 1);        // north-west gap
 
   // The player store (wallet + inventory): starts BROKE, so collecting loose scrap is a required first
   // step (rung 0) before the Reclaimer is affordable — the opening can't be skipped. Inventory empty.

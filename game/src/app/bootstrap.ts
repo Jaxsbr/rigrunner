@@ -74,6 +74,7 @@ import { animateShopVents } from '@features/shop/shop-vent-animator';
 import { ShopStains } from '@features/shop/shop-stains';
 import { ShopGround } from '@features/shop/shop-ground';
 import { WorldShop } from '@features/shop/world-shop';
+import { worldBoundsSystem } from '@features/terrain/world-bounds';
 
 /** Per-launch configuration for the engine — what differs between the real game and the sandbox. */
 export interface BootCfg {
@@ -331,6 +332,9 @@ export function bootstrap(world: World, cfg: BootCfg = {}): void {
       // parts ride to their cells (so they follow the corrected position) and before the proximity gates
       // recompute against the rig's settled spot.
       collisionResponseSystem(world);
+      // Hold the rig inside the world-end (the floor disc's rim) after collision but before mounted
+      // parts ride to their cells, so they follow the clamped position.
+      worldBoundsSystem(world, activeRig);
       mountingSystem(world);
       // recompute each workshop's proximity gate (rig in range?) before the build interaction reads
       // it, so a part dropped this frame snaps onto the workshop only when it's lit.

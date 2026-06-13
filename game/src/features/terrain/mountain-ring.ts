@@ -1,52 +1,40 @@
 import type { World } from '@core/world';
-import type { EntityId } from '@core/types';
 import { Transform } from '@common/components/transform';
 import { Renderable } from '@common/components/renderable';
 import { Collider } from '@common/components/collider';
 import { Solid } from '@common/components/solid';
-import { GROUND_SIZE } from '@common/render/stage';
 
 /**
- * The bounding mountain ring — Phase 1's "bowl wall". The worked, textured floor sits inside a circle
- * of craggy peaks (the one `mountain` massif, tiled): rotated + scaled copies ring the ground and are
- * each Solid, so they physically block the way out — except at the EXIT GAPS, the only mouths out of
- * the bowl. The danger beyond (camps guarding the gaps) is what makes leaving cost.
+ * The bounding mountain range — Phase 1's "bowl wall". The worked floor disc sits inside a continuous
+ * ridge of peaks (the one `mountain-range` mesh): the rig is walled in, save the exit gaps.
  *
- * The radius is the textured floor's CORNER distance (`GROUND_SIZE/2 · √2`), so the square of worked
- * ground sits inside the ring with its corners touching the peaks — the wasteland reaches a hard edge.
+ * Visual and barrier are deliberately SEPARATE:
+ *  - the VISUAL is ONE continuous, noise-displaced ridge mesh placed once at the origin (so the range
+ *    reads as a connected wall, with no object-to-object seams — it is not a row of tiled props);
+ *  - the BARRIER is an invisible ring of Solid colliders along the ridge centreline, spaced to OVERLAP
+ *    into one unbroken wall, skipping only the gap arcs. Collision stays circle-based while the mesh
+ *    stays continuous, so the only place the rig can pass is a real, visible gap.
  *
- * Placement is DETERMINISTIC (a per-index hash, no RNG): this is static scenery seeded in
- * `seedStaticWorld`, which runs on BOTH New Game and Continue, so the ring MUST land identically every
- * load — a random ring would teleport between sessions (and could spawn a peak onto the parked rig).
+ * GEOMETRY CONTRACT: `MOUNTAIN_RING_RADIUS` and the caller's gap angles must match the values baked
+ * into `mountain-range.glb` (`tools/blender/assets/mountain_range.py`) — the visual ridge, this
+ * collider ring, and the camps that guard the gaps all line up off them.
  */
 
-/** The ring radius: the corner distance of the square textured floor, so the floor inscribes the ring. */
-export const MOUNTAIN_RING_RADIUS = (GROUND_SIZE / 2) * Math.SQRT2;
+/** The ridge centreline radius — matches `R_WALL` baked into `mountain-range.glb`. */
+export const MOUNTAIN_RING_RADIUS = 95;
 
-/** A drivable exit cut into the ring: no peak is placed within `halfWidth` of `angle` (radians). */
+/** A drivable exit cut into the ring: no collider sits within `halfWidth` of `angle` (radians). */
 export interface MountainGap {
   /** Gap centre angle (radians; 0 = +x, increasing counter-clockwise — the same mapping camps use). */
   angle: number;
-  /** Half the gap's angular width — the mouth spans `2·halfWidth` of clear arc. */
+  /** Half the gap's angular width — the cleared mouth between the flanking colliders. */
   halfWidth: number;
 }
 
-export interface MountainRingOpts {
-  radius?: number;
-  /** Peaks around the FULL ring before gaps are cut (spacing = circumference / count). */
-  count?: number;
-  gaps?: MountainGap[];
-}
-
-// The massif's blocking-core radius (its jagged footprint is wider) — scaled per instance. At the
-// default ~22 m spacing, neighbours' cores overlap into a continuous barrier, open only at the gaps.
-const BASE_COLLIDER = 10.5;
-
-/** A deterministic pseudo-random in [0, 1) from a real seed — varies a peak's look by its index, reproducibly. */
-function hash(n: number): number {
-  const s = Math.sin(n) * 43758.5453;
-  return s - Math.floor(s);
-}
+// The invisible blocker ring: enough colliders that neighbours overlap into a continuous wall, each
+// wide enough to seal the spacing. Tuned so the only openings are the gaps, not slots between bodies.
+const COLLIDER_COUNT = 44;
+const COLLIDER_RADIUS = 9;
 
 /** Smallest absolute angular distance between two angles (radians), in [0, π]. */
 function angularDistance(a: number, b: number): number {
@@ -55,26 +43,27 @@ function angularDistance(a: number, b: number): number {
 }
 
 /**
- * Ring the world with mountains, leaving the given gaps open. Each peak gets a reproducible yaw +
- * scale + radial nudge from its index so the copies read as a varied range, not a stamped circle.
- * Returns the spawned ids.
+ * Ring the world: place the continuous ridge mesh once at the origin, then lay the invisible Solid
+ * collider ring under it, leaving the given gaps open. Static scenery — seeded in `seedStaticWorld`,
+ * identical every load (fixed positions), so it carries no persisted state.
  */
-export function spawnMountainRing(world: World, opts: MountainRingOpts = {}): EntityId[] {
-  const radius = opts.radius ?? MOUNTAIN_RING_RADIUS;
-  const count = opts.count ?? 30;
-  const gaps = opts.gaps ?? [];
-  const ids: EntityId[] = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
+export function spawnMountainRing(world: World, gaps: MountainGap[] = []): void {
+  // The visual wall — one continuous mesh, no collider of its own.
+  const mesh = world.createEntity();
+  world.add(mesh, Transform, { x: 0, z: 0, rotationY: 0 });
+  world.add(mesh, Renderable, { shape: 'model', assetId: 'mountain-range' });
+
+  // The physical wall — an overlapping ring of invisible Solid colliders, skipping the gap arcs.
+  for (let i = 0; i < COLLIDER_COUNT; i++) {
+    const angle = (i / COLLIDER_COUNT) * Math.PI * 2;
     if (gaps.some((g) => angularDistance(angle, g.angle) < g.halfWidth)) continue; // a gap — leave it open
-    const r = radius + (hash(i * 3.7) - 0.5) * 10; // radial nudge so the ring isn't a clean circle
-    const scale = 0.8 + hash(i * 2.3) * 0.6;       // 0.8–1.4 — varied massif sizes
     const e = world.createEntity();
-    world.add(e, Transform, { x: Math.cos(angle) * r, z: Math.sin(angle) * r, rotationY: hash(i * 1.1) * Math.PI * 2 });
-    world.add(e, Renderable, { shape: 'model', assetId: 'mountain', scale });
-    world.add(e, Collider, { radius: BASE_COLLIDER * scale });
+    world.add(e, Transform, {
+      x: Math.cos(angle) * MOUNTAIN_RING_RADIUS,
+      z: Math.sin(angle) * MOUNTAIN_RING_RADIUS,
+      rotationY: 0,
+    });
+    world.add(e, Collider, { radius: COLLIDER_RADIUS });
     world.add(e, Solid, true);
-    ids.push(e);
   }
-  return ids;
 }
