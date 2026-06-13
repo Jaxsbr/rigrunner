@@ -51,6 +51,10 @@ export class OrthoControls {
     if (this.keys['w'] || this.keys['arrowup']) this.focus.z -= pan;
     if (this.keys['s'] || this.keys['arrowdown']) this.focus.z += pan;
 
+    // The orthographic zoom lives entirely in the frustum bounds, so re-derive them each frame — that's
+    // what makes a wheel change to `viewSize` actually take effect.
+    this.applyFrustum();
+
     if (this.tilted) {
       // Oblique: pulled back along +z and up, looking down at the focus — to read the art's relief.
       this.camera.up.set(0, 1, 0);
