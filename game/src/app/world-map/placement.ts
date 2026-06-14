@@ -81,8 +81,9 @@ export const PLACEMENT_KINDS: readonly PlacementKindDef[] = [
   { id: 'camp-1', label: 'Camp · Lv1', category: 'camp', persistence: 'progress', ghostAssetId: 'camp-cache', level: 1 },
   { id: 'camp-2', label: 'Camp · Lv2', category: 'camp', persistence: 'progress', ghostAssetId: 'camp-cache', level: 2 },
 
-  // ── Scrap piles (starting progress; a solid heap, so it bakes) ───────────────────────────────────
+  // ── Scrap (starting progress) — the solid rummageable HEAP (bakes) and a single LOOSE piece (driven over) ─
   { id: 'scrap-pile', label: 'Scrap pile', category: 'scrap', persistence: 'progress', ghostAssetId: 'scrap-pile-a', autoBake: true },
+  { id: 'loose-scrap', label: 'Loose scrap', category: 'scrap', persistence: 'progress', ghostAssetId: 'loose-scrap' },
 
   // ── Decoration props (drive-through scenery; never baked) ────────────────────────────────────────
   { id: 'yard-crate', label: 'Crate', category: 'decoration', persistence: 'static', ghostAssetId: 'yard-crate' },

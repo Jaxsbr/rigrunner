@@ -5,7 +5,7 @@ import { Renderable } from '@common/components/renderable';
 import { spawnWorkshop } from '@features/workshop/workshop';
 import { spawnWorldShop } from '@features/shop/world-shop-spawn';
 import { spawnCamp } from '@features/camps/camp-spawn';
-import { spawnScrapPile } from '@features/scrap/scrap';
+import { spawnScrap, spawnScrapPile } from '@features/scrap/scrap';
 import { placementKind, type Placement, type Persistence } from './placement';
 
 /**
@@ -40,7 +40,8 @@ function dispatch(world: World, p: Placement): void {
       spawnCamp(world, p.x, p.z, def.level ?? 1);
       return;
     case 'scrap':
-      spawnScrapPile(world, p.x, p.z, p.rotationY);
+      if (def.id === 'loose-scrap') spawnScrap(world, p.x, p.z, p.rotationY);
+      else spawnScrapPile(world, p.x, p.z, p.rotationY);
       return;
     case 'decoration':
       spawnDecoration(world, def.ghostAssetId, p.x, p.z, p.rotationY, def.ghostScale);

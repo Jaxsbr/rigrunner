@@ -6,6 +6,7 @@ import { WorkshopZone } from '@features/workshop/workshop-zone';
 import { WorldShop } from '@features/shop/world-shop';
 import { Camp } from '@features/camps/camp';
 import { ScrapPile } from '@features/scrap/scrap-pile';
+import { Collectible } from '@features/scrap/collectible';
 import { spawnPlacement, spawnPlacements } from './spawn-placements';
 import type { Placement } from './placement';
 
@@ -35,6 +36,14 @@ describe('spawnPlacement', () => {
     const camps = w.query(Camp);
     expect(camps).toHaveLength(1);
     expect(w.get(camps[0]!, Camp)!.level).toBe(2);
+  });
+
+  it('distinguishes a scrap pile (rummageable heap) from a loose scrap piece', () => {
+    const w = new World();
+    spawnPlacement(w, { kind: 'scrap-pile', x: 0, z: 0, rotationY: 0 });
+    spawnPlacement(w, { kind: 'loose-scrap', x: 5, z: 5, rotationY: 0 });
+    expect(w.query(ScrapPile)).toHaveLength(1);     // the heap
+    expect(w.query(Collectible)).toHaveLength(1);   // the loose piece
   });
 
   it('spawns a decoration placement as a plain drive-through model (no collider)', () => {

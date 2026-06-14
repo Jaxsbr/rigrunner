@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 
+// Wheel-zoom bounds (world half-height shown). MIN is tight enough to work individual cells / place a
+// single scrap piece precisely; MAX frames the whole ~290-across disc with margin.
+const MIN_VIEW = 4;
+const MAX_VIEW = 320;
+
 /**
  * The map editor's camera: a top-down ORTHOGRAPHIC view, so a cell maps to the same screen size edge to
  * edge (no perspective skew) — painting is precise everywhere, which is the whole point of the editor.
@@ -36,7 +41,7 @@ export class OrthoControls {
     });
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.viewSize = Math.min(320, Math.max(20, this.viewSize * (e.deltaY > 0 ? 1.1 : 0.9)));
+      this.viewSize = Math.min(MAX_VIEW, Math.max(MIN_VIEW, this.viewSize * (e.deltaY > 0 ? 1.1 : 0.9)));
     }, { passive: false });
 
     this.applyFrustum();
