@@ -9,15 +9,16 @@ in both directions at once (see "Why this exists"). The painted grid *is* the si
 exactly drivable and the rock is exactly solid, and the same query blocks the rig **and** enemies
 uniformly.
 
-> **Status:** 🟡 **Specced, not built** — the committed follow-up to PR #76 (Phase 1 cold-open). Phase 1
-> lands with the interim circle-collider ring documented as a known limitation
-> (`features/terrain/CLAUDE.md`); **this spec retires it.** Captured from the **2026-06-13** play session:
-> Jaco hit the circle ring's faults on camera (gaps partly walled, mesh bulges drive-through, enemies
-> pass through) and chose the **painted-collision editor** over more circle-tuning, explicitly so he can
-> *also* start hand-placing decorations around the shops. Phased: **Phase A** (grid collision + paint
-> editor) retires circles and fixes all three faults; **Phase B** (decoration placement) is the payoff.
-> Candidate/movable per "build by discovery" — cut each phase into a deliberately-minimum slice when
-> picked up.
+> **Status:** 🟢 **Built — both phases.** **Phase A** (painted collision grid + paint editor) shipped in
+> PR #77 and retired the circle-collider ring. **Phase B** (placement — the authored layout) shipped next:
+> the whole world layout (the workshop, the world shop, camps, scrap piles, decoration props) is now
+> AUTHORED as placements in the same map file and seeded from it, rather than hard-coded in the scenario.
+> Captured from the **2026-06-13** play session: Jaco hit the circle ring's faults on camera (gaps partly
+> walled, mesh bulges drive-through, enemies pass through) and chose the **painted-collision editor** over
+> more circle-tuning, explicitly so he can *also* start hand-placing structures and decorations. The Phase B
+> scope was locked in a follow-up grill: **everything** map-authored, **rotation on placement** (plus a
+> round-robin 8-wind auto-rotate), and **auto-bake the footprint into the collision grid on placement, then
+> hand-paint to fine-tune.**
 
 ---
 
@@ -92,10 +93,24 @@ A 2-D occupancy grid covering the playable disc:
   `row = floor((z - originZ) / cellSize)`; a cell's centre maps back the same way. Out-of-grid = blocked
   (that subsumes the world-end clamp — see below).
 
-### The decoration instances (Phase B)
-An array of `{ assetId, x, z, rotationY, scale }`, drawn from `shared/assets.ts`. Loaded as static
-`Renderable` entities at seed time (scenery: deterministic, no persisted state — same rule the mountain
-ring already follows).
+### The placements (Phase B)
+The authored layout: an array of `{ kind, x, z, rotationY }` (`app/world-map/placement.ts`). `kind` is a
+catalog id — a structure (`workshop`/`shop`), a camp (`camp-1`/`camp-2`, by level), a `scrap-pile`, or a
+decoration prop (`yard-*`/`tent`/`debris-*`/etc.). The catalog row carries the palette label, a ghost
+`assetId`, an `autoBake` flag (solid kinds bake a footprint; drive-through scenery doesn't), and a
+**persistence** class that decides how the game seeds it:
+
+- **`static`** (workshop, shop, decoration) — seeded by `seedStaticWorld` on New Game **and** Continue; not
+  part of the save, exactly like the mountain mesh.
+- **`progress`** (camps, scrap piles) — seeded by `seedNewGameContent` on New Game only, then saved/restored
+  by the snapshot. The map authors only the NEW-GAME seed; runtime mutations still own the save.
+
+Collision stays a **single authoritative `blocked` raster** — the exact bytes the editor saved. There is no
+second layer and no re-derivation on load: the editor shows precisely what was saved, the brush edits the
+grid directly (an erase sticks — even on a cell a footprint stamped), and a placed solid kind's footprint
+is stamped INTO the grid. To stay orphan-free, the editor tracks which cells each placement footprint
+stamped and clears exactly them on a move/delete (minus any another placement still owns) — never a
+whole-grid recompute, so hand edits elsewhere are never disturbed.
 
 ---
 
@@ -156,18 +171,35 @@ walls/edges) move to the grid.
 
 ---
 
-## Phase B — decoration placement (the payoff)
+## Phase B — placement (the authored layout) — BUILT
 
-Once paint-and-serialize exists, decoration is the same machinery one layer up:
+The same paint-and-serialize spine, one layer up: a second editor **mode** (toggle Paint ⇄ Place) that
+authors which structures/props/camps/piles seed the world and where. What shipped:
 
-- an **asset palette** from `shared/assets.ts`;
-- **click-to-place**, then move / rotate (`rotationY`) / scale a selected instance;
-- **serialize** the instance list into the same map file;
-- the game **loads + renders** them as static `Renderable` scenery at seed time.
+- **A palette** of every placeable kind (`PLACEMENT_KINDS`), grouped Structures / Camps / Scrap / Decoration.
+- **Click-to-place** at the cursor with a translucent model **ghost**; **click-select + drag** to move a
+  placement (and everything it spawned — a shop's yard, a camp's guards, rigidly); **Delete** to remove;
+  **`[` / `]`** to rotate the selection (or the next drop) by one 8-wind step.
+- **Round-robin 8-wind rotate** — a toggle that auto-advances the heading N→NE→E→SE→S→SW→W→NW on each
+  successive drop, so a row of props faces a different way each time without touching the keys.
+- **Auto-bake on placement** — a solid kind's mesh footprint is stamped into the one collision grid the
+  moment it's dropped (`bakeTemplateFootprint`, off the kind's GLB template), so it's solid immediately; the
+  paint brush then fine-tunes, and an **erase sticks** (the grid is authoritative — nothing recomputes over
+  it). Moving/deleting clears exactly the cells that placement stamped, so it **never orphans** a baked cell.
+- **The game loads + seeds** the placements at seed time (`spawnPlacements`, `app/world-map`), split by the
+  kind's persistence class (static on New Game + Continue, progress on New Game only).
 
-This is the "I could start decorating around the shops" goal. It is **out of scope for Phase A** —
-ship grid collision first (it's what unblocks playable Phase 1), then build placement on the proven
-serialize/load spine.
+**Where it lives:** the cross-feature catalog + dispatch are in `app/world-map/` (the composition root —
+only `app/` imports across features, ADR-003); the editor UI/controllers are in `app/editor/`.
+
+**"Bake from mesh" is destructive** — it replaces the painted collision with the raw mountain-mesh
+footprint — so it asks for confirmation first (it's the *initial seed*, not an everyday action; a stray
+click must never wipe hand-painted work).
+
+**Known limitations (deliberate first-slice cuts):** camps don't rotate their internal layout yet (the
+guard ring is radial; `rotationY` is recorded but not applied), and the mountain range is seeded in code,
+not placeable (it's the singleton the wall collision is baked from). Neither blocks the loop; each is a
+clean follow-up.
 
 ---
 

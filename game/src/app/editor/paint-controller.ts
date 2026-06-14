@@ -8,11 +8,16 @@ import type { BrushRect } from './brush-cursor';
  * the drag path so a freehand line is continuous, not dotted. The brush is a SQUARE of `brushSize` cells
  * per side — **size 1 is a single cell**, the smallest mark you can place — set on demand ([ ] keys or the
  * toolbar). Its footprint is shown live by the brush-tip cursor, snapped to the exact cells it will paint.
+ *
+ * The brush edits the one authoritative collision grid directly — an erase clears a cell for good, even a
+ * cell a placement footprint stamped, because nothing recomputes over the grid. It only responds while its
+ * mode is active, so it never fights the place tool over the same click (`setActive`).
  */
 export class PaintController {
   private brushSize = 1; // square side in cells; 1 = a single cell
   private painting = false;
   private erasing = false;
+  private active = true;
   private last: { x: number; z: number } | null = null;
 
   constructor(
@@ -26,6 +31,7 @@ export class PaintController {
   ) {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // right-drag erases, no menu
     canvas.addEventListener('pointerdown', (e) => {
+      if (!this.active) return;
       if (e.button === 0) this.painting = true;
       else if (e.button === 2) this.erasing = true;
       else return;
@@ -34,6 +40,7 @@ export class PaintController {
       this.stroke(e.clientX, e.clientY);
     });
     canvas.addEventListener('pointermove', (e) => {
+      if (!this.active) return;
       this.moveCursor(e.clientX, e.clientY);
       if (this.painting || this.erasing) this.stroke(e.clientX, e.clientY);
     });
@@ -44,9 +51,21 @@ export class PaintController {
     });
     canvas.addEventListener('pointerleave', () => this.onCursor(null));
     window.addEventListener('keydown', (e) => {
+      if (!this.active) return;
       if (e.key === '[') this.setBrush(this.brushSize - 1);
       else if (e.key === ']') this.setBrush(this.brushSize + 1);
     });
+  }
+
+  /** Enter/leave paint mode. Leaving hides the brush cursor and ends any stroke in progress. */
+  setActive(active: boolean): void {
+    this.active = active;
+    if (!active) {
+      this.painting = false;
+      this.erasing = false;
+      this.last = null;
+      this.onCursor(null);
+    }
   }
 
   get brushRadius(): number {
