@@ -125,17 +125,17 @@ export class PlaceController {
   }
 
   private onPointerUp(e: PointerEvent): void {
-    if (e.button !== 0 || !this.dragging) return;
+    if (e.button !== 0 || !this.dragging || !this.selected) return;
     this.dragging = false;
     this.dragLast = null;
-    void this.store.recompute(); // finalise the moved placement's footprint
+    void this.store.commitMove(this.selected); // re-bake the moved placement's footprint at its new spot
   }
 
   private onKeyDown(e: KeyboardEvent): void {
     if (!this.active) return;
     if (e.key === '[' || e.key === ']') {
       this.rotation = e.key === ']' ? nextWind(this.rotation) : snapWind(this.rotation - WIND_STEP);
-      if (this.selected) this.store.setRotation(this.selected, this.rotation);
+      if (this.selected) void this.store.setRotation(this.selected, this.rotation);
       this.updateGhostRotation();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       if (!this.selected) return;

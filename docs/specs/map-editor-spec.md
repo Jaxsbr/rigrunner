@@ -105,9 +105,12 @@ decoration prop (`yard-*`/`tent`/`debris-*`/etc.). The catalog row carries the p
 - **`progress`** (camps, scrap piles) — seeded by `seedNewGameContent` on New Game only, then saved/restored
   by the snapshot. The map authors only the NEW-GAME seed; runtime mutations still own the save.
 
-The map also carries an optional **`baseBlocked`** raster — the editor's hand-painted collision layer
-*without* placement footprints. The game ignores it and loads `blocked` (= base ∪ footprints); the editor
-reads it back so a moved/removed placement re-unions cleanly and never orphans a baked cell.
+Collision stays a **single authoritative `blocked` raster** — the exact bytes the editor saved. There is no
+second layer and no re-derivation on load: the editor shows precisely what was saved, the brush edits the
+grid directly (an erase sticks — even on a cell a footprint stamped), and a placed solid kind's footprint
+is stamped INTO the grid. To stay orphan-free, the editor tracks which cells each placement footprint
+stamped and clears exactly them on a move/delete (minus any another placement still owns) — never a
+whole-grid recompute, so hand edits elsewhere are never disturbed.
 
 ---
 
@@ -179,21 +182,24 @@ authors which structures/props/camps/piles seed the world and where. What shippe
   **`[` / `]`** to rotate the selection (or the next drop) by one 8-wind step.
 - **Round-robin 8-wind rotate** — a toggle that auto-advances the heading N→NE→E→SE→S→SW→W→NW on each
   successive drop, so a row of props faces a different way each time without touching the keys.
-- **Auto-bake on placement** — a solid kind's mesh footprint bakes into the collision grid the moment it's
-  dropped/moved (`bakeTemplateFootprint`, off the kind's GLB template), so it's solid immediately; the paint
-  brush then fine-tunes. Collision is two layers — `base` (hand-painted) and `effective = base ∪ footprints`
-  — recomputed from scratch on every layout change, so a move/delete can **never orphan** a baked cell.
+- **Auto-bake on placement** — a solid kind's mesh footprint is stamped into the one collision grid the
+  moment it's dropped (`bakeTemplateFootprint`, off the kind's GLB template), so it's solid immediately; the
+  paint brush then fine-tunes, and an **erase sticks** (the grid is authoritative — nothing recomputes over
+  it). Moving/deleting clears exactly the cells that placement stamped, so it **never orphans** a baked cell.
 - **The game loads + seeds** the placements at seed time (`spawnPlacements`, `app/world-map`), split by the
   kind's persistence class (static on New Game + Continue, progress on New Game only).
 
 **Where it lives:** the cross-feature catalog + dispatch are in `app/world-map/` (the composition root —
 only `app/` imports across features, ADR-003); the editor UI/controllers are in `app/editor/`.
 
+**"Bake from mesh" is destructive** — it replaces the painted collision with the raw mountain-mesh
+footprint — so it asks for confirmation first (it's the *initial seed*, not an everyday action; a stray
+click must never wipe hand-painted work).
+
 **Known limitations (deliberate first-slice cuts):** camps don't rotate their internal layout yet (the
-guard ring is radial; `rotationY` is recorded but not applied); the mountain range is seeded in code, not
-placeable (it's the singleton the wall collision is baked from); and a placement's auto-baked footprint
-can't be hand-*erased* (paint adds to the base, which the footprint unions over) — shrink by deleting the
-placement, not the cells. None block the loop; each is a clean follow-up.
+guard ring is radial; `rotationY` is recorded but not applied), and the mountain range is seeded in code,
+not placeable (it's the singleton the wall collision is baked from). Neither blocks the loop; each is a
+clean follow-up.
 
 ---
 

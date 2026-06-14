@@ -50,14 +50,13 @@ describe('WorldMap round-trip', () => {
       { kind: 'workshop', x: 1, z: 2, rotationY: 0 },
       { kind: 'shop', x: 3, z: 4, rotationY: WIND_STEP },
     ];
-    const doc: WorldMap = { ...grid.toMap(), baseBlocked: grid.toMap().blocked, placements };
+    const doc: WorldMap = { ...grid.toMap(), placements };
 
     const json = JSON.parse(JSON.stringify(doc)) as WorldMap;
 
-    // The collision raster still loads as a plain CollisionMap (the game's read path is unchanged).
+    // The collision raster still loads as a plain CollisionMap (the game's read path is unchanged)…
     expect(CollisionGrid.fromMap(json).isBlocked(-14.5, -14.5)).toBe(true);
-    // …and the authored layers ride alongside it.
+    // …and the authored layout rides alongside it, byte-for-byte.
     expect(json.placements).toEqual(placements);
-    expect(json.baseBlocked).toBe(doc.baseBlocked);
   });
 });

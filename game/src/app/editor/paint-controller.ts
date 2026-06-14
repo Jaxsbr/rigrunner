@@ -9,10 +9,9 @@ import type { BrushRect } from './brush-cursor';
  * per side — **size 1 is a single cell**, the smallest mark you can place — set on demand ([ ] keys or the
  * toolbar). Its footprint is shown live by the brush-tip cursor, snapped to the exact cells it will paint.
  *
- * Two-grid paint: strokes edit `grid` (the EFFECTIVE collision shown by the wash) and, when a `base` grid
- * is given, mirror into it. `base` is the editor's persistent hand-painted layer — placement footprints
- * are unioned on top of it, so a stroke that lands in `base` survives the next recompute. The brush only
- * responds while its mode is active, so it never fights the place tool over the same click (`setActive`).
+ * The brush edits the one authoritative collision grid directly — an erase clears a cell for good, even a
+ * cell a placement footprint stamped, because nothing recomputes over the grid. It only responds while its
+ * mode is active, so it never fights the place tool over the same click (`setActive`).
  */
 export class PaintController {
   private brushSize = 1; // square side in cells; 1 = a single cell
@@ -29,8 +28,6 @@ export class PaintController {
     /** Show the brush footprint: the cell-snapped rect under the cursor (or null when off-canvas). */
     private readonly onCursor: (rect: BrushRect | null) => void,
     private readonly onChange: () => void = () => {},
-    /** The persistent hand-painted base layer to mirror strokes into (omitted = single-grid paint). */
-    private readonly base?: CollisionGrid,
   ) {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // right-drag erases, no menu
     canvas.addEventListener('pointerdown', (e) => {
@@ -119,14 +116,11 @@ export class PaintController {
     this.overlay.redraw();
   }
 
-  /** Paint (or erase) a square of cells centred on a ground point — into the effective grid and the base. */
+  /** Paint (or erase) a square of cells centred on a ground point. */
   private stamp(x: number, z: number, blocked: boolean): void {
     const r = this.cells(x, z);
     for (let row = r.minRow; row <= r.maxRow; row++) {
-      for (let col = r.minCol; col <= r.maxCol; col++) {
-        this.grid.setBlocked(col, row, blocked);
-        this.base?.setBlocked(col, row, blocked);
-      }
+      for (let col = r.minCol; col <= r.maxCol; col++) this.grid.setBlocked(col, row, blocked);
     }
   }
 }

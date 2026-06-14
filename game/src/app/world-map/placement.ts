@@ -22,17 +22,14 @@ export interface Placement {
 }
 
 /**
- * The committed world-map document: the collision raster the GAME loads, plus two editor-authored layers.
- * It is a superset of `CollisionMap`, so `CollisionGrid.fromMap(worldMap)` still loads the wall unchanged.
+ * The committed world-map document: the collision raster the GAME loads, plus the authored layout. It is
+ * a superset of `CollisionMap`, so `CollisionGrid.fromMap(worldMap)` loads the wall unchanged.
+ *
+ * `blocked` is the single source of truth for collision — the exact bytes the editor saved. The editor
+ * loads it verbatim (no re-derivation), the brush edits it directly, and a placed structure's auto-baked
+ * footprint is stamped INTO it; so what you see in the editor is what the game loads, always.
  */
 export interface WorldMap extends CollisionMap {
-  /**
-   * Bit-packed hand-painted collision — the editor's editable BASE layer, WITHOUT any placement
-   * footprints (same packing as `blocked`). The editor recomputes `blocked = base ∪ placement footprints`
-   * so moving/removing a placement never orphans baked cells; the game ignores this field and loads the
-   * already-unioned `blocked`. Absent on legacy maps (the editor then seeds the base from `blocked`).
-   */
-  baseBlocked?: string;
   /** The authored layout — every structure/prop/camp/pile the world seeds, by kind + transform. */
   placements?: Placement[];
 }

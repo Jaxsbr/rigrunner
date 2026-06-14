@@ -8,7 +8,7 @@ editor (`app/editor`), read by the scenario at seed time. See [`docs/specs/map-e
 What's here:
 
 - **`placement.ts`** — pure DATA: the `Placement {kind,x,z,rotationY}` record, the `WorldMap` document type
-  (a superset of `CollisionMap` adding `baseBlocked` + `placements`), the `PLACEMENT_KINDS` catalog (label,
+  (a superset of `CollisionMap` adding `placements`), the `PLACEMENT_KINDS` catalog (label,
   category, **persistence** static|progress, ghost `assetId`, `autoBake`, camp `level`), and the 8-wind
   rotation helpers (`nextWind`/`snapWind`). It imports NO feature spawners — both the editor and the
   scenario read the catalog without pulling every feature into their graph.

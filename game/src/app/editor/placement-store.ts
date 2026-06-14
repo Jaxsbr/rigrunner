@@ -7,46 +7,49 @@ import { spawnPlacement } from '../world-map/spawn-placements';
 import { placementKind, type Placement } from '../world-map/placement';
 import { bakeTemplateFootprint } from './mesh-bake';
 
-/** A placed kind and every entity it spawned (a composite makes several — a shop + its yard, a camp + guards). */
+/** A placed kind, every entity it spawned, and the grid cells its footprint blocked (for clean un-bake). */
 export interface PlacementRecord {
   placement: Placement;
   entities: EntityId[];
+  /** Cell indices this placement's auto-baked footprint set, so a move/delete clears exactly them. */
+  stamped: Set<number>;
 }
 
 /**
- * The editor's authored-layout model: the live list of placements, the entities each one spawned (for
- * select / move / delete), and the collision bake that keeps the wall grid honest as the layout changes.
+ * The editor's authored-layout model over ONE authoritative collision grid.
  *
- * Collision uses TWO grids of identical geometry:
- *  - `base`     — the hand-painted layer (the mountain + brush touch-ups). The paint tool edits this.
- *  - `effective`— what the game loads and the wash shows: `base ∪ (footprints of every autoBake kind)`.
+ * The grid is the single source of truth — the exact `blocked` bytes loaded from disk and saved back. The
+ * brush edits it directly; a placed solid kind's footprint is STAMPED into it once. There is deliberately
+ * no second layer and no re-derivation: opening a map shows precisely what was saved, and a hand edit
+ * (including an erase that trims an over-baked footprint) sticks, because nothing recomputes over it.
  *
- * `recompute` rebuilds `effective` from scratch on every layout change, so moving or deleting a placement
- * can never leave an orphaned blocked cell — the old footprint simply isn't in the new union. Footprints
- * are baked from each placement's GLB template (loaded here, independent of the render), so the bake never
- * waits on the entity being drawn. The save writes `effective` as `blocked` and `base` as `baseBlocked`,
- * so a re-opened editor reconstructs the same two layers (see `editor.ts`).
+ * Moving or deleting a placement stays orphan-free by tracking the cells each footprint stamped and
+ * clearing exactly them (minus any another placement still owns) — no whole-grid recompute, so hand edits
+ * elsewhere are never touched. Footprints are baked from each kind's GLB template (loaded here), so the
+ * bake never waits on the entity being drawn.
  */
 export class PlacementStore {
   private readonly records: PlacementRecord[] = [];
   private readonly models = new ModelLoader();
-  private version = 0; // bumped per recompute so a stale async bake can detect it was superseded
 
   constructor(
     private readonly world: World,
-    private readonly base: CollisionGrid,
-    private readonly effective: CollisionGrid,
-    /** Called after a recompute updates `effective` — wired to the wash redraw. */
+    private readonly grid: CollisionGrid,
+    /** Called after the grid changes — wired to the wash redraw. */
     private readonly onChanged: () => void,
   ) {}
 
-  /** Seed the editor from the map's authored placements (all persistence classes — it shows everything). */
+  /**
+   * Seed the editor from the map's authored placements. The grid already carries their saved footprints,
+   * so this does NOT re-stamp (load stays faithful to `blocked`); it only RECORDS each footprint's cells
+   * so a later move/delete can clear exactly them.
+   */
   load(placements: readonly Placement[]): void {
     for (const p of placements) {
-      const placement = { ...p };
-      this.records.push({ placement, entities: spawnPlacement(this.world, placement) });
+      const rec: PlacementRecord = { placement: { ...p }, entities: spawnPlacement(this.world, { ...p }), stamped: new Set() };
+      this.records.push(rec);
+      void this.footprintCells(rec).then((cells) => { rec.stamped = cells; });
     }
-    void this.recompute();
   }
 
   get all(): readonly PlacementRecord[] {
@@ -58,16 +61,15 @@ export class PlacementStore {
     return this.records.map((r) => ({ ...r.placement }));
   }
 
-  /** Drop a new placement of `kind` at (x,z) facing `rotationY`; returns its record. */
+  /** Drop a new placement of `kind` at (x,z) facing `rotationY`; stamps its footprint into the grid. */
   add(kind: string, x: number, z: number, rotationY: number): PlacementRecord {
-    const placement: Placement = { kind, x, z, rotationY };
-    const rec: PlacementRecord = { placement, entities: spawnPlacement(this.world, placement) };
+    const rec: PlacementRecord = { placement: { kind, x, z, rotationY }, entities: spawnPlacement(this.world, { kind, x, z, rotationY }), stamped: new Set() };
     this.records.push(rec);
-    void this.recompute();
+    void this.stamp(rec);
     return rec;
   }
 
-  /** Rigidly shift a placement and its entities by (dx,dz). Cheap by design — recompute the bake on drop. */
+  /** Rigidly shift a placement and its entities by (dx,dz). Cheap by design — re-stamp on `commitMove`. */
   translate(rec: PlacementRecord, dx: number, dz: number): void {
     rec.placement.x += dx;
     rec.placement.z += dz;
@@ -80,19 +82,34 @@ export class PlacementStore {
     }
   }
 
-  /** Re-face a placement: respawn its entities at the new heading (so a composite re-lays correctly). */
-  setRotation(rec: PlacementRecord, rotationY: number): void {
-    rec.placement.rotationY = rotationY;
-    this.respawn(rec);
-    void this.recompute();
+  /** Finalise a drag: clear the old footprint, bake the new one at the moved position. */
+  async commitMove(rec: PlacementRecord): Promise<void> {
+    this.unstamp(rec);
+    await this.stamp(rec);
   }
 
-  /** Remove a placement and every entity it spawned. */
+  /** Re-face a placement: respawn its entities and re-bake its footprint at the new heading. */
+  async setRotation(rec: PlacementRecord, rotationY: number): Promise<void> {
+    rec.placement.rotationY = rotationY;
+    this.unstamp(rec);
+    this.respawn(rec);
+    await this.stamp(rec);
+  }
+
+  /** Remove a placement: clear its footprint and destroy every entity it spawned. */
   remove(rec: PlacementRecord): void {
+    this.unstamp(rec);
     for (const e of rec.entities) this.world.destroyEntity(e);
     const i = this.records.indexOf(rec);
     if (i >= 0) this.records.splice(i, 1);
-    void this.recompute();
+  }
+
+  /** Re-stamp every placement footprint into the grid — after a mountain re-bake cleared the grid. */
+  async restampAll(): Promise<void> {
+    for (const rec of this.records) {
+      rec.stamped = new Set();
+      await this.stamp(rec);
+    }
   }
 
   /** The placement that owns an entity (any of its spawned set) — a clicked camp guard resolves to its camp. */
@@ -105,37 +122,41 @@ export class PlacementStore {
     return this.records.flatMap((r) => r.entities);
   }
 
-  /**
-   * Re-derive `effective = base ∪ (footprints of all autoBake placements)`. Called after any layout change
-   * and after the mountain re-bake. Async because footprints come from GLB templates the loader fetches;
-   * a `version` guard drops a recompute that a newer one has overtaken, so rapid edits converge cleanly.
-   */
-  async recompute(): Promise<void> {
-    const v = ++this.version;
+  // ── footprint stamping ─────────────────────────────────────────────────────────────────────────────
 
-    // Footprints accumulate into a scratch grid (clear to start) so we never read a half-updated base.
-    const footprint = new CollisionGrid({
-      width: this.base.width,
-      height: this.base.height,
-      cellSize: this.base.cellSize,
-      originX: this.base.originX,
-      originZ: this.base.originZ,
+  /** The cells a placement's footprint covers — its GLB template baked at its transform — or empty (no bake). */
+  private async footprintCells(rec: PlacementRecord): Promise<Set<number>> {
+    const def = placementKind(rec.placement.kind);
+    if (!def?.autoBake) return new Set();
+    const template = await this.models.load(def.ghostAssetId).catch(() => null);
+    if (!template) return new Set();
+    const scratch = new CollisionGrid({
+      width: this.grid.width,
+      height: this.grid.height,
+      cellSize: this.grid.cellSize,
+      originX: this.grid.originX,
+      originZ: this.grid.originZ,
     });
-    for (const rec of this.records) {
-      const def = placementKind(rec.placement.kind);
-      if (!def?.autoBake) continue;
-      const template = await this.models.load(def.ghostAssetId).catch(() => null);
-      if (this.version !== v) return; // superseded by a newer recompute — abandon this stale pass
-      if (!template) continue;
-      bakeTemplateFootprint(template, footprint, rec.placement.x, rec.placement.z, rec.placement.rotationY, def.ghostScale ?? 1);
-    }
-    if (this.version !== v) return;
+    bakeTemplateFootprint(template, scratch, rec.placement.x, rec.placement.z, rec.placement.rotationY, def.ghostScale ?? 1);
+    const cells = new Set<number>();
+    for (let i = 0; i < scratch.cells.length; i++) if (scratch.cells[i]) cells.add(i);
+    return cells;
+  }
 
-    // effective = base ∪ footprint, reading base NOW so any brush stroke that landed mid-recompute is kept.
-    const eff = this.effective.cells;
-    const b = this.base.cells;
-    const f = footprint.cells;
-    for (let i = 0; i < eff.length; i++) eff[i] = b[i]! | f[i]! ? 1 : 0;
+  /** Bake the footprint INTO the grid and record its cells (the auto-bake-on-placement). */
+  private async stamp(rec: PlacementRecord): Promise<void> {
+    const cells = await this.footprintCells(rec);
+    for (const i of cells) this.grid.cells[i] = 1;
+    rec.stamped = cells;
+    this.onChanged();
+  }
+
+  /** Clear this placement's footprint cells, except any another placement still owns. Leaves the rest alone. */
+  private unstamp(rec: PlacementRecord): void {
+    for (const i of rec.stamped) {
+      if (!this.records.some((r) => r !== rec && r.stamped.has(i))) this.grid.cells[i] = 0;
+    }
+    rec.stamped = new Set();
     this.onChanged();
   }
 

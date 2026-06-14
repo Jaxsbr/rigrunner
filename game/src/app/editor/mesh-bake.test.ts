@@ -28,22 +28,25 @@ describe('bakeTemplateFootprint', () => {
     expect(grid.isBlocked(3.5, 0)).toBe(false); // well clear of the doubled box
   });
 
-  it('moving a placement leaves no orphan: effective = base ∪ rebake clears the old cells', () => {
-    const base = CollisionGrid.blank(20, 0.5); // a clear hand layer
-    const effective = CollisionGrid.blank(20, 0.5);
-    const rebakeAt = (x: number, z: number): void => {
-      const footprint = CollisionGrid.blank(20, 0.5);
-      bakeTemplateFootprint(standingBox(), footprint, x, z, 0, 1);
-      for (let i = 0; i < effective.cells.length; i++) {
-        effective.cells[i] = base.cells[i]! | footprint.cells[i]! ? 1 : 0;
-      }
+  it('moving a placement leaves no orphan: un-stamp the old cells, stamp the new ones', () => {
+    // Mirrors the store's stamp/un-stamp on the one authoritative grid: stamp records the cells it set, a
+    // move clears exactly them, then stamps at the new position — so the old footprint never lingers.
+    const grid = CollisionGrid.blank(20, 0.5);
+    const stampAt = (x: number, z: number): Set<number> => {
+      const scratch = CollisionGrid.blank(20, 0.5);
+      bakeTemplateFootprint(standingBox(), scratch, x, z, 0, 1);
+      const cells = new Set<number>();
+      for (let i = 0; i < scratch.cells.length; i++) if (scratch.cells[i]) { grid.cells[i] = 1; cells.add(i); }
+      return cells;
     };
+    const unstamp = (cells: Set<number>): void => { for (const i of cells) grid.cells[i] = 0; };
 
-    rebakeAt(0, 0);
-    expect(effective.isBlocked(0, 0)).toBe(true);
+    let stamped = stampAt(0, 0);
+    expect(grid.isBlocked(0, 0)).toBe(true);
 
-    rebakeAt(8, 8); // "move" the placement
-    expect(effective.isBlocked(0, 0)).toBe(false); // the old footprint is gone — no orphan
-    expect(effective.isBlocked(8, 8)).toBe(true);
+    unstamp(stamped); // move: clear the old footprint…
+    stamped = stampAt(8, 8); // …then stamp the new one
+    expect(grid.isBlocked(0, 0)).toBe(false); // the old footprint is gone — no orphan
+    expect(grid.isBlocked(8, 8)).toBe(true);
   });
 });

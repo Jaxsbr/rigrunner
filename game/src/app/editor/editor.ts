@@ -24,8 +24,10 @@ const MAP_FILE = 'real-game.map.json';
  *  - PAINT — LEFT-drag paints collision, RIGHT erases; Bake re-derives the wall from the mountain mesh.
  *  - PLACE — drop / move / rotate / delete the authored layout (structures, props, camps, piles).
  *
- * Collision is two layers: `base` (the hand-painted wall) and `effective = base ∪ placement footprints`
- * (what the game loads + the wash shows). Save writes both plus the placement list. No driving sim runs.
+ * Collision is ONE authoritative grid — the exact `blocked` bytes on disk. The editor loads it verbatim
+ * (no re-derivation, so it always shows what you saved), the brush edits it directly (an erase sticks),
+ * and a placed solid kind's footprint is stamped into it. Save writes that grid + the placement list.
+ * "Bake from mesh" is destructive (it replaces the painted wall) so it asks first. No driving sim runs.
  * (`docs/specs/map-editor-spec.md`.)
  */
 export async function startEditor(): Promise<void> {
@@ -34,32 +36,28 @@ export async function startEditor(): Promise<void> {
   const world = new World();
   seedStaticStructures(world); // mountain mesh + bench — the map-free backdrop the layout sits in
 
-  // The two collision layers, fetched live from disk. `effective` (the game's `blocked`) is the wash +
-  // save surface; `base` (the editor's `baseBlocked`, falling back to `blocked` on a legacy map) is the
-  // hand layer placement footprints union onto, so a moved/removed placement never orphans baked cells.
+  // The collision grid, fetched live from disk and loaded VERBATIM — what you saved is what you see.
   const map = await loadMap();
-  const effective = CollisionGrid.fromMap(map);
-  const base = CollisionGrid.fromMap({ ...map, blocked: map.baseBlocked ?? map.blocked });
+  const grid = CollisionGrid.fromMap(map);
 
   const stage = new Stage(canvas);
   const views = new EntityViews(stage.scene);
   const controls = new OrthoControls(canvas);
   const picker = new Picker(controls.camera, canvas, views);
-  const wash = new PaintOverlay(stage.scene, effective);
+  const wash = new PaintOverlay(stage.scene, grid);
   const brush = new BrushCursor(stage.scene);
 
-  // The authored layout: spawn the map's placements as entities + keep the bake honest as it changes.
-  const store = new PlacementStore(world, base, effective, () => wash.redraw());
+  // The authored layout: spawn the map's placements as entities + stamp/un-stamp their footprints.
+  const store = new PlacementStore(world, grid, () => wash.redraw());
   store.load(map.placements ?? []);
 
   // `ui` is referenced by the controllers' callbacks before it's constructed, so bind it lazily.
   let ui: EditorUI;
   const place = new PlaceController(canvas, stage.scene, picker, store, (m) => ui.setStatus(m));
   const paint = new PaintController(
-    canvas, picker, effective, wash,
+    canvas, picker, grid, wash,
     (rect) => brush.set(rect),
     () => ui.setBrush(paint.brushRadius),
-    base, // mirror strokes into the hand layer so they survive the next recompute
   );
 
   ui = new EditorUI({
@@ -68,9 +66,17 @@ export async function startEditor(): Promise<void> {
       place.setActive(mode === 'place');
     },
     onBake: () => {
-      // Re-derive the wall into the BASE layer, then re-union the placement footprints over it.
-      const ok = bakeMountainFootprint(world, views, stage.scene, base);
-      void store.recompute();
+      // Destructive: this REPLACES the painted collision with the mountain mesh footprint, so confirm
+      // first — a stray click must never wipe hand-painted work. On confirm, re-derive the wall then
+      // re-stamp the placement footprints so structures stay solid.
+      if (!confirm('Bake from mesh REPLACES the painted collision with the mountain mesh footprint, '
+                 + 'discarding hand-painted edits. Continue?')) {
+        ui.setStatus('Bake cancelled — your painted collision is untouched.');
+        return;
+      }
+      const ok = bakeMountainFootprint(world, views, stage.scene, grid);
+      wash.redraw();
+      void store.restampAll();
       ui.setStatus(ok ? 'Baked the wall from the mountain mesh. Refine by painting, then Save.'
                       : 'Mountain mesh not loaded yet — try again in a moment.');
     },
@@ -101,13 +107,12 @@ export async function startEditor(): Promise<void> {
     return (await res.json()) as WorldMap;
   }
 
-  /** POST the map — the effective grid as `blocked`, the hand layer as `baseBlocked`, plus the layout. */
+  /** POST the map — the collision grid as `blocked` (verbatim) plus the authored layout. */
   async function saveMap(): Promise<void> {
     ui.setStatus('Saving…');
     try {
       const data: WorldMap = {
-        ...effective.toMap(),
-        baseBlocked: base.toMap().blocked,
+        ...grid.toMap(),
         placements: store.placements(),
       };
       const res = await fetch('/__map', {
